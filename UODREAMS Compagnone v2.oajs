@@ -1,4 +1,4 @@
-// UODREAMS COMPAGNONE 2026 - ciao
+// UODREAMS COMPAGNONE 2026 - ciaone
 var targetGraphics = 'any'; 
 var targetFlags = 'ignoreself|ignorefriends|live|inlos|near'; 
 var targetRange = 12; 
