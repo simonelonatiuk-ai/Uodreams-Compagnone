@@ -2144,7 +2144,7 @@ function CheckCurseAndPoison() {
             ClearTargetHard();
 
             if (IsLagPlayer()) {
-                Orion.CharPrint(Player.Serial(), 44, 'REMOVE CURSE LAG MODE');
+                //Orion.CharPrint(Player.Serial(), 44, 'REMOVE CURSE LAG MODE');
 
                 Orion.Cast('209');
 
@@ -2154,7 +2154,7 @@ function CheckCurseAndPoison() {
 
                 Orion.Wait(350);
             } else {
-                Orion.CharPrint(Player.Serial(), 65, 'REMOVE CURSE NORMAL MODE');
+                //Orion.CharPrint(Player.Serial(), 65, 'REMOVE CURSE NORMAL MODE');
 
                 Orion.Cast('209');
 
