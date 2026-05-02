@@ -1,4 +1,4 @@
-// Paste your code here :)// Parametri per trovare i nemici
+// UODREAMS COMPAGNONE 2026
 var targetGraphics = 'any'; 
 var targetFlags = 'ignoreself|ignorefriends|live|inlos|near'; 
 var targetRange = 12; 
