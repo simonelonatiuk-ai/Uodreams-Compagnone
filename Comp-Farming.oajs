@@ -1,0 +1,360 @@
+var bellSerial = '0x40144403';
+var bellPos = { x: 417, y: 246, z: 23 };
+var bonesGraphic = '0x0F80';
+var bagOfSendingSerial = '0x407F88C9';
+var targetRange = 20; // Aumentato a 20 per evitare il "tira e molla" ai bordi dello schermo
+var targetFlags = 'ignoreself|ignorefriends|live|inlos|near';
+var targetNoto = 'gray|criminal|red|enemy|orange';
+
+// Frase esatta dal server per evitare spam
+var msgAlreadySummoned = "The ferry man has already been summoned. There is no need to ring for him again.";
+var lastClickTime = 0; // Variabile per gestire il cooldown dei click
+
+const CALDERONE_SERIAL = '0x407AA952';
+const COLORE_GENERICO = '0x0AE0';
+const GRAFICA_SABBIA = '0xA3E8';
+const NOME_UOVA_PARZIALE = 'Umbrascale Dragon Egg';
+
+// Lista seriali da ignorare se non smeltabili
+var ignoreList = [];
+
+function BoneScavengerSimple() {
+    var ignoraSerial = parseInt('0x4053424E');
+    var piccozzaID = '0x0E86';
+    var boneGraphics = ['0xAF1E', '0xA331', '0xABCE', '0xABCF', '0xABD0'];
+
+    var picca = Orion.FindType(piccozzaID, '-1', 'backpack');
+    if (!picca.length) {
+        Orion.CharPrint(Player.Serial(), 33, '⚠️ Piccozza non trovata nello zaino!');
+        return;
+    }
+    Orion.Equip(picca[0]);
+    Orion.CharPrint(Player.Serial(), 65, '🪓 Piccozza equipaggiata');
+
+    while (!Player.Dead()) {
+        var bones = Orion.FindTypeEx(boneGraphics.join('|'), '-1', 'ground', 'item', 14);
+
+        for (var i = 0; i < bones.length; i++) {
+            var bone = bones[i];
+            if (!bone || bone.Serial() === ignoraSerial) continue;
+
+            Orion.CharPrint(bone.Serial(), 65, '*TROVATO*');
+            Orion.Wait(200);
+
+            Orion.UseObject(bone.Serial());
+            Orion.Wait(300);
+
+            Orion.UseObject(picca[0]);
+            if (Orion.WaitForTarget(1000)) {
+                Orion.TargetObject(bone.Serial());
+                Orion.Wait(300);
+            }
+        }
+
+        Orion.Wait(500);
+    }
+}
+
+function StartDragonFarmer() {
+    Orion.Print(65, '--- Avvio Farmer Campana Drago ---');
+
+    // Inizializziamo il profilo standard per buff/difese
+    if (typeof StartProfile === 'function') {
+        StartProfile('DragonFarmer', null, null, false, false);
+    }
+
+    Orion.IgnoreReset();
+
+    while (!Player.Dead()) {
+        // 1. Sopravvivenza (Blood Oath)
+        HandleBloodOath();
+
+        // 2. Controllo Peso e invio in Banca
+        CheckWeightAndSend();
+
+        // 3. Ricerca del Drago (Nemico) - Range ampio per non perderlo mai
+        var enemies = Orion.FindTypeEx('any', 'any', 'ground', targetFlags, targetRange, targetNoto);
+
+        if (enemies.length > 0) {
+            var target = enemies[0].Serial();
+            Orion.Print(33, 'Drago rilevato! Attacco in corso...');
+
+            // Honor sul bersaglio
+            HonorTarget(target);
+
+            // Combattimento "Sticky" (Rimane in questo blocco finché il drago non muore)
+            ExecuteCombat(target);
+
+            // Dopo il combattimento, loot rapido delle ossa a terra
+            LootBones();
+
+            // Pulizia totale dopo il loot per prepararsi al prossimo spawn
+            Orion.ClearJournal();
+            lastClickTime = 0; // Resettiamo il cooldown per poter cliccare subito dopo la morte
+
+            // IL DRAGO E' MORTO E LOOTATO: ora possiamo tornare alla campana
+            ReturnToBell();
+        } else {
+            // 4. Nessun Drago in vista.
+            // Se per caso ci siamo allontanati troppo (es. respawn), torniamo alla campana.
+            // Uso > 2 così non "balla" se è a 1 tile di distanza.
+            if (Orion.GetDistance(bellPos.x, bellPos.y) > 2) {
+                ReturnToBell();
+            } else {
+                // SIAMO ALLA CAMPANA: LOGICA ANTI-SPAM
+                var currentTime = Orion.Now();
+
+                // Se abbiamo già letto il messaggio di "già evocato", aspettiamo e basta
+                if (Orion.InJournal(msgAlreadySummoned)) {
+                    Orion.Print(33, 'Drago evocato ma non ancora visibile. Attendo spawn...');
+                    Orion.Wait(2000); // Pausa, poi il loop riparte e se il drago è comparso lo attacca
+                    continue;
+                }
+
+                // Cooldown: Non cliccare la campana più di una volta ogni 7 secondi
+                if (currentTime - lastClickTime > 7000) {
+                    Orion.ClearJournal(); // Puliamo prima del click
+                    Orion.Print(65, 'Attivazione campana...');
+                    Orion.UseObject(bellSerial);
+                    lastClickTime = currentTime;
+
+                    Orion.Wait(1500); // Diamo tempo al server di rispondere e scrivere nel journal
+
+                    if (Orion.InJournal(msgAlreadySummoned)) {
+                        Orion.Print(33, 'Server conferma: Drago già presente.');
+                    }
+                } else {
+                    // Se siamo nel cooldown, aspettiamo semplicemente senza inviare pacchetti
+                    Orion.Wait(500);
+                }
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function StopDragonFarmer() {
+    Orion.Terminate('StartDragonFarmer');
+    Orion.WarMode(false);
+    Orion.Print(33, 'Script Fermato.');
+}
+
+function ReturnToBell() {
+    if (Orion.GetDistance(bellPos.x, bellPos.y) > 2) {
+        Orion.Print(55, 'Torno alla campana...');
+        // WalkTo(x, y, z, distanceXY, distanceZ, run, openDoor, timeout)
+        Orion.WalkTo(bellPos.x, bellPos.y, bellPos.z, 1, 255, 1, 2, 5000);
+        Orion.Wait(500);
+    }
+}
+
+function LootBones() {
+    Orion.Print(55, 'Raccolta ossa...');
+    var bones = Orion.FindType(bonesGraphic, 'any', 'ground', 'item', 3);
+    while (bones.length > 0) {
+        Orion.MoveItem(bones[0], 0, 'backpack');
+        Orion.Wait(600);
+        bones = Orion.FindType(bonesGraphic, 'any', 'ground', 'item', 3);
+    }
+}
+
+function TurboRandomWander() {
+    var offsetX = Orion.Random(31) - 15;
+    var offsetY = Orion.Random(31) - 15;
+    var destX = Player.X() + offsetX;
+    var destY = Player.Y() + offsetY;
+
+    Orion.Print(55, 'Esplorazione veloce...');
+    // Corsa forzata (run=1)
+    Orion.WalkTo(destX, destY, Player.Z(), 1, 255, 1, 1, 1200);
+    Orion.Wait(100);
+}
+
+function UseBagOfSending() {
+    var bag = Orion.FindType('0x0E76', '-1', 'backpack');
+
+    if (!bag.length) {
+        Orion.CharPrint(Player.Serial(), 33, "Bag of Sending non trovata nello zaino!");
+        return;
+    }
+
+    Orion.PauseScript('RaccogliSoldi');
+    Orion.CharPrint(Player.Serial(), 55, "Golddigger messo in pausa");
+
+    var gold = Orion.FindType('0x0EED', '-1', 'backpack');
+    if (!gold.length) {
+        Orion.CharPrint(Player.Serial(), 33, "Nessun oro trovato nello zaino!");
+        Orion.ResumeScript('RaccogliSoldi');
+        return;
+    }
+
+    Orion.UseObject(bag[0]);
+    if (Orion.WaitForTarget(3000)) {
+        Orion.TargetObject(gold[0]);
+        Orion.CharPrint(Player.Serial(), 65, "Oro spedito in banca");
+    } else {
+        Orion.CharPrint(Player.Serial(), 33, "Nessun target ricevuto da Bag of Sending");
+    }
+
+    Orion.Wait(800); // attesa finale
+    Orion.ResumeScript('RaccogliSoldi');
+    Orion.CharPrint(Player.Serial(), 65, "▶️ Golddigger riattivato");
+}
+
+function SmeltAndStack() {
+    Orion.Print(68, '--- Inizio Ciclo Smelting ---');
+    ignoreList = [];
+
+    while (!Player.Dead()) {
+        var itemToSmelt = null;
+
+        // --- 1. RICERCA PER COLORE (Armature, Scudi, ecc.) ---
+        var colorItems = Orion.FindType('any', COLORE_GENERICO, 'backpack');
+        if (colorItems.length > 0) {
+            for (var i = 0; i < colorItems.length; i++) {
+                if (ignoreList.indexOf(colorItems[i]) === -1) {
+                    itemToSmelt = colorItems[i];
+                    break;
+                }
+            }
+        }
+
+        // --- 2. RICERCA PER NOME (Uova varianti Umbrascale) ---
+        if (!itemToSmelt) {
+            var allInBackpack = Orion.FindType('any', 'any', 'backpack');
+            for (var i = 0; i < allInBackpack.length; i++) {
+                var serial = allInBackpack[i];
+                if (ignoreList.indexOf(serial) !== -1) continue;
+
+                var obj = Orion.FindObject(serial);
+                if (obj && obj.Exists()) {
+                    var props = obj.Properties();
+                    if (props && props.indexOf(NOME_UOVA_PARZIALE) !== -1) {
+                        itemToSmelt = serial;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // --- 3. AZIONE DI SMELTING ---
+        if (itemToSmelt) {
+            Orion.Print(55, 'Provo a smeltare: ' + itemToSmelt);
+
+            Orion.UseObject(CALDERONE_SERIAL);
+
+            if (Orion.WaitForTarget(2000)) {
+                Orion.TargetObject(itemToSmelt);
+                // Attesa per permettere al server di processare l'azione
+                Orion.Wait(1000);
+            }
+
+            // Verifica se l'oggetto è ancora presente
+            // Se esiste ancora, significa che non è stato smeltato (protetto o errore)
+            if (Orion.FindObject(itemToSmelt)) {
+                Orion.Print(33, 'Oggetto non smeltato. Lo ignoro e procedo.');
+                ignoreList.push(itemToSmelt);
+            }
+
+            Orion.Wait(100);
+        } else {
+            // --- 4. FINE OGGETTI: ACCUMULO SABBIA ---
+            Orion.Print(33, 'Nessun altro oggetto trovato. Raggruppo la sabbia...');
+            StackSand();
+            break;
+        }
+    }
+
+    Orion.Print(68, '--- Operazione Completata ---');
+}
+
+function StackSand() {
+    var sandPiles = Orion.FindType(GRAFICA_SABBIA, 'any', 'backpack');
+
+    if (sandPiles.length < 2) {
+        Orion.Print(25, 'Meno di 2 pile di sabbia trovate. Nulla da unire.');
+        return;
+    }
+
+    var masterPile = sandPiles[0];
+
+    for (var i = 1; i < sandPiles.length; i++) {
+        var currentPile = sandPiles[i];
+        if (currentPile !== masterPile && Orion.FindObject(currentPile)) {
+            Orion.MoveItem(currentPile, 0, masterPile);
+            Orion.Wait(600);
+        }
+    }
+
+    Orion.Print(25, 'Sabbia raggruppata.');
+}
+
+function StartSmelting() {
+    Orion.Exec('SmeltAndStack');
+}
+
+function CercaOggettoTerra() {
+    Orion.Print('0x60', '▶ Cercatore oggetti AVVIATO');
+    Shared.AddVar('cerca_attivo', true);
+
+    while (!Player.Dead() && Shared.GetVar('cerca_attivo')) {
+        var items = Orion.FindList('oggettiaterra', 'ground', null, 24);
+
+        for (var i = 0; i < items.length; i++) {
+            var obj = Orion.FindObject(items[i]);
+
+            if (obj) {
+                Orion.CharPrint(obj.Serial(), 65, '*TROVATO*');
+                Orion.PlayWav('C:\\beep.wav');
+                Orion.Wait(200);
+                Orion.CharPrint(obj.Serial(), 65, '*TROVATO*');
+                Orion.Wait(200);
+                Orion.CharPrint(obj.Serial(), 65, '*TROVATO*');
+            }
+        }
+
+        Orion.Wait(500);
+    }
+
+    Orion.Print('0x20', '⛔ Cercatore oggetti STOPPATO');
+    Shared.RemoveVar('cerca_attivo');
+    GUI(); // aggiorna la GUI
+}
+
+function WalkToRailWithCombat(x, y) {
+    while (!Player.Dead() && Orion.GetDistance(x, y) > 2) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var target = FindNearestEnemy();
+        if (target) {
+            // Se vede un nemico nel range (12 tile), si ferma e lo uccide
+            AttackNearestEnemy();
+        } else {
+            // Se la strada è libera, cammina verso il punto per 400ms poi ricontrolla
+            Orion.WalkTo(x, y, Player.Z(), 1, 255, 1, 1, 400);
+        }
+        Orion.Wait(50);
+    }
+}
+
+function CheckWeightAndSend() {
+    if (Player.Weight() >= (Player.MaxWeight() - 30)) {
+        Orion.Print(33, 'Zaino quasi pieno. Invio ossa in banca...');
+
+        var bonesInPack = Orion.FindType(bonesGraphic, 'any', 'backpack');
+        if (bonesInPack.length > 0) {
+            var bag = Orion.FindObject(bagOfSendingSerial);
+            if (bag) {
+                Orion.UseObject(bagOfSendingSerial);
+                if (Orion.WaitForTarget(2000)) {
+                    Orion.TargetObject(bonesInPack[0]);
+                    Orion.Wait(1000);
+                    Orion.Print(65, 'Ossa inviate correttamente.');
+                }
+            } else {
+                Orion.Print(33, 'ERRORE: Bag of Sending non trovata!');
+            }
+        }
+    }
+}

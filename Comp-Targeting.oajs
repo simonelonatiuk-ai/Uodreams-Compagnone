@@ -1,0 +1,230 @@
+function isIgnoredSummon(mob) {
+    if (!mob) return false;
+
+    var graphic = "";
+    if (mob.Graphic) {
+        graphic = mob.Graphic().toString().toLowerCase();
+    }
+
+    var name = (mob.Name ? (mob.Name() || "") : "").toLowerCase();
+    var props = (mob.Properties ? (mob.Properties() || "") : "").toLowerCase();
+
+    // ENERGY VORTEX
+    if (graphic === '0x00a4') return true;
+
+    // BLADE SPIRITS
+    if (graphic === '0x023e') return true;
+
+    // REVENANT
+    if (name.indexOf('revenant') !== -1 || props.indexOf('revenant') !== -1) return true;
+
+    // LICH evocato
+    if (graphic === '0x0018' && props.indexOf('summoned') !== -1) return true;
+
+    return false;
+}
+
+function FindNearestEnemy() {
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) {
+        Orion.Ignore(friends[i]);
+    }
+
+    var enemies = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'ignoreself|ignorefriends|live|inlos|near',
+        17,
+        'gray|criminal|red|enemy|orange'
+    );
+
+    var validEnemies = enemies.filter(function (mob) {
+
+        // ignora mob già marcati
+        if (ignoredMobs[mob.Serial()]) {
+            return false;
+        }
+
+        // ✅ IGNORA EV/RC (summon dei compagni)
+        if (isIgnoredSummon(mob)) {
+            Orion.Ignore(mob.Serial());
+            return false;
+        }
+
+        return true;
+    });
+
+    if (validEnemies.length > 0) {
+        validEnemies.sort(function (a, b) {
+            return a.Distance() - b.Distance();
+        });
+        return validEnemies[0];
+    }
+
+    return null;
+}
+
+function FindNearestEnemyMephitis() {
+    // Non resetto IgnoreReset qui per non rompere ignore dinamici;
+    // se vuoi reset periodico dimmelo e lo aggiungo.
+
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) {
+        Orion.Ignore(friends[i]);
+    }
+
+    // Mephitis: range corto per "aggancio" rapido (tu avevi 3)
+    var enemies = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'ignoreself|ignorefriends|live|inlos|near',
+        6, // ✅ un filo più ampio (così lo prende prima e segue meglio)
+        'gray|criminal|red|enemy|orange'
+    );
+
+    if (!enemies || enemies.length === 0) return null;
+
+    // Filtra validi
+    var valid = [];
+    for (var j = 0; j < enemies.length; j++) {
+        var mob = enemies[j]; // ✅ è già un oggetto
+
+        if (!mob || !mob.Serial || !mob.Serial()) continue;
+
+        // ignorati "persistenti" (irraggiungibili ecc)
+        if (ignoredMobs[mob.Serial()]) continue;
+
+        // ignora summon (EV/RC)
+        if (isIgnoredSummon(mob)) {
+            Orion.Ignore(mob.Serial());
+            continue;
+        }
+
+        // sicurezza: deve essere vivo e targettabile
+        if (mob.Hits && mob.Hits() <= 0) continue;
+
+        valid.push(mob);
+    }
+
+    if (valid.length === 0) return null;
+
+    valid.sort(function (a, b) {
+        return a.Distance() - b.Distance();
+    });
+
+    return valid[0];
+}
+
+function GetClosestEnemySolo() {
+    Orion.IgnoreReset();
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) {
+        Orion.Ignore(friends[i]);
+    }
+
+    // FindTypeEx qui ritorna OGGETTI, non seriali
+    var enemies = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'ignoreself|ignorefriends|live|inlos|mobile',
+        10,
+        'gray|criminal|red|orange|enemy'
+    );
+
+    // ✅ filtra EV/RC e roba ignorata
+    var filtered = [];
+    for (var j = 0; j < enemies.length; j++) {
+        var o = enemies[j]; // <-- QUESTO è l'oggetto
+        if (!o) continue;
+
+        // se in mappa ignorati
+        if (ignoredMobs[o.Serial()]) continue;
+
+if (isIgnoredSummon(o)) {
+    Orion.Ignore(o.Serial());
+    ignoredMobs[o.Serial()] = true;   // ✅ IMPORTANTISSIMO
+    continue;
+}
+
+
+        filtered.push(o);
+    }
+
+    if (filtered.length > 0) {
+        filtered.sort(function (a, b) {
+            return a.Distance() - b.Distance();
+        });
+        return filtered[0];
+    }
+
+    return null;
+}
+
+
+function ResetIgnoredMobs() {
+    ignoredMobs = {};
+    Orion.IgnoreReset();
+    Orion.CharPrint(Player.Serial(), 65, "Lista ignorati azzerata");
+}
+
+// === TROVA NEMICO PIÙ VICINO ===
+function FindNearestEnemy_PvP() {
+    // reset ignore ogni 1s per scorrere
+    var resetTime = 800;
+    var now = Orion.Now();
+    var last = Orion.GetGlobal("FindNearestEnemy_PvP_LastTime");
+    if (now - last > resetTime) Orion.IgnoreReset();
+
+    Orion.Ignore('self');
+
+    // ricerca dei modelli umani (UO standard)
+    var types = "0x0190|0x0191|0x025D|0x025E|0x029A|0x029B|0x02EC|0x0317|0x031F";
+    var enemies = Orion.FindType(types, "-1", "ground", "near|mobile|live|ignorefriends", 18, "enemy|criminal|gray|orange|red");
+
+    if (!enemies.length) {
+        Orion.IgnoreReset();
+        Orion.SetGlobal('global_enemy', '0x000');
+        return '';
+    }
+
+    Orion.SetGlobal("FindNearestEnemy_PvP_LastTime", Orion.Now());
+    // ignora quello selezionato per poter ciclare al prossimo
+    Orion.Ignore(enemies[0]);
+    return enemies[0];
+}
+
+function FindNearestEnemy_OAKS() {
+
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) {
+        Orion.Ignore(friends[i]);
+    }
+
+    var enemies = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'ignoreself|ignorefriends|live|inlos|near',
+        4, // 🔥 RAGGIO STRETTO
+        'gray|criminal|red|enemy|orange|blue'
+    );
+
+    if (!enemies.length) return null;
+
+    enemies.sort(function (a, b) {
+        return a.Distance() - b.Distance();
+    });
+
+    return enemies[0];
+}

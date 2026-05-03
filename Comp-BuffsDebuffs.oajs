@@ -1,0 +1,593 @@
+function AutoBushidoAbilities() {
+    var lastEvasionTime = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        var attackerSerial = Orion.ClientLastAttack();
+        var attacker = Orion.FindObject(attackerSerial);
+        // ✅ Attiva solo se c'è un nemico valido
+        if (!attacker || attacker.Distance() > 10 || attacker.Hits() <= 0) {
+            Orion.Wait(200);
+            continue;
+        }
+        var hpPercent = (Player.Hits() / Player.MaxHits()) * 100;
+        var now = Orion.Now();
+
+        // Sotto al 25% → Confidence
+        if (hpPercent < 25 && !Orion.BuffExists('Confidence')) {
+            Orion.Cast('Confidence');
+            Orion.Wait(200);
+        }
+        // Sotto al 50% → Evasion se non già attivo e cooldown passato
+        else if (hpPercent < 50 && !Orion.BuffExists('Evasion') && (now - lastEvasionTime > 20000)) {
+            Orion.Cast('Evasion');
+            lastEvasionTime = now;
+            Orion.Wait(200);
+        }
+        // Default → Counter Attack se nessun altro attivo
+        else if (!Orion.BuffExists('Counter Attack') &&
+                 !Orion.BuffExists('Confidence') &&
+                 !Orion.BuffExists('Evasion')) {
+            Orion.Cast('Counter Attack');
+            Orion.Wait(200);
+        }
+        Orion.Wait(100);
+    }
+}
+
+function AutoConsecrate() {
+    var consecrateBuff = 'Consecrate Weapon';
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var target = Orion.FindObject(Orion.ClientLastAttack());
+
+        if (target && target.Hits() > 0 && target.Distance() <= 15 ) {
+            if (!Orion.BuffExists(consecrateBuff)) {
+                Orion.Cast('Consecrate Weapon');
+                Orion.Wait(600);
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function AutoDivine() {
+    var divineBuff = 'Divine Fury';
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var target = Orion.FindObject(Orion.ClientLastAttack());
+
+        if (target && target.Hits() > 0 && target.Distance() <= 15) {
+            var sogliaStam = Player.MaxStam() * 0.8; // 🔁 80% della stamina massima
+
+            if (!Orion.BuffExists(divineBuff) || Player.Stam() < sogliaStam) {
+                Orion.Cast('Divine Fury');
+                Orion.Wait(600);
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function AutoArcheryAttack() {
+    if (Orion.GetGlobal('StopAllScripts') === 'true') {
+        return;
+    }
+
+    if (HandleBloodOath()) {
+        return;
+    }
+
+    var enemy = Orion.FindObject('myTarget');
+
+    if (!enemy || enemy.Hits() <= 0 || enemy.Distance() > 10) {
+        Orion.CharPrint(Player.Serial(), 33, "Nessun target valido selezionato");
+        return;
+    }
+
+    var currentSerial = enemy.Serial();
+
+    if (ignoredMobs[currentSerial] || isIgnoredSummon(enemy)) {
+        ignoredMobs[currentSerial] = true;
+        Orion.Ignore(currentSerial);
+        Orion.CharPrint(Player.Serial(), 33, "Target ignorato: summon/revenant");
+        return;
+    }
+
+    Orion.WarMode(true);
+
+    TryHonorEnemy(enemy);
+
+    if (HandleBloodOath()) {
+        return;
+    }
+
+    Orion.Attack(currentSerial);
+
+    Orion.CharPrint(currentSerial, 44, '*ATTACCO*: ' + enemy.Name());
+}
+
+function HonorSelf() {
+    Orion.ClearJournal();
+    Orion.CancelTarget();
+    Orion.InvokeVirtue('Honor');
+
+    if (Orion.WaitForTarget(2000)) {
+        Orion.TargetObject(Player.Serial());
+        Orion.Wait(400); // Attendi il messaggio nel journal
+
+        if (Orion.InJournal('You embrace your honor')) {
+            Orion.CharPrint(Player.Serial(), 65, "HONORATO");
+        } else if (Orion.InJournal('You must wait')) {
+            Orion.CharPrint(Player.Serial(), 33, "ASPETTA PER HONOR");
+        } else if (Orion.InJournal('You no longer embrace your honor')) {
+            Orion.CharPrint(Player.Serial(), 33, "HONOR FINITO");
+        }
+    }
+}
+
+function AutoHonorMob() {
+    var currentHonored = null;   // serial del mob attualmente honorato
+    var failedHonor = {};        // serial -> true (troppo danneggiato / self-honor)
+    var lastHonorTime = 0;       // per il cooldown tra tentativi
+    var COOLDOWN_MS = 400;      // intervallo minimo tra tentativi
+
+    function nearestEnemy() {
+        var list = Orion.FindType(
+            '-1', '-1', 'ground', 'live|ignoreself|ignorefriends',
+            12, 'gray|criminal|red|enemy|orange'
+        );
+        if (!list || !list.length) return null;
+
+        // Converte i seriali in oggetti
+        var objs = [];
+        for (var i = 0; i < list.length; i++) {
+            var o = Orion.FindObject(list[i]);
+            if (o) objs.push(o);
+        }
+        if (!objs.length) return null;
+
+        // Ordina per distanza
+        objs.sort(function(a, b){ return a.Distance() - b.Distance(); });
+        return objs[0];
+    }
+
+    function hardClearTargets() {
+    // ✅ non rompere il target manuale dello zaino
+    if (Orion.HaveTarget && Orion.HaveTarget()) return;
+
+    try { Orion.CancelTarget(); } catch(e){}
+    try { Orion.CancelWaitTarget && Orion.CancelWaitTarget(); } catch(e){}
+    try { Orion.ClearTargetQueue && Orion.ClearTargetQueue(); } catch(e){}
+    try { Orion.ClearTargets && Orion.ClearTargets(); } catch(e){}
+}
+
+
+    function tryHonor(target) {
+        if (!target) return false;
+        if (failedHonor[target.Serial()]) return false;
+
+        // pulizia minimi prima del nuovo tentativo
+        Orion.ClearJournal();
+        hardClearTargets();
+        Orion.Wait(50);
+
+        // prepara il target, poi invoca la Virtue
+        Orion.WaitTargetObject(target.Serial());
+        Orion.InvokeVirtue("Honor");
+        Orion.Wait(250);
+
+        // esiti comuni
+        if (Orion.InJournal("You started Honorable Combat")) {
+            Orion.CharPrint(target.Serial(), 65, "HONORATO → " + target.Name());
+            currentHonored = target.Serial();
+            lastHonorTime = Orion.Now();
+            return true;
+        }
+
+        if (Orion.InJournal("You cannot honor this monster because it is too damaged")) {
+            Orion.CharPrint(target.Serial(), 44, "Gia danneggiato → " + target.Name());
+            failedHonor[target.Serial()] = true;
+            lastHonorTime = Orion.Now();
+            return false;
+        }
+
+        if (Orion.InJournal("You embrace your honor")) {
+            Orion.CharPrint(Player.Serial(), 33, "Hai honorato te stesso per errore!");
+            failedHonor[target.Serial()] = true;
+            lastHonorTime = Orion.Now();
+            return false;
+        }
+
+        // Alcuni shard mostrano messaggi di attesa/cooldown
+        if (Orion.InJournal("You must wait") || Orion.InJournal("not yet recovered")) {
+            lastHonorTime = Orion.Now();
+            return false;
+        }
+
+        return false;
+    }
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        // Se avevamo un target honorato, verifica se è ancora vivo
+        if (currentHonored) {
+            var obj = Orion.FindObject(currentHonored);
+
+            // Se non esiste più o non è vivo → resetta e PULISCI tutto
+            if (!obj || obj.Hits && obj.Hits() <= 0) {
+                currentHonored = null;
+                hardClearTargets();
+                Orion.ClearJournal();
+                // piccolo respiro prima di cercare il prossimo
+                Orion.Wait(300);
+            } else {
+                // è ancora vivo: non cercare altri
+                Orion.Wait(200);
+                continue;
+            }
+        }
+
+        // Cooldown minimo tra tentativi
+        if (Orion.Now() - lastHonorTime < COOLDOWN_MS) {
+            Orion.Wait(100);
+            continue;
+        }
+
+        // Cerca il prossimo nemico
+        var enemy = nearestEnemy();
+        if (enemy && !currentHonored) {
+            tryHonor(enemy);
+        }
+
+        Orion.Wait(150);
+    }
+}
+
+function RemoveCurseSelf() {
+	Orion.Cast('209');
+	if (Orion.WaitForTarget(1000))
+		Orion.TargetObject('self');
+}
+
+function CheckCurseAndPoison() {
+    var lastRemoveCurse = 0;
+    var removeCurseCooldown = 1200;
+
+    function HasCurseDebuff() {
+        return (
+            Orion.BuffExists('Curse') ||
+            Orion.BuffExists('Corpse Skin')
+        );
+    }
+
+    function ClearTargetHard() {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+    }
+
+    function CastRemoveCurseSelf() {
+            ClearTargetHard();
+
+            if (IsLagPlayer()) {
+                //Orion.CharPrint(Player.Serial(), 44, 'REMOVE CURSE LAG MODE');
+
+                Orion.Cast('209');
+
+                if (Orion.WaitForTarget(3000)) {
+                    Orion.TargetObject('self');
+                }
+
+                Orion.Wait(350);
+            } else {
+                //Orion.CharPrint(Player.Serial(), 65, 'REMOVE CURSE NORMAL MODE');
+
+                Orion.Cast('209');
+
+                if (Orion.WaitForTarget(1200)) {
+                    Orion.TargetObject('self');
+                }
+
+                Orion.Wait(150);
+            }
+
+            ClearTargetHard();
+        }
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') {
+            return;
+        }
+
+        if (Player.Hits() < Player.MaxHits()) {
+            Orion.Wait(50);
+            continue;
+        }
+
+        if (HasCurseDebuff()) {
+            var now = Orion.Now();
+
+            if ((now - lastRemoveCurse) < removeCurseCooldown) {
+                Orion.Wait(50);
+                continue;
+            }
+
+            lastRemoveCurse = now;
+
+            CastRemoveCurseSelf();
+
+            var timeout = Orion.Now() + 1500;
+
+            while (HasCurseDebuff() && Orion.Now() < timeout && !Player.Dead()) {
+                Orion.Wait(100);
+            }
+
+            ClearTargetHard();
+
+            Orion.Wait(150);
+            continue;
+        }
+
+        Orion.Wait(100);
+    }
+}
+
+
+function CheckAndDispelRevenant() {
+    while (!Player.Dead()) {
+        var mobs = Orion.FindType('0x0190', '-1', 'ground', 'live|ignoreself', 12, 'red');
+
+        for (var i = 0; i < mobs.length; i++) {
+            var mob = Orion.FindObject(mobs[i]);
+            if (!mob) {
+                continue;
+            }
+            var mobProps = mob.Properties();
+            if (Orion.Contains(mobProps, "A Revenant")) {
+                Orion.CharPrint(mob.Serial(), 33, "Dispel Evil in corso!");
+                while (Orion.ObjectExists(mob.Serial())) {
+                    if (Player.Mana() >= 10) {
+                        Orion.Cast('Dispel Evil');
+                        Orion.Wait(500);
+                    }
+                }
+                if (!Orion.ObjectExists(mobs[i])) {
+                    Orion.CharPrint(mobs[i], 55, "Revenant rimosso!");
+                }
+            }
+        }
+        Orion.Wait(200);
+    }
+}
+
+function HandleBloodOath() {
+    if (!Orion.BuffExists('Blood Oath')) {
+        return false;
+    }
+
+    Orion.Print(33, 'BLOOD OATH RILEVATO!');
+    Orion.CharPrint(Player.Serial(), 33, '*BLOOD OATH RILEVATO!*');
+
+    // Suono una sola volta quando viene rilevato
+    Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
+
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+
+    while (Orion.BuffExists('Blood Oath') && !Player.Dead()) {
+    Orion.Wait(50);
+        Orion.Cast('209');
+
+        if (Orion.WaitForTarget(2000)) {
+            Orion.TargetObject('self');
+        }
+
+        Orion.Wait(450);
+    }
+
+    Orion.CancelTarget();
+
+    if (!Player.Dead()) {
+        Orion.CharPrint(Player.Serial(), 65, '*BLOOD OATH RIMOSSO!*');
+        Orion.Print(65, 'BLOOD OATH RIMOSSO!');
+        Orion.WarMode(true);
+    }
+
+    return true;
+}
+
+function autoRemoveBloodOath() {
+    while (true) {
+        if (Orion.BuffExists('Blood Oath')) {
+	Orion.Cast('209');
+	if (Orion.WaitForTarget(1000))
+		Orion.TargetObject('self');
+		Orion.Wait(150);
+        }
+    }
+}
+
+function Nipo() {
+    while (true) {
+        // Coordinate attuali
+        var x = Player.X();
+        var y = Player.Y();
+        var z = Player.Z();
+        var dir = Player.Direction();
+
+        // Calcola posizione dietro al player
+        if (dir === 0) y += 1; // Nord → dietro è sud
+        else if (dir === 1 || dir === 2) { x -= 1; y += 1; } // NE / Est
+        else if (dir === 3 || dir === 4) y -= 1; // Sud → dietro è nord
+        else if (dir === 5 || dir === 6) { x += 1; y -= 1; } // SW / Ovest
+        else if (dir === 7) y += 1;
+
+        var moved1 = Orion.MoveItemType('0x0EEF', 'any', 'backpack', 0, 'ground', x, y, z);
+        if (moved1) {
+            Orion.Print('✅ Oggetto 0x0EEF droppato dietro di te.');
+        } else {
+            Orion.Print('⚠️ Nessun 0x0EEF trovato.');
+        }
+
+        Orion.Wait(500);
+        var moved2 = Orion.MoveItemType('0x11EA', 'any', 'backpack', 0, 'ground', x, y, z);
+        if (moved2) {
+            Orion.Print('✅ Oggetto 0x11EA droppato dietro di te.');
+        } else {
+            Orion.Print('⚠️ Nessun 0x11EA trovato.');
+        }
+        // Attesa prima del prossimo tentativo
+        Orion.Wait(1000);
+    }
+}
+
+function AutoCurseWeapon() {
+    var THRESHOLD = 65;
+
+    while (!Player.Dead()) {
+
+        if (Player.Hits() < THRESHOLD) {
+
+            if (!Orion.BuffExists('Curse Weapon')) {
+
+                if (Player.Mana() >= 5) {
+                    Orion.Cast('Curse Weapon');
+                    Orion.Wait(600);
+                }
+
+            }
+
+        }
+
+        Orion.Wait(100);
+    }
+}
+
+function EnsureCurseWeaponActive(enemyObj) {
+    var CURSE_HP_THRESHOLD = 35; // % vita sotto la quale attivare CW
+    var MIN_MANA_FOR_CURSE = 5;  // mana minimo di sicurezza
+    var MAX_CURSE_SPAM_MS  = 2500; // anticiclo infinito: insisti max 2.5s
+
+    var hpPercent = (Player.Hits() / Player.MaxHits()) * 100;
+    if (hpPercent > CURSE_HP_THRESHOLD) return;
+    if (Orion.BuffExists('Curse Weapon')) return;
+    if (Player.Mana() < MIN_MANA_FOR_CURSE) return;
+
+    var enemy = enemyObj;
+    if (!enemy || typeof enemy.Serial !== 'function') {
+        enemy = Orion.FindObject(enemyObj);
+    }
+    if (!enemy || enemy.Hits() <= 0) return;
+    if (enemy.Distance() > 12) return;
+
+    var start = Orion.Now();
+    while (!Player.Dead()) {
+
+        hpPercent = (Player.Hits() / Player.MaxHits()) * 100;
+        if (hpPercent > CURSE_HP_THRESHOLD) break;
+        if (Orion.BuffExists('Curse Weapon')) break;
+        if (Player.Mana() < MIN_MANA_FOR_CURSE) break;
+        if (Orion.Now() - start > MAX_CURSE_SPAM_MS) break;
+
+        Orion.Cast('Curse Weapon');
+        Orion.Wait(220);
+    }
+}
+
+function AutoVampiricEmbrace() {
+    Orion.Print("AutoVampiricEmbrace avviato");
+
+    // === REAGENTI (UODREAMS) ===
+    var REAG_NOX_CRYSTAL = '0x0F8E'; // Nox Crystal
+    var REAG_PIG_IRON   = '0x0F8A'; // Pig Iron
+    var REAG_BAT_WING   = '0x0F78'; // Bat Wing
+
+    // === COMBAT CHECK ===
+    var COMBAT_GRACE_MS = 8000;
+    var lastCombatTs = 0;
+
+    function hasAllReagents() {
+        return (
+            Orion.Count(REAG_NOX_CRYSTAL, -1, 'backpack') > 0 &&
+            Orion.Count(REAG_PIG_IRON,   -1, 'backpack') > 0 &&
+            Orion.Count(REAG_BAT_WING,   -1, 'backpack') > 0
+        );
+    }
+
+    function inCombatNow() {
+        var atkSerial = Orion.ClientLastAttack();
+        var atk = atkSerial ? Orion.FindObject(atkSerial) : null;
+
+        // nemico valido vicino → combat
+        if (atk && atk.Hits() > 0 && atk.Distance() <= 12) {
+            lastCombatTs = Orion.Now();
+            return true;
+        }
+
+        // finestra di sicurezza post-combat
+        return (Orion.Now() - lastCombatTs) < COMBAT_GRACE_MS;
+    }
+
+    while (true) {
+        Orion.Wait(500);
+
+        if (Player.Dead() || Player.Hidden()) continue;
+
+        // Vampiric già attivo
+        if (Orion.BuffExists('0x75C4')) continue;
+
+        // reagenti completi
+        if (!hasAllReagents()) continue;
+
+        // solo full HP
+        if (Player.Hits() !== Player.MaxHits()) continue;
+
+        // solo fuori combat
+        if (inCombatNow()) continue;
+
+        // cast
+        Orion.CancelTarget();
+        Orion.Cast('113'); // Vampiric Embrace
+        Orion.Wait(2000);
+    }
+}
+
+function AutoLogoutOnDeath() {
+    Orion.Print('Script AutoLogoutOnDeath avviato...');
+    while (true) {
+        Orion.Wait(1000);
+       // Controlla se il personaggio è morto
+        if (Player.Dead()) {
+            Orion.LogOut();
+            break; // Termina lo script
+        }
+    }
+}
+
+function IsLagPlayer() {
+    var name = Player.Name();
+
+    if (!name) {
+        return false;
+    }
+
+    name = name.toLowerCase();
+
+    return name === 'fornace';
+}
+
+function HonorTarget(serial) {
+    if (serial) {
+        Orion.CancelTarget();
+        Orion.InvokeVirtue('Honor');
+        Orion.WaitTargetObject(serial);
+        Orion.Wait(100);
+    }
+}

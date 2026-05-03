@@ -1,44 +1,50 @@
 @echo off
 setlocal
 
-set "URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/UODREAMS%%20Compagnone%%20v2.oajs"
+set "BASE_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main"
 set "SCRIPT_DIR=%~dp0"
-set "DEST=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO.oajs"
-set "BACKUP=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO backup.oajs"
 
 echo.
 echo Aggiornamento UODREAMS Compagnone...
 echo.
-echo File destinazione:
-echo %DEST%
-echo.
 
-if exist "%DEST%" (
-    copy /Y "%DEST%" "%BACKUP%" >nul
-    echo Backup creato:
-    echo %BACKUP%
-    echo.
+:: ── Bootstrap (scarica come AGGIORNATO per revisione manuale) ─────────────────
+set "BOOTSTRAP_URL=%BASE_URL%/UODREAMS%%20Compagnone%%20v2.oajs"
+set "BOOTSTRAP_DEST=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO.oajs"
+set "BOOTSTRAP_BACKUP=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO backup.oajs"
+
+if exist "%BOOTSTRAP_DEST%" (
+    copy /Y "%BOOTSTRAP_DEST%" "%BOOTSTRAP_BACKUP%" >nul
+    echo Backup bootstrap creato.
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%URL%' -OutFile '%DEST%'"
-
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%BOOTSTRAP_URL%' -OutFile '%BOOTSTRAP_DEST%'"
 if errorlevel 1 (
-    echo.
-    echo ERRORE: download fallito.
-    if exist "%BACKUP%" (
-        copy /Y "%BACKUP%" "%DEST%" >nul
-        echo Backup ripristinato.
-    )
+    echo ERRORE: download bootstrap fallito.
+    if exist "%BOOTSTRAP_BACKUP%" ( copy /Y "%BOOTSTRAP_BACKUP%" "%BOOTSTRAP_DEST%" >nul )
     pause
     exit /b 1
 )
+echo Bootstrap scaricato: UODREAMS Compagnone AGGIORNATO.oajs
+
+:: ── Script principali (sovrascrittura diretta) ────────────────────────────────
+set FILES=Compagnone-Start.oajs Comp-Targeting.oajs Comp-CombatCore.oajs Comp-BuffsDebuffs.oajs Comp-Dungeons.oajs Comp-DoomGauntlet.oajs Comp-Farming.oajs Comp-Events.oajs Comp-Utilities.oajs
+
+for %%F in (%FILES%) do (
+    set "FILE_URL=%BASE_URL%/%%F"
+    set "FILE_DEST=%SCRIPT_DIR%%%F"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%BASE_URL%/%%F' -OutFile '%SCRIPT_DIR%%%F'"
+    if errorlevel 1 (
+        echo ERRORE: download %%F fallito.
+    ) else (
+        echo Aggiornato: %%F
+    )
+)
 
 echo.
-echo Download completato!
-echo Salvato come:
-echo %DEST%
+echo Aggiornamento completato!
 echo.
-echo Ora apri Orion e carica:
-echo UODREAMS Compagnone AGGIORNATO.oajs
+echo Apri Orion e carica: UODREAMS Compagnone AGGIORNATO.oajs (bootstrap)
+echo I moduli Comp-*.oajs sono gia stati sovrascritti.
 echo.
 pause

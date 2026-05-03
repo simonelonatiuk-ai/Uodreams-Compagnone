@@ -1,0 +1,316 @@
+if (!Shared.GetVar('idenemyevento_list')) {
+    Shared.AddVar('idenemyevento_list', '');
+}
+
+var _eventPrimaryMarked = {};     // serial -> true
+var _eventSecondaryMarked = {};   // serial -> true
+var _eventAggroDone = {};         // serial -> true
+var _eventHighlightDone = {};     // serial -> true
+
+// Colore highlight arancione
+var EVENT_HIGHLIGHT_COLOR = '2775'; // arancione, puoi cambiarlo se vuoi
+
+function EventoVoid() {
+    Orion.Print(66, '--- Evento Void: Aggro Prioritario Attivo ---');
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') {
+            Orion.StopWalking();
+            return;
+        }
+
+        // Priorita' assoluta ai mob filtrati
+        HandleAggroAndNavigation();
+
+        Orion.Wait(100);
+    }
+}
+
+function EventoVoid3() {
+    var railCoordinates = [
+[6790, 2180], [6808, 2201], [6823, 2187], [6819, 2172], [6842, 2171],
+[6792, 2214], [6777, 2214], [6765, 2210], [6748, 2229], [6819, 2225],
+[6831, 2225], [6836, 2205], [6808, 2197], [6789, 2189], [6830, 2168],
+[6845, 2158], [6827, 2147], [6790, 2179]
+];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+
+        // 🔍 Check mob fino a 300ms
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now(); // resetta il timer se combatte
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+// Funzione helper per ottenere la lista come array
+function GetEnemyList() {
+    var raw = Shared.GetVar('idenemyevento_list');
+    return raw ? raw.split('|') : [];
+}
+
+// Funzione helper per salvare l'array come stringa
+function SaveEnemyList(arr) {
+    Shared.AddVar('idenemyevento_list', arr.join('|'));
+}
+
+// Pulisce gli stati runtime dei seriali che non esistono piu'
+function CleanupRuntimeState() {
+    var maps = [_eventPrimaryMarked, _eventSecondaryMarked, _eventAggroDone, _eventHighlightDone];
+    for (var m = 0; m < maps.length; m++) {
+        for (var serial in maps[m]) {
+            var obj = Orion.FindObject(serial);
+            if (!obj || !obj.Exists() || obj.Dead()) {
+                delete maps[m][serial];
+            }
+        }
+    }
+}
+
+// Funzione per aggiungere il GRAPHIC del nemico alla lista
+function AddEnemyToEventList() {
+    Orion.Print(55, 'Seleziona il nemico da aggiungere ai filtri Evento...');
+
+    Orion.AddObject('temp_target');
+    while (Orion.HaveTarget()) {
+        Orion.Wait(50);
+    }
+
+    var targetObj = Orion.FindObject('temp_target');
+    if (targetObj) {
+        var graphic = targetObj.Graphic();
+
+        if (graphic) {
+            var currentList = GetEnemyList();
+            if (currentList.indexOf(graphic) === -1) {
+                currentList.push(graphic);
+                SaveEnemyList(currentList);
+                Orion.Print(66, 'Tipo aggiunto: ' + graphic + ' (Filtro Attivo)');
+            } else {
+                Orion.Print(33, 'Questo tipo di nemico e gia presente.');
+            }
+        }
+    }
+}
+
+// Funzione per svuotare la lista
+function ClearEventList() {
+    Shared.AddVar('idenemyevento_list', '');
+    _eventPrimaryMarked = {};
+    _eventSecondaryMarked = {};
+    _eventAggroDone = {};
+    _eventHighlightDone = {};
+    Orion.Print(33, 'Filtri rimossi. Lista svuotata.');
+}
+
+// Ordina i seriali per distanza reale
+function SortByDistance(serials) {
+    serials.sort(function (a, b) {
+        var oa = Orion.FindObject(a);
+        var ob = Orion.FindObject(b);
+
+        var da = 999;
+        var db = 999;
+
+        if (oa && oa.Exists()) da = oa.Distance();
+        if (ob && ob.Exists()) db = ob.Distance();
+
+        return da - db;
+    });
+
+    return serials;
+}
+
+// Evidenzia il mob una sola volta in arancione
+function HighlightAggroMobOnce(serial) {
+    if (!_eventHighlightDone[serial]) {
+        Orion.AddHighlightCharacter(serial, EVENT_HIGHLIGHT_COLOR, true);
+        _eventHighlightDone[serial] = true;
+    }
+}
+
+// Marca il target principale 1 sola volta
+function MarkPrimaryTargetOnce(serial) {
+    if (!_eventPrimaryMarked[serial]) {
+        Orion.CharPrint(serial, 48, '*TARGET*');
+        _eventPrimaryMarked[serial] = true;
+    }
+}
+
+// Marca i target aggrati 1 sola volta
+function MarkAggroOnce(serial) {
+    if (!_eventSecondaryMarked[serial]) {
+        Orion.CharPrint(serial, 63, '*AGGRATO*'); // hue arancione circa
+        _eventSecondaryMarked[serial] = true;
+    }
+}
+
+// Esegue un singolo ping di aggro sul mob, 1 sola volta
+function AggroMobOnce(serial, isPrimary) {
+    if (_eventAggroDone[serial]) {
+        return;
+    }
+
+    HighlightAggroMobOnce(serial);
+
+    if (isPrimary) {
+        MarkPrimaryTargetOnce(serial);
+    } else {
+        MarkAggroOnce(serial);
+    }
+
+    Orion.Attack(serial);
+    Orion.Wait(80);
+
+    _eventAggroDone[serial] = true;
+}
+
+// Funzione principale di ricerca/aggro/navigazione
+function HandleAggroAndNavigation() {
+    CleanupRuntimeState();
+
+    var currentList = GetEnemyList();
+    if (!currentList || currentList.length === 0) {
+        return false;
+    }
+
+    var range = 10;
+    var mobs = [];
+    var alreadyAdded = {};
+
+    // Cerca separatamente ogni graphic presente nella lista
+    for (var t = 0; t < currentList.length; t++) {
+        var graphic = currentList[t];
+        if (!graphic || graphic === '') {
+            continue;
+        }
+
+        var found = Orion.FindTypeEx(
+            graphic,
+            'any',
+            'ground',
+            'mobile|live|ignorefriends|inlos',
+            range,
+            'gray|red|orange'
+        );
+
+        if (found && found.length) {
+            for (var i = 0; i < found.length; i++) {
+                var mob = found[i];
+                var serial = mob.Serial();
+
+                if (!alreadyAdded[serial]) {
+                    alreadyAdded[serial] = true;
+                    mobs.push(serial);
+                }
+            }
+        }
+    }
+
+    if (mobs.length === 0) {
+        return false;
+    }
+
+    mobs = SortByDistance(mobs);
+
+    var primarySerial = mobs[0];
+    var primaryObj = Orion.FindObject(primarySerial);
+
+    if (!primaryObj || !primaryObj.Exists() || primaryObj.Dead()) {
+        return false;
+    }
+
+    // evidenzia e attacca il principale
+    HighlightAggroMobOnce(primarySerial);
+    AggroMobOnce(primarySerial, true);
+
+    // aggra tutti gli altri mob della lista nel range,
+    // tranne quelli con Graphic 0x003B
+    for (var j = 1; j < mobs.length; j++) {
+        var serial2 = mobs[j];
+        var obj2 = Orion.FindObject(serial2);
+
+        if (!obj2 || !obj2.Exists() || obj2.Dead() || obj2.Distance() > range) {
+            continue;
+        }
+
+        // Il mob 0x003B puo' essere target principale,
+        // ma NON viene aggrato come secondario.
+        if (obj2.Graphic() == '0x003B') {
+            continue;
+        }
+
+        HighlightAggroMobOnce(serial2);
+        AggroMobOnce(serial2, false);
+    }
+
+    // rimetti come ultimo attacco il principale
+    if (Orion.ClientLastAttack() !== primarySerial) {
+        Orion.Attack(primarySerial);
+        Orion.Wait(50);
+    }
+
+    // vai verso il principale
+    if (primaryObj.Distance() > 1) {
+        Orion.WalkTo(primaryObj.X(), primaryObj.Y(), primaryObj.Z(), 1, 5, 1, 1);
+    }
+
+    return true;
+}
+
+function AggroMobs() {
+    var range = 14; // Raggio in cui cercare i mob
+    var highlightColor = '0x0015'; // Colore di evidenziazione per i mob
+    var ignoredMobTypes = ['an energy vortex', 'a rising colossus']; // Escludere alcuni mob
+    var aggroedMobs = {}; // Mappa per tracciare i mob già aggrati
+
+    while (true) {
+        // Cerca tutti i mob entro il range specificato
+        var mobs = Orion.FindTypeEx('any', 'any', 'ground', 'mobile|live|ignorefriends|inlos', range, 'gray|red|orange');
+
+        for (var i = 0; i < mobs.length; i++) {
+            var mob = mobs[i];
+            var mobSerial = mob.Serial();
+           // Escludi mob che appartengono alla lista ignorata o che sono già aggrati
+            if (ignoredMobTypes.indexOf(mob.Name()) !== -1 || aggroedMobs[mobSerial]) {
+                continue;
+            }
+            // Evidenzia il mob
+            Orion.AddHighlightCharacter(mobSerial, highlightColor, true);
+            // Aggra il mob
+            Orion.Attack(mobSerial);
+            // Aggiungi il mob alla lista dei già aggrati
+            aggroedMobs[mobSerial] = true;
+        }
+       // Pulizia della lista per rimuovere i mob non più validi
+        for (var serial in aggroedMobs) {
+            if (!Orion.ObjectExists(serial)) {
+                delete aggroedMobs[serial];
+            }
+        }
+        // Ritardo tra le iterazioni per evitare uso eccessivo di risorse
+        Orion.Wait(900);
+    }
+}

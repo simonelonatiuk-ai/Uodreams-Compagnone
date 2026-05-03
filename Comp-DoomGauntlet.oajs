@@ -1,0 +1,524 @@
+var currentDressList = "";
+
+var rails = {
+    r1:  [[439, 432], [450, 432], [464, 432], [469, 428], [470, 428], [473, 428]],
+    r1m: [[485, 455]],
+    r2:  [[486, 450], [486, 439], [482, 432], [472, 432], [470, 432], [462, 492], [462, 493], [462, 496]],
+    r2m: [[484, 517]],
+    r3:  [[479, 507], [468, 502], [468, 493], [453, 468], [403, 500], [403, 501], [403, 504]],
+    r3m: [[399, 509], [399, 522], [399, 531]],
+    r4:  [[407, 522], [409, 500], [415, 466], [357, 474], [357, 475]],
+    r4m: [[351, 502], [338, 510]],
+    r5:  [[348, 498], [361, 485], [360, 474], [364, 433], [362, 433]],
+    r5m: [[343, 434], [327, 434]],
+    r6:  [[342, 430], [363, 430], [398, 430], [419, 429]]
+};
+
+var currentWeaponDress = "";
+var currentTalismanDress = "";
+
+function ToggleDoomGauntlet() {
+    // Se lo script è già in esecuzione, lo spegne
+    if (Orion.ScriptRunning('AutoDoomGauntlet')) {
+        Orion.Terminate('AutoDoomGauntlet');
+        Orion.CharPrint(Player.Serial(), 33, "DOOM Gauntlet Disattivato");
+    }
+    // Altrimenti attiva tutti gli script richiesti
+    else {
+        Orion.SetGlobal('StopAllScripts', 'false');
+
+        if (!Orion.ScriptRunning('AutoVampiricEmbrace')) {
+            Orion.Exec('AutoVampiricEmbrace', 'true');
+        }
+        if (!Orion.ScriptRunning('doomBoneCutter')) {
+            Orion.Exec('doomBoneCutter', 'true');
+        }
+        if (!Orion.ScriptRunning('AutoLogoutOnDeath')) {
+            Orion.Exec('AutoLogoutOnDeath', 'true');
+        }
+
+        Orion.Exec('AutoDoomGauntlet', 'true');
+        Orion.CharPrint(Player.Serial(), 65, "DOOM Gauntlet ATTIVATO!");
+    }
+
+    // Aggiorna la grafica della GUI
+    GUI();
+}
+
+function pauseCombatMode() {
+    // Mettiamo in pausa i vari script di attacco noti per evitare distrazioni
+    Orion.PauseScript('SoloFollowAndAttack');
+    Orion.PauseScript('SoloFollowAndAttackSS');
+    Orion.PauseScript('UseSpecialAbilities');
+    Orion.PauseScript('UseSpecialAbilitiesSS');
+    Orion.PauseScript('AutoArcheryAttack');
+    Orion.PauseScript('AttackNearestEnemy');
+    Orion.PauseScript('SOLOGENERAL');
+
+    Orion.WarMode(0);
+    Orion.CancelTarget();
+}
+
+function resumeCombatMode() {
+    // Riattiviamo gli script di attacco e resettiamo gli ignore (SOLO) una volta dentro la stanza
+    if (typeof SOLO === "function") SOLO();
+
+    Orion.ResumeScript('SoloFollowAndAttack');
+    Orion.ResumeScript('SoloFollowAndAttackSS');
+    Orion.ResumeScript('UseSpecialAbilities');
+    Orion.ResumeScript('UseSpecialAbilitiesSS');
+    Orion.ResumeScript('AutoArcheryAttack');
+    Orion.ResumeScript('AttackNearestEnemy');
+    Orion.ResumeScript('SOLOGENERAL');
+}
+
+function walkPath(coords) {
+    if (!coords || coords.length === 0) return;
+
+    // Disattiva combattimento durante lo spostamento
+    pauseCombatMode();
+
+    var nearestIndex = 0;
+    var minDistance = 10000;
+
+    // Trova l'indice del punto più vicino a noi nel binario
+    for (var j = 0; j < coords.length; j++) {
+        var dist = Orion.GetDistance(coords[j][0], coords[j][1]);
+        if (dist < minDistance) {
+            minDistance = dist;
+            nearestIndex = j;
+        }
+    }
+
+    // Cammina partendo dal punto più vicino trovato fino alla fine della lista
+    for (var i = nearestIndex; i < coords.length; i++) {
+        Orion.WalkTo(coords[i][0], coords[i][1], Player.Z(), 1, 255, 1, 2, 5000);
+        Orion.Wait(10);
+    }
+}
+
+function forceStep(direction, steps) {
+    pauseCombatMode(); // Sicurezza extra
+    for (var i = 0; i < steps; i++) {
+        Orion.Step(direction);
+        Orion.Wait(80);
+    }
+}
+
+function equipSlayer(listName) {
+    if (currentDressList !== listName) {
+        Orion.Print(65, "Dress Doom: " + listName);
+        Orion.Dress(listName);
+        Orion.Wait(80);
+        currentDressList = listName;
+    }
+}
+
+function getEnemy(range) {
+    var mobs = Orion.FindTypeEx(
+        targetGraphics,
+        'any',
+        'ground',
+        targetFlags,
+        range,
+        targetNoto
+    );
+
+    if (!mobs || mobs.length === 0) {
+        return null;
+    }
+
+    for (var i = 0; i < mobs.length; i++) {
+        var mob = mobs[i];
+
+        if (!mob) {
+            continue;
+        }
+
+        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[mob.Serial()]) {
+            continue;
+        }
+
+        if (typeof isIgnoredSummon === "function" && isIgnoredSummon(mob)) {
+            continue;
+        }
+
+        return mob;
+    }
+
+    return null;
+}
+
+function fightLogic(range, roomNum) {
+    resumeCombatMode(); // Riattiva gli script di combattimento
+
+    var roomClear = false;
+    var emptyCheckStarted = false;
+    var emptySince = 0;
+
+    while (!Player.Dead() && !roomClear) {
+
+        var enemy = getEnemy(range);
+
+        if (enemy) {
+            // Se vedo il nemico, resetto istantaneamente il timer di "stanza vuota"
+            emptyCheckStarted = false;
+            emptySince = 0;
+
+            // Logica specifica (armi) per la Stanza 6 (Dark Father)
+            if (roomNum === 6) {
+                var enemiesNear = Orion.FindTypeEx(
+                    'any',
+                    'any',
+                    'ground',
+                    'live|ignoreself|ignorefriends',
+                    2,
+                    'gray|criminal|red|enemy|orange'
+                );
+
+                var validEnemiesNear = 0;
+
+                for (var j = 0; j < enemiesNear.length; j++) {
+                    var nearMob = enemiesNear[j];
+                    var ignored = false;
+
+                    if (typeof ignoredMobs !== 'undefined' && ignoredMobs[nearMob.Serial()]) {
+                        ignored = true;
+                    }
+
+                    if (!ignored && typeof isIgnoredSummon === "function" && isIgnoredSummon(nearMob)) {
+                        ignored = true;
+                    }
+
+                    if (!ignored) {
+                        validEnemiesNear++;
+                    }
+                }
+
+                var enemyGraphic = enemy.Graphic ? enemy.Graphic().toString().toLowerCase() : '';
+                var enemyName = enemy.Name ? (enemy.Name() || '') : '';
+
+                var isDarkFather =
+                    enemyGraphic === '0x013e' ||
+                    enemyName.indexOf("Dark Father") !== -1;
+
+               if (validEnemiesNear > 1) {
+
+    safeToggleDressWeapon('Dress_GenericArea');
+
+    if (!Orion.AbilityStatus('Secondary')) {
+        Orion.UseAbility('Secondary');
+    }
+} else if (isDarkFather) {
+
+    safeToggleDressWeapon('Dress_DoomDarkFather');
+}
+            }
+
+            Orion.Wait(150);
+
+        } else {
+            // --- CHECK STANDARD (Valido per TUTTE le stanze, compresa la 4) ---
+
+            // Se non c'è il timer avviato, lo avviamo adesso
+            if (!emptyCheckStarted) {
+                emptySince = Orion.Now();
+                emptyCheckStarted = true;
+            }
+
+            // Se sono passati 3000 millisecondi (3 secondi) netti da quando non vediamo nessuno
+            if (Orion.Now() - emptySince >= 3000) {
+                roomClear = true; // Stanza pulita, usciamo dal ciclo!
+            } else {
+                Orion.Wait(250); // Aspettiamo un quarto di secondo e ricontrolliamo
+            }
+        }
+    }
+}
+
+function AutoDoomGauntlet(stanza, singleRun) {
+    Orion.Print(89, '=== Avvio Doom Gauntlet ===');
+    Orion.IgnoreReset();
+
+    if (typeof GetCheckboxStatus === "function") {
+        if (!GetCheckboxStatus("AutoDoomGauntlet")) {
+            ToggleDoomGauntlet();
+        }
+    }
+
+    var isSingle = (singleRun === true);
+
+    Orion.Wait(50);
+
+    while (!Player.Dead()) {
+
+        if (stanza <= 1) {
+            Orion.Print(65, ">> Esecuzione Stanza 1 - Darknight Creeper");
+
+            safeToggleDressTalisman('Dress_TalismanUndead');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomDarknightCreeper');
+
+            walkPath(rails.r1);
+            forceStep('East', 2);
+            walkPath(rails.r1m);
+            fightLogic(15, 1);
+        }
+
+        if (stanza <= 2) {
+            Orion.Print(65, ">> Esecuzione Stanza 2 - Fleshrenderer");
+
+            // Rimane talismano Undead
+            safeToggleDressTalisman('Dress_TalismanUndead');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomFleshrenderer');
+
+            walkPath(rails.r2);
+            forceStep('South', 4);
+            walkPath(rails.r2m);
+            fightLogic(15, 2);
+
+            Orion.UseObject('0x40101F16');
+        }
+
+        if (stanza <= 3) {
+            Orion.Print(65, ">> Esecuzione Stanza 3 - Impaler");
+
+            safeToggleDressTalisman('Dress_TalismanDemon');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomImpaler');
+
+            walkPath(rails.r3);
+            forceStep('South', 4);
+            walkPath(rails.r3m);
+            fightLogic(15, 3);
+        }
+
+        if (stanza <= 4) {
+            Orion.Print(65, ">> Esecuzione Stanza 4 - Shadow Knight");
+
+            safeToggleDressTalisman('Dress_TalismanUndead');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomShadowKnight');
+
+            walkPath(rails.r4);
+            forceStep('West', 4);
+            forceStep('South', 4);
+            walkPath(rails.r4m);
+            fightLogic(15, 4);
+        }
+
+        if (stanza <= 5) {
+            Orion.Print(65, ">> Esecuzione Stanza 5 - Abyssmal Horror");
+
+            safeToggleDressTalisman('Dress_TalismanDemon');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomAbyssmalHorror');
+
+            walkPath(rails.r5);
+            forceStep('West', 4);
+            walkPath(rails.r5m);
+            fightLogic(15, 5);
+        }
+
+        if (stanza <= 6) {
+            Orion.Print(65, ">> Stanza 6 - Dark Father");
+
+            if (!Orion.ScriptRunning('doomBoneCutter')) {
+                Orion.Print(65, ">> Attivazione doomBoneCutter...");
+                Orion.Exec('doomBoneCutter', 'true');
+                GUI();
+            }
+
+            safeToggleDressTalisman('Dress_TalismanDemon');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomDarkFather');
+
+            walkPath(rails.r6);
+            fightLogic(18, 6);
+        }
+
+        if (isSingle) {
+            Orion.Print(89, '=== Task terminato, ripristino DOOM principale ===');
+
+            if (typeof ToggleDoomGauntlet === "function") {
+                ToggleDoomGauntlet();
+            }
+
+            break;
+        } else {
+            stanza = 1;
+            Orion.Print(55, '=== Giro finito, ricomincio dalla prima ===');
+            Orion.Wait(1000);
+        }
+    }
+}
+
+function safeToggleDressWeapon(listName) {
+    if (currentWeaponDress !== listName) {
+        ToggleDressWeapon(listName);
+        currentWeaponDress = listName;
+    }
+}
+
+function safeToggleDressTalisman(listName) {
+    if (currentTalismanDress !== listName) {
+        ToggleDressTalisman(listName);
+        currentTalismanDress = listName;
+    }
+}
+
+function doomBoneCutter() {
+    var knifeObj = Orion.FindObject('bone_knife');
+
+    if (!knifeObj) {
+        Orion.CharPrint(Player.Serial(), 33, "⚠️ Nessun coltello selezionato!");
+        return;
+    }
+
+    var knifeSerial = knifeObj.Serial();
+    var boneTypes = '0x0ECA|0x0ECB|0x0ECC|0x0ECD|0x0ECE|0x0ECF|0x0ED0|0x0ED1|0x0ED2';
+
+    while (!Player.Dead()) {
+        // Interruzione di sicurezza se si spegne tutto dalla GUI
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        // Cerca tutte le ossa a terra entro 2 tile (portata d'attacco)
+        var bones = Orion.FindTypeEx(boneTypes, 'any', 'ground', 'item|near', 2);
+
+        if (bones.length > 0) {
+            for (var i = 0; i < bones.length; i++) {
+                var bone = bones[i];
+
+                // Verifica che l'osso esista ancora prima di tentare il taglio
+                if (bone && Orion.ObjectExists(bone.Serial())) {
+
+                    // 1. Pulisce eventuali mirini rimasti incastrati dal ciclo precedente
+                    if (Orion.HaveTarget()) {
+                        Orion.CancelTarget();
+                    }
+                    Orion.CancelWaitTarget();
+
+                    Orion.WaitTargetObject(bone.Serial());
+                    Orion.UseObject(knifeSerial);
+
+                    var timeout = Orion.Now() + 200;
+                    while (Orion.ObjectExists(bone.Serial()) && Orion.Now() < timeout) {
+                        Orion.Wait(20);
+                    }
+                }
+            }
+
+            // 4. Sicurezza a fine taglio: se il mirino è rimasto aperto per un fizzle, lo cancella
+            if (Orion.HaveTarget()) {
+                Orion.CancelTarget();
+            }
+            Orion.CancelWaitTarget();
+        }
+
+        // Controllo rapido del terreno ogni 100ms
+        Orion.Wait(100);
+    }
+}
+
+function BoneScavengerEquipped() {
+    var itemColor = '0x05DD'; // Colore degli oggetti a terra
+    var ignoraSerial = '0x4053424E';
+
+    Orion.Print('0x60', '▶ Script AVVIATO (Controllo mani...)');
+
+    while (!Player.Dead()) {
+        // 1. Identifica la piccozza nelle mani
+        // Slot 1 = Mano Destra, Slot 2 = Mano Sinistra
+        var picca = Orion.ObjAtLayer(1); // Prova la mano destra
+        if (!picca || picca.Graphic() !== '0x0E86') {
+            picca = Orion.ObjAtLayer(2); // Prova la mano sinistra
+        }
+
+        // Se non è in mano, la cerchiamo un'ultima volta nello zaino
+        if (!picca || picca.Graphic() !== '0x0E86') {
+            var findInPack = Orion.FindType('0x0E86', '-1', 'backpack', 'item|recurse');
+            if (findInPack.length > 0) {
+                picca = Orion.FindObject(findInPack[0]);
+            }
+        }
+
+        if (!picca) {
+            Orion.Print(33, '⚠️ Piccozza non trovata! Equipaggiala o mettila nello zaino.');
+            Orion.Wait(2000);
+            continue;
+        }
+
+        // 2. Cerca oggetti del colore specifico
+        var objects = Orion.FindTypeEx('any', itemColor, 'ground', 'item', 33);
+
+        for (var i = 0; i < objects.length; i++) {
+            var obj = objects[i];
+
+            if (!obj || obj.Serial() === ignoraSerial) continue;
+
+            Orion.CharPrint(obj.Serial(), 65, '*OGGETTO RILEVATO*');
+
+            // Azione
+            Orion.CancelTarget();
+            Orion.UseObject(picca.Serial());
+
+            if (Orion.WaitForTarget(1500)) {
+                Orion.TargetObject(obj.Serial());
+                Orion.Wait(100);
+
+                // Ignora per evitare loop sullo stesso oggetto
+                Orion.Ignore(obj.Serial());
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function StartBoneScavenger() {
+    Orion.Print(65, '--- Inizializzazione Profilo Sampire ---');
+
+    // Inizializziamo il profilo usando la tua funzione originale
+    StartProfile('BoneScavenger', null, null, false, false);
+
+    Orion.Print(65, '--- Avvio Esplorazione e Loot Ossa ---');
+    Orion.CancelTarget();
+    Orion.IgnoreReset();
+
+    while (!Player.Dead()) {
+        // 0. Gestione Blood Oath (Sempre prioritaria)
+        HandleBloodOath();
+
+        // 1. Controllo Peso e Banca
+        CheckWeightAndSend();
+
+        // 2. Ricerca Nemico (Logica Champ 18 tile)
+        var enemies = Orion.FindTypeEx('any', 'any', 'ground', targetFlags, targetRange, targetNoto);
+
+        if (enemies.length > 0) {
+            var target = enemies[0].Serial();
+            Orion.Print(33, 'Bersaglio agganciato: ' + enemies[0].Name());
+
+            // 3. Honor
+            HonorTarget(target);
+
+            // 4. Combattimento Dinamico (Sticky Attack)
+            ExecuteCombat(target);
+
+            // Pausa Loot 600ms per caricare le ossa
+            Orion.Wait(600);
+        } else {
+            // 5. Esplorazione Random ULTRA-VELOCE
+            TurboRandomWander();
+        }
+
+        Orion.Wait(50);
+    }
+}
+
+function StopBoneScavenger() {
+    Orion.Terminate('StartBoneScavenger');
+    Orion.WarMode(false);
+    Orion.Print(33, 'Bone Scavenger FERMATO.');
+}

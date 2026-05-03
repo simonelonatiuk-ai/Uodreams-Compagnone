@@ -1,0 +1,733 @@
+function UseSpecialAbilities() {
+    while (!Player.Dead()) {
+        // Rileva i nemici vicini entro distanza 2
+        var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
+        var nearbyEnemies = enemiesAround.filter(function (enemy) {
+            var obj = Orion.FindObject(enemy);
+            return obj && obj.Distance() <= 2;
+        });
+
+        // Ottieni le armi nelle mani
+        var leftWeapon = Orion.ObjAtLayer('LeftHand');
+        var rightWeapon = Orion.ObjAtLayer('RightHand');
+
+        // Rileva Bladed Staff o Lava Infused
+        var isBladedStaff = leftWeapon && (
+            leftWeapon.Graphic() === 0x26BD ||
+            (leftWeapon.Name() && (
+                leftWeapon.Name().toLowerCase().indexOf("bladed staff") !== -1 ||
+                leftWeapon.Name().toLowerCase().indexOf("lava infused") !== -1
+            ))
+        );
+
+        // Rileva qualsiasi Hammer Pick, incluso Divine Sanctifier
+        var isHammerPick = rightWeapon && (
+            rightWeapon.Graphic() === 0x143D ||
+            (rightWeapon.Name() && (
+                rightWeapon.Name().toLowerCase().indexOf("divine sanctifier") !== -1 ||
+                rightWeapon.Name().toLowerCase().indexOf("hammer pick") !== -1
+            ))
+        );
+
+        // Arma speciale = Bladed Staff oppure Hammer Pick
+        var isSpecialWeapon = isBladedStaff || isHammerPick;
+
+        // Logica abilità
+        if (Player.Mana() >= 17) {
+            if (isSpecialWeapon || nearbyEnemies.length === 1) {
+                if (!Orion.AbilityStatus('Primary')) {
+                    Orion.UseAbility('Primary');
+                    Orion.Wait(200);
+                }
+            } else if (nearbyEnemies.length > 1) {
+                if (!Orion.AbilityStatus('Secondary')) {
+                    Orion.UseAbility('Secondary');
+                    Orion.Wait(200);
+                }
+            }
+        } else if (Player.Mana() < 13) {
+            Orion.Cast('Lightning Strike', 'self');
+            Orion.Wait(200);
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function UseSpecialAbilitiesSS() { //daisho
+    while (!Player.Dead()) {
+        // opzionale: ferma se lo switch globale è attivo
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        // Rileva i nemici entro 2 tile
+        var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
+        var nearbyEnemies = enemiesAround.filter(function (enemy) {
+            var obj = Orion.FindObject(enemy);
+            return obj && obj.Distance() <= 2;
+        });
+
+        var oneVsOne = (nearbyEnemies.length === 1);
+
+        // Il buff corretto è "Feint", ma controllo anche "Faint" se il client lo mostra così
+        var feintActive = Orion.BuffExists('Feint') || Orion.BuffExists('Faint');
+
+        if (Player.Mana() >= 17) {
+            if (oneVsOne) {
+                // In 1vs1: se Feint/Faint è attivo → usa SECONDARIA
+                if (feintActive) {
+                    if (!Orion.AbilityStatus('Secondary')) {
+                        Orion.UseAbility('Secondary');
+                        Orion.Wait(200);
+                    }
+                } else {
+                    // Finché non vede Feint/Faint → continua a fare la PRIMARIA
+                    if (!Orion.AbilityStatus('Primary')) {
+                        Orion.UseAbility('Primary');
+                        Orion.Wait(200);
+                    }
+                }
+            } else if (nearbyEnemies.length > 1) {
+                // Multi-target: mantieni la primaria (comportamento originario)
+                if (!Orion.AbilityStatus('Primary')) {
+                    Orion.UseAbility('Primary');
+                    Orion.Wait(200);
+                }
+            }
+        } else if (Player.Mana() < 13) {
+            Orion.Cast('Lightning Strike', 'self');
+            Orion.Wait(200);
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+
+function UseArcheryPrimaryOnly() {
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (Player.Mana() >= 17) {
+            if (!Orion.AbilityStatus('Primary')) {
+                Orion.UseAbility('Primary');
+                Orion.Wait(200);
+            }
+        }
+        Orion.Wait(200);
+    }
+}
+
+function AttackNearestEnemy() {
+    var maxWaitCycles = 20;
+    var waitCount = 0;
+
+    Orion.IgnoreReset();
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) {
+        Orion.Ignore(friends[i]);
+    }
+
+    while (!Player.Dead() && waitCount < maxWaitCycles) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') {
+            return false;
+        }
+
+        if (HandleBloodOath()) {
+            continue;
+        }
+
+        Orion.WarMode(true);
+
+        var target = FindNearestEnemy();
+
+        if (target) {
+            var currentSerial = target.Serial();
+
+            if (ignoredMobs[currentSerial] || isIgnoredSummon(target)) {
+                ignoredMobs[currentSerial] = true;
+                Orion.Ignore(currentSerial);
+                waitCount++;
+                Orion.Wait(100);
+                continue;
+            }
+
+            Orion.ShowStatusbar(currentSerial, 1150, 1200);
+            Orion.AddHighlightCharacter(currentSerial, 0x081C, true);
+            Orion.CharPrint(currentSerial, 20, "*target*");
+
+            var lastX = Player.X();
+            var lastY = Player.Y();
+            var lastZ = Player.Z();
+
+            var stayCounter = 0;
+            var walkAttempts = 0;
+
+            while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
+                if (Orion.GetGlobal('StopAllScripts') === 'true') {
+                    Orion.CloseStatusbar(currentSerial);
+                    return false;
+                }
+
+                if (HandleBloodOath()) {
+                    break;
+                }
+
+                var newTarget = FindNearestEnemy();
+
+                if (newTarget) {
+                    var newSerial = newTarget.Serial();
+
+                    if (ignoredMobs[newSerial] || isIgnoredSummon(newTarget)) {
+                        ignoredMobs[newSerial] = true;
+                        Orion.Ignore(newSerial);
+                    } else if (newSerial !== currentSerial) {
+                        Orion.CloseStatusbar(currentSerial);
+
+                        target = newTarget;
+                        currentSerial = newSerial;
+
+                        Orion.ShowStatusbar(currentSerial, 1150, 1200);
+                        Orion.AddHighlightCharacter(currentSerial, 0x081C, true);
+                        Orion.CharPrint(currentSerial, 20, "*target*");
+
+                        lastX = Player.X();
+                        lastY = Player.Y();
+                        lastZ = Player.Z();
+
+                        stayCounter = 0;
+                        walkAttempts = 0;
+                    }
+                }
+
+                var targetObject = Orion.FindObject(currentSerial);
+
+                if (!targetObject || targetObject.Dead()) {
+                    break;
+                }
+
+                if (ignoredMobs[currentSerial] || isIgnoredSummon(targetObject)) {
+                    ignoredMobs[currentSerial] = true;
+                    Orion.Ignore(currentSerial);
+                    break;
+                }
+
+                if (targetObject.Distance() > 1) {
+                    Orion.WalkTo(targetObject.X(), targetObject.Y(), targetObject.Z(), 1, 255, 1, 2, 5000);
+                    Orion.Wait(200);
+                    walkAttempts++;
+                } else {
+                    walkAttempts = 0;
+                }
+
+                if (walkAttempts >= 5) {
+                    ignoredMobs[currentSerial] = true;
+                    Orion.Ignore(currentSerial);
+                    Orion.CharPrint(Player.Serial(), 33, "*Ignorato: irraggiungibile* " + targetObject.Name());
+                    Orion.CloseStatusbar(currentSerial);
+                    return false;
+                }
+
+                if (targetObject.Distance() <= 11) {
+                    Orion.Attack(currentSerial);
+                }
+
+                if (Player.X() === lastX && Player.Y() === lastY && Player.Z() === lastZ) {
+                    stayCounter++;
+                } else {
+                    lastX = Player.X();
+                    lastY = Player.Y();
+                    lastZ = Player.Z();
+                    stayCounter = 0;
+                }
+
+                if (stayCounter >= 12000) {
+                    ignoredMobs[currentSerial] = true;
+                    Orion.Ignore(currentSerial);
+                    Orion.CharPrint(Player.Serial(), 33, "*Ignorato* " + targetObject.Name());
+                    Orion.CloseStatusbar(currentSerial);
+                    return false;
+                }
+
+                Orion.Wait(10);
+            }
+
+            Orion.CloseStatusbar(currentSerial);
+            return true;
+
+        } else {
+            waitCount++;
+            Orion.Wait(10);
+        }
+    }
+
+    return false;
+}
+
+
+function AttackNearestEnemy_OAKS() {
+
+    var target = FindNearestEnemy_OAKS();
+    if (!target) return false;
+
+    Orion.ShowStatusbar(target.Serial(), 1150, 1200);
+
+    while (!Player.Dead() && Orion.ObjectExists(target.Serial())) {
+
+        var dist = target.Distance();
+
+        // 🔴 se esce dal range → basta
+        if (dist > 4) {
+            Orion.CloseStatusbar(target.Serial());
+            return false;
+        }
+
+        // attacco statico
+        Orion.Attack(target.Serial());
+        Orion.Wait(120);
+    }
+
+    Orion.CloseStatusbar(target.Serial());
+    return true;
+}
+
+
+function AttackNearestEnemyMephitis(target) {
+    if (Orion.GetGlobal('StopAllScripts') === 'true') return false;
+    if (!target) return false;
+
+    // target può arrivare come serial o oggetto: normalizzo
+    var t = target;
+    if (typeof t === 'string' || typeof t === 'number') {
+        t = Orion.FindObject(target);
+    }
+    if (!t || !t.Serial || !t.Serial()) return false;
+
+    // se è summon ignorato, skip
+    if (isIgnoredSummon(t)) {
+        Orion.Ignore(t.Serial());
+        return false;
+    }
+
+    // se è già in ignoredMobs, skip
+    if (ignoredMobs[t.Serial()]) return false;
+
+    // Se morto/non esiste
+    if (!Orion.ObjectExists(t.Serial()) || (t.Hits && t.Hits() <= 0)) return false;
+
+    // Mostra/Highlight come negli altri script
+    Orion.ShowStatusbar(t.Serial(), 1150, 1200);
+    Orion.AddHighlightCharacter(t.Serial(), 0x081C, true);
+    Orion.CharPrint(t.Serial(), 20, "*target*");
+
+    var walkAttempts = 0;
+
+    while (!Player.Dead() && Orion.ObjectExists(t.Serial())) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') break;
+
+        // Refresh oggetto (importantissimo su Orion)
+        var refreshed = Orion.FindObject(t.Serial());
+        if (!refreshed) break;
+
+        // Se nel frattempo diventa summon ignorato (raro ma succede), stop
+        if (isIgnoredSummon(refreshed)) {
+            Orion.Ignore(refreshed.Serial());
+            break;
+        }
+
+        // Se troppo lontano, prova a chase
+        if (refreshed.Distance() > 1) {
+            Orion.WalkTo(refreshed.X(), refreshed.Y(), refreshed.Z(), 1, 255, 1, 2, 5000);
+            Orion.Wait(120);
+            walkAttempts++;
+        } else {
+            walkAttempts = 0;
+        }
+
+        // Se non riesce a raggiungerlo dopo un po', ignoralo (come fai già altrove)
+        if (walkAttempts >= 5) {
+            ignoredMobs[refreshed.Serial()] = true;
+            Orion.Ignore(refreshed.Serial());
+            Orion.CharPrint(Player.Serial(), 33, "*Ignorato: irraggiungibile* " + (refreshed.Name ? refreshed.Name() : ""));
+            break;
+        }
+
+        // Attacco
+        if (refreshed.Distance() <= 12) {
+            Orion.Attack(refreshed.Serial());
+        }
+
+        Orion.Wait(80);
+    }
+
+    Orion.CloseStatusbar(t.Serial());
+    return true;
+}
+
+function SoloFollowAndAttack() {
+    var honoredTarget = null;
+    var GIVE_UP_DISTANCE = 10;
+
+    ignoredMobs = {};
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true')
+            return;
+
+        if (HandleBloodOath()) {
+            continue;
+        }
+
+        Orion.WarMode(true);
+
+        var enemy = GetClosestEnemySolo();
+
+        if (enemy) {
+            var currentSerial = enemy.Serial();
+
+            if (!honoredTarget || honoredTarget.Serial() !== currentSerial) {
+                if (TryHonorEnemy(enemy))
+                    honoredTarget = enemy;
+                else
+                    honoredTarget = null;
+            }
+
+            while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
+                enemy = Orion.FindObject(currentSerial);
+
+                if (!enemy || enemy.Dead())
+                    break;
+
+                if (HandleBloodOath()) {
+                    break;
+                }
+
+                var noto = enemy.Notoriety();
+
+                if ((noto === 3 || noto === 6) && lastEOOTarget !== currentSerial) {
+                    if (Player.Mana() >= 14) {
+                        if (Orion.BuffExists('Enemy of One')) {
+                            Orion.Cast('Enemy of One');
+
+                            var offTimeout = 0;
+                            while (Orion.BuffExists('Enemy of One') && offTimeout < 10) {
+                                Orion.Wait(250);
+                                offTimeout++;
+                            }
+
+                            Orion.Wait(150);
+                        }
+
+                        Orion.Cast('Enemy of One');
+
+                        var onTimeout = 0;
+                        while (!Orion.BuffExists('Enemy of One') && onTimeout < 10) {
+                            Orion.Wait(200);
+                            onTimeout++;
+                        }
+
+                        if (Orion.BuffExists('Enemy of One')) {
+                            lastEOOTarget = currentSerial;
+                        }
+                    }
+                }
+
+                if (ignoredMobs[currentSerial] || isIgnoredSummon(enemy)) {
+                    Orion.Ignore(currentSerial);
+                    ignoredMobs[currentSerial] = true;
+                    break;
+                }
+
+                if (enemy.Distance() > GIVE_UP_DISTANCE) {
+                    break;
+                }
+
+                if (enemy.Distance() > 1) {
+                    Orion.WalkTo(enemy.X(), enemy.Y(), enemy.Z(), 1, 255, 1, 2, 5000);
+                }
+
+                if (enemy.Distance() <= 12) {
+                    Orion.Attack(currentSerial);
+                }
+
+                Orion.Wait(100);
+            }
+
+            honoredTarget = null;
+            Orion.CancelTarget();
+
+        } else {
+            lastEOOTarget = '';
+            Orion.Wait(100);
+        }
+    }
+}
+
+function SoloFollowAndAttackSS() {
+    var honoredTarget = null;
+    var GIVE_UP_DISTANCE = 10;
+
+    ignoredMobs = {};
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') {
+            return;
+        }
+
+        if (HandleBloodOath()) {
+            continue;
+        }
+
+        Orion.WarMode(true);
+
+        var enemy = GetClosestEnemySolo();
+
+        if (enemy) {
+            var currentSerial = enemy.Serial();
+
+            // HARD GATE iniziale: se è summon o mob ignorato, non lo considera proprio
+            if (ignoredMobs[currentSerial] || isIgnoredSummon(enemy)) {
+                Orion.Ignore(currentSerial);
+                ignoredMobs[currentSerial] = true;
+                honoredTarget = null;
+                Orion.Wait(100);
+                continue;
+            }
+
+            if (!honoredTarget || honoredTarget.Serial() !== currentSerial) {
+                if (TryHonorEnemy(enemy)) {
+                    honoredTarget = enemy;
+                } else {
+                    honoredTarget = null;
+                }
+            }
+
+            while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
+                if (HandleBloodOath()) {
+                    break;
+                }
+
+                enemy = Orion.FindObject(currentSerial);
+
+                if (!enemy || enemy.Dead()) {
+                    break;
+                }
+
+                // HARD GATE durante il fight
+                if (ignoredMobs[currentSerial] || isIgnoredSummon(enemy)) {
+                    Orion.Ignore(currentSerial);
+                    ignoredMobs[currentSerial] = true;
+                    break;
+                }
+
+                if (enemy.Distance() > GIVE_UP_DISTANCE) {
+                    break;
+                }
+
+                if (enemy.Distance() > 1) {
+                    Orion.WalkTo(enemy.X(), enemy.Y(), enemy.Z(), 1, 255, 1, 2, 5000);
+                    Orion.Wait(100);
+                }
+
+                if (enemy.Distance() <= 12) {
+                    Orion.Attack(currentSerial);
+                }
+
+                Orion.Wait(100);
+            }
+
+            honoredTarget = null;
+            Orion.CancelTarget();
+
+        } else {
+            Orion.Wait(300);
+        }
+    }
+}
+
+var failedHonorTargets = {};
+
+function TryHonorEnemy(enemy) {
+    if (!enemy || enemy.Serial() === Player.Serial()) return false;
+    if (failedHonorTargets[enemy.Serial()]) return false;
+
+    function tryOnce() {
+        Orion.Ignore('self');
+        Orion.RemoveObject("target");
+        Orion.AddObject("target", enemy.Serial());
+        Orion.Wait(100);
+
+        Orion.ClearJournal();
+        Orion.CancelTarget();
+
+        Orion.WaitTargetObject(enemy.Serial());
+        Orion.InvokeVirtue("Honor");
+        Orion.Wait(250);
+    }
+
+    tryOnce();
+
+    // retry se "Target cannot be seen"
+    if (Orion.InJournal("Target cannot be seen")) {
+        Orion.Wait(300);
+        tryOnce();
+    }
+
+    if (Orion.InJournal("You started Honorable Combat")) {
+        Orion.CharPrint(Player.Serial(), 65, "HONORATO: " + enemy.Name());
+        return true;
+    }
+
+    if (Orion.InJournal("You cannot honor this monster because it is too damaged")) {
+        Orion.CharPrint(Player.Serial(), 44, "GIA DANNEGGIATO → " + enemy.Name());
+        failedHonorTargets[enemy.Serial()] = true;
+        Orion.CancelTarget();
+        return false;
+    }
+
+    if (Orion.InJournal("You embrace your honor")) {
+        Orion.CharPrint(Player.Serial(), 33, "HONORATO TE STESSO PER ERRORE!");
+        failedHonorTargets[enemy.Serial()] = true;
+        return false;
+    }
+
+    return false;
+}
+
+function TryHonorEnemy2(enemy) {
+    if (!enemy || enemy.Serial() === Player.Serial()) return false;
+
+    if (failedHonorTargets[enemy.Serial()]) return false;
+
+    Orion.ClearJournal();
+    Orion.CancelTarget();
+    Orion.InvokeVirtue('Honor');
+
+    if (!Orion.WaitForTarget(2000)) {
+        Orion.CharPrint(Player.Serial(), 33, "Target Honor non attivo");
+        return false;
+    }
+
+    var refreshed = Orion.FindObject(enemy.Serial());
+    if (!refreshed || refreshed.Hits() <= 0 || !refreshed.Exists()) {
+        Orion.CancelTarget();
+        return false;
+    }
+
+    Orion.TargetObject(enemy.Serial());
+    Orion.Wait(600);
+
+    if (Orion.InJournal('You started Honorable Combat')) {
+        Orion.CharPrint(Player.Serial(), 65, "HONORATO : " + enemy.Name());
+        return true;
+    }
+
+    if (Orion.InJournal('You cannot honor this monster because is too damaged')) {
+        Orion.CharPrint(Player.Serial(), 44, "Honor fallito (già danneggiato): " + enemy.Name());
+        failedHonorTargets[enemy.Serial()] = true;
+        return false;
+    }
+
+    if (Orion.InJournal('You embrace your honor')) {
+        Orion.CharPrint(Player.Serial(), 33, "Hai onorato te stesso per errore!");
+        failedHonorTargets[enemy.Serial()] = true;
+        return false;
+    }
+
+    Orion.CharPrint(Player.Serial(), 44, "HONOR FAIL (già danneggiato) : " + enemy.Name());
+    failedHonorTargets[enemy.Serial()] = true;
+    return false;
+}
+
+function AutoHide() {
+    while (true) {
+        Orion.UseSkill('Hiding');
+        Orion.Wait(1000); // Attendi che venga attivato lo stato Hidden
+
+        if (Player.Hidden()) {
+            return;
+        } else {
+            Orion.Print('Non nascosto, riprovo tra 9 secondi...');
+            Orion.Wait(10000);
+        }
+    }
+}
+
+function SeguieMena() {
+    while (!Player.Dead()) {
+        var target = FindNearestEnemy();
+
+        if (target) {
+            var success = AttackNearestEnemy(); // ⚠️ Usa già tutta la logica con controlli, ignora, ecc.
+            if (!success) {
+                Orion.CharPrint(Player.Serial(), 33, "Target ignorato, cercando altro...");
+            }
+        } else {
+            Orion.Wait(300); // Aspetta un attimo prima di riprovare
+        }
+    }
+}
+
+function MountPetManager() {
+    Orion.CharPrint(Player.Serial(), 55, "Seleziona un pet da salvare");
+
+    if (Orion.WaitForAddObject('mount_temp', 25000)) {
+        var pet = Orion.FindObject('mount_temp');
+        if (pet) {
+            // Usa FindList come storage "persistente"
+            var graphic = pet.Graphic();
+            var color = pet.Color();
+            var name = pet.Name() || 'Pet';
+
+            Orion.AddFindList('savedMounts', graphic, color, name);
+            Orion.CharPrint(Player.Serial(), 65, "Pet aggiunto alla lista : " + name);
+        }
+    }
+
+    GUI();
+}
+
+function autoMount() {
+    while (!Player.Dead()) {
+        var isMounted = Orion.ObjAtLayer('myMount') !== null;
+        if (!isMounted && Orion.BuffExists('dismount')) {
+            Orion.Say('All follow Me');
+            Orion.Wait(1500);
+            continue;
+        }
+
+        var pets = Orion.FindList('savedMounts', 'ground', null, 18);
+        for (var i = 0; i < pets.length; i++) {
+            var pet = Orion.FindObject(pets[i]);
+            if (!pet || pet.Hits() <= 0) continue;
+
+            Orion.GetStatus(pet.Serial());
+            Orion.Wait(100);
+
+            if (pet.Poisoned() && Player.Mana() >= 10) {
+                Orion.Cast('Cleanse by Fire');
+                if (Orion.WaitForTarget(1500)) {
+                    Orion.TargetObject(pet.Serial());
+                    Orion.Wait(300);
+                }
+            }
+
+            if (pet.YellowHits() && Player.Mana() >= 20) {
+                Orion.Cast('Remove Curse');
+                if (Orion.WaitForTarget(1500)) {
+                    Orion.TargetObject(pet.Serial());
+                    Orion.Wait(400);
+                }
+            }
+
+            Orion.WarMode(false);
+            Orion.UseObject(pet.Serial());
+            Orion.Wait(50);
+
+            if (Orion.ObjAtLayer('myMount') !== null) break;
+        }
+
+        Orion.Wait(50);
+    }
+}

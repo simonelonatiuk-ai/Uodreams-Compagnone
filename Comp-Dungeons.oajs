@@ -1,0 +1,618 @@
+function Formiche() {
+    var railCoordinates = [
+[6089, 1349], [6089, 1339], [6093, 1330], [6086, 1320], [6093, 1311],[6091, 1322], [6095, 1334], [6101, 1343], [6111, 1347], [6117, 1342],[6116, 1334], [6112, 1327], [6117, 1324], [6117, 1333], [6119, 1340],[6119, 1353], [6123, 1360], [6118, 1367], [6117, 1375], [6112, 1377],[6106, 1372], [6108, 1365], [6105, 1358], [6100, 1356], [6093, 1362],[6084, 1368], [6077, 1371], [6073, 1367], [6074, 1361], [6075, 1360],[6067, 1356], [6059, 1358], [6046, 1361], [6044, 1373], [6052, 1381],[6047, 1374], [6047, 1364], [6049, 1349], [6051, 1339], [6056, 1332],[6065, 1331], [6066, 1322], [6071, 1323], [6062, 1335], [6054, 1342],[6059, 1354], [6071, 1347], [6080, 1353], [6089, 1348]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+        // 🔍 Check pozze di acido entro 1 tile dalla prossima posizione
+        var acidPuddles = Orion.FindType('0x122A', '-1', 'ground', null, 2);
+        var avoidTile = acidPuddles.some(function(p) {
+            var obj = Orion.FindObject(p);
+            return obj && Math.abs(obj.X() - coord[0]) <= 1 && Math.abs(obj.Y() - coord[1]) <= 1;
+        });
+
+        if (avoidTile) {
+            Orion.CharPrint(Player.Serial(), 33, "🧪 Acido rilevato, salto tile!");
+            currentIndex++;
+            Orion.Wait(10);
+            continue;
+        }
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now();
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Abyssal() {
+    var railCoordinates = [
+[6993, 733], [6986, 726], [6975, 726], [6965, 716], [6954, 715],[6943, 718], [6940, 729], [6940, 741], [6945, 749], [6948, 760],[6954, 770], [6959, 778], [6964, 787], [6973, 787], [6979, 778],[6972, 768], [6965, 758], [6961, 748], [6969, 738], [6975, 728],[6968, 717], [6966, 707], [6961, 700], [6964, 692], [6973, 697],[6981, 693], [6989, 696], [6998, 694], [7000, 700], [7006, 704],[7016, 696], [7026, 702], [7027, 713], [7023, 722], [7030, 732],[7034, 742], [7031, 753], [7027, 763], [7019, 772], [7009, 781],[7000, 776], [7007, 765], [7008, 757], [6999, 753], [6995, 746],[6997, 734]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+        // Muoviti al punto della rail
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+
+        // Controlla per massimo 300ms se ci sono nemici
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+            // Se trovi un target attaccabile
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now(); // resetta il timer
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Barra() {
+    var railCoordinates = [
+[5558, 822], [5544, 822], [5532, 827], [5527, 837], [5519, 845],[5518, 854], [5526, 862], [5538, 858], [5544, 864], [5553, 866],[5564, 862], [5572, 866], [5582, 865], [5600, 873], [5589, 870],[5588, 852], [5592, 844], [5586, 835], [5604, 823], [5605, 810],[5606, 800], [5606, 787], [5600, 781], [5591, 789], [5578, 792],[5568, 787], [5558, 785], [5547, 788], [5538, 783], [5531, 790],[5530, 803], [5522, 810], [5511, 806], [5521, 827], [5527, 808],[5536, 794], [5550, 798], [5567, 798], [5584, 793], [5589, 801],[5589, 819], [5574, 823], [5558, 822]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 5, 2000);
+
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now();
+            } else {
+                Orion.Wait(50);
+            }
+        }
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Khaldun() {
+    var railCoordinates = [
+[5469, 1459], [5462, 1459], [5460, 1449], [5452, 1443], [5451, 1442],[5457, 1452], [5452, 1460], [5442, 1460], [5437, 1452], [5430, 1451],[5434, 1458], [5434, 1467], [5429, 1474], [5425, 1482], [5427, 1492],[5434, 1484], [5443, 1489], [5445, 1499], [5449, 1496], [5458, 1497],[5462, 1490], [5467, 1482], [5475, 1472], [5482, 1461], [5484, 1452],[5484, 1441], [5479, 1428], [5486, 1427], [5498, 1427], [5499, 1420],[5494, 1426], [5487, 1432], [5484, 1445], [5479, 1453], [5467, 1461]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now();
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Neira() {
+    var railCoordinates = [
+[5178, 708], [5178, 719], [5183, 728], [5183, 700], [5194, 699],[5189, 692], [5174, 700], [5171, 692], [5171, 682], [5165, 675],[5156, 679], [5155, 693], [5154, 699], [5155, 682], [5150, 675],[5144, 675], [5140, 669], [5140, 661], [5140, 682], [5139, 690],[5130, 690], [5132, 703], [5132, 711], [5133, 722], [5142, 723],[5150, 718], [5154, 725], [5155, 736], [5151, 743], [5155, 731],[5151, 723], [5135, 723], [5130, 712], [5136, 700], [5141, 696],[5139, 685], [5149, 676], [5162, 676], [5172, 669], [5176, 659],[5189, 659], [5203, 663], [5206, 670], [5215, 675], [5221, 682],[5228, 687], [5226, 706], [5218, 715], [5221, 726], [5216, 734],[5216, 744], [5220, 753], [5226, 736], [5221, 727], [5221, 712],[5227, 705], [5227, 696], [5227, 687], [5219, 679], [5210, 670],[5204, 666], [5199, 658], [5189, 658], [5185, 658], [5175, 661],[5172, 677], [5172, 688], [5175, 701], [5178, 707]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now();
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Semidar() {
+    var railCoordinates = [
+[5813, 1350], [5805, 1346], [5805, 1336], [5814, 1331], [5827, 1331],[5839, 1332], [5846, 1343], [5853, 1348], [5863, 1341], [5859, 1334],[5859, 1345], [5850, 1347], [5845, 1339], [5843, 1329], [5850, 1317],[5849, 1310], [5843, 1304], [5839, 1293], [5829, 1297], [5826, 1309],[5818, 1310], [5812, 1309], [5803, 1307], [5789, 1306], [5776, 1306],[5791, 1308], [5803, 1313], [5800, 1323], [5788, 1325], [5776, 1327],[5774, 1337], [5773, 1346], [5785, 1348], [5788, 1340], [5776, 1348],[5775, 1361], [5788, 1371], [5793, 1379], [5789, 1392], [5797, 1397],[5806, 1403], [5819, 1401], [5820, 1390], [5818, 1380], [5802, 1379],[5808, 1379], [5820, 1374], [5825, 1365], [5838, 1365], [5843, 1399], [5850, 1389], [5861, 1394], [5850, 1365], [5837, 1365], [5826, 1365], [5819, 1359], [5812, 1350]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now();
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Rikktor() {
+    var railCoordinates = [
+[5259, 835], [5255, 826], [5247, 815], [5235, 812], [5225, 805],[5217, 798], [5214, 808], [5212, 820], [5213, 827], [5219, 841],[5226, 846], [5237, 842], [5242, 850], [5244, 860], [5242, 867],[5240, 877], [5234, 886], [5245, 888], [5254, 883], [5254, 871],[5261, 861], [5265, 855], [5278, 851], [5290, 854], [5301, 857],[5309, 851], [5305, 841], [5306, 831], [5306, 821], [5302, 812],[5293, 816], [5283, 814], [5286, 802], [5291, 794], [5297, 787],[5308, 789], [5313, 799], [5315, 811], [5300, 816], [5287, 822],[5276, 833], [5265, 828], [5257, 820], [5257, 804], [5260, 791],[5261, 782], [5250, 780], [5242, 785], [5231, 796], [5228, 807],[5235, 817], [5252, 824], [5257, 832]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+
+        var checkDuration = 10;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+
+            // ✅ ATTACCA solo se realmente combatte
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now(); // resetta solo se ha realmente attaccato
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Mephitis() {
+    var railCoordinates = [
+[5188, 1608], [5167, 1616], [5154, 1616], [5145, 1608], [5145, 1595],[5140, 1586], [5136, 1596], [5136, 1608], [5136, 1619], [5141, 1629],[5146, 1640], [5153, 1629], [5163, 1634], [5168, 1644], [5179, 1644],[5190, 1644], [5196, 1637], [5204, 1631], [5213, 1629], [5224, 1635],[5216, 1628], [5213, 1620], [5217, 1609], [5224, 1602], [5236, 1602],[5232, 1589], [5224, 1588], [5219, 1582], [5212, 1578], [5208, 1567],[5218, 1564], [5208, 1568], [5216, 1582], [5219, 1606], [5212, 1617],[5206, 1629], [5190, 1640], [5177, 1642], [5164, 1637], [5156, 1628],[5142, 1628], [5135, 1619], [5136, 1604], [5136, 1591], [5143, 1589],[5146, 1614], [5161, 1616], [5174, 1616], [5187, 1616]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+
+        // Muoviti al punto della rail
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+
+        // Controlla per massimo 300ms se ci sono nemici
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+var target = FindNearestEnemyMephitis();
+if (target && AttackNearestEnemyMephitis(target)) {
+    startTime = Orion.Now(); // resetta il timer
+} else {
+    Orion.Wait(50);
+}
+        }
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Primeval() {
+    var railCoordinates = [
+[6998, 1004], [7011, 1005], [7021, 993], [7008, 986], [7003, 985], [7000, 974],
+[7006, 964], [7010, 975], [7011, 965], [7010, 954], [7001, 949], [6992, 949],
+[6985, 959], [6988, 964], [6983, 976], [6989, 971], [6995, 966], [7000, 978],
+[6996, 984], [6983, 984], [6973, 982], [6969, 970], [6962, 961], [6967, 949],
+[6982, 935], [6993, 931], [7006, 931], [7017, 940], [7028, 948], [7034, 957],
+[7037, 963], [7036, 974], [7047, 975], [7048, 987], [7054, 997], [7044, 1007],
+[7036, 1019], [7027, 1024], [7024, 1034], [7035, 1035], [7048, 1030],
+[7060, 1033], [7062, 1045], [7050, 1050], [7038, 1050], [7028, 1049],
+[7017, 1044], [7010, 1034], [7011, 1022], [7017, 1012], [7011, 1005],
+[6999, 1008], [6984, 1003], [6972, 1001], [6963, 1008], [6971, 1017],
+[6982, 1018], [6989, 1027], [6982, 1037], [6972, 1048], [6959, 1052],
+[6948, 1049], [6945, 1038], [6948, 1026], [6956, 1014], [6965, 1002],
+[6958, 991], [6951, 987], [6964, 986], [6977, 989], [6988, 999],
+[7001, 1003]
+
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now(); // resetta solo se ha realmente attaccato
+            } else {
+                Orion.Wait(50);
+            }
+        }
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Marble() {
+    var railCoordinates = [
+[5266, 3170], [5258, 3170], [5270, 3170], [5279, 3166], [5279, 3165],[5272, 3155], [5262, 3147], [5259, 3154], [5273, 3155], [5276, 3167],[5280, 3177], [5272, 3184], [5257, 3185], [5244, 3180], [5235, 3183],[5239, 3195], [5249, 3195], [5261, 3195], [5274, 3195], [5285, 3195],[5296, 3187], [5299, 3176], [5297, 3167], [5296, 3158], [5288, 3149],[5278, 3143], [5270, 3136], [5258, 3133], [5250, 3140], [5245, 3132],[5241, 3143], [5238, 3155], [5230, 3167], [5232, 3178], [5243, 3180],[5252, 3185], [5266, 3185], [5277, 3179], [5270, 3169]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now(); // resetta solo se ha realmente attaccato
+            } else {
+                Orion.Wait(50);
+            }
+        }
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Damwin() {
+    var railCoordinates = [
+[5279, 3368], [5278, 3363], [5278, 3353], [5271, 3349], [5263, 3345],[5254, 3351], [5247, 3363], [5254, 3373], [5267, 3386], [5278, 3399],[5291, 3400], [5299, 3395], [5305, 3384], [5309, 3375], [5304, 3372],[5296, 3375], [5286, 3370], [5282, 3356], [5267, 3355], [5269, 3367],[5277, 3367]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, 10000);
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = FindNearestEnemy();
+
+            if (target && AttackNearestEnemy()) {
+                startTime = Orion.Now(); // resetta solo se ha realmente attaccato
+            } else {
+                Orion.Wait(50);
+            }
+        }
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function Oaks() {
+
+ var railCoordinates = [
+[5554, 3757], [5545, 3754], [5535, 3751], [5525, 3751], [5517, 3764], [5519, 3772], [5517, 3783], [5526, 3786], [5530, 3780], [5536, 3780], [5544, 3783], [5554, 3791], [5562, 3800], [5568, 3804],
+[5547, 3775], [5546, 3774], [5556, 3784], [5566, 3787], [5573, 3792], [5575, 3798], [5580, 3788],[5592, 3783], [5598, 3779], [5617, 3778], [5605, 3742], [5597, 3740], [5589, 3733], [5585, 3727],
+[5589, 3718], [5580, 3707], [5565, 3707], [5553, 3714], [5548, 3722], [5554, 3727], [5565, 3728], [5545, 3731], [5536, 3730], [5526, 3738], [5525, 3748], [5535, 3751], [5546, 3754], [5559, 3757]
+    ];
+
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentIndex >= railCoordinates.length) {
+            currentIndex = 0;
+        }
+
+        var coord = railCoordinates[currentIndex];
+
+        Orion.WalkTo(
+            coord[0],
+            coord[1],
+            Player.Z(),
+            1,
+            255,
+            1,
+            10,
+            10000
+        );
+
+        // ⏱ micro-check area (come Marble)
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+
+            if (AttackNearestEnemy_OAKS()) {
+                // resetta solo se combatte davvero
+                startTime = Orion.Now();
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function RaccogliSoldi() {
+    var goldID = '0x0EED'; // ID dell'oro
+    var distanza = 3;
+
+    while (!Player.Dead()) {
+        var items = Orion.FindType(goldID, '-1', 'ground', 'near', distanza);
+
+        for (var i = 0; i < items.length; i++) {
+            var item = Orion.FindObject(items[i]);
+            if (item && item.Distance() <= distanza) {
+                Orion.MoveItem(item.Serial(), item.Amount, 'backpack');
+                Orion.Wait(300);
+            }
+        }
+
+        Orion.Wait(300);
+    }
+}
+
+function GoldRunnerChase95() {
+    var GOLD_ID = '0x0EED';   // oro
+    var BAG_ID  = '0x0E76';   // Bag of Sending
+    var RAGGIO_PICKUP = 2;    // distanza per raccogliere
+    var RAGGIO_SCAN   = 12;   // distanza di ricerca oro a terra
+    var lastGoldSerial = null;
+
+    Orion.Print("▶️ GoldRunner 95% + chase avviato (pickup 600 ms, movimento WalkTo)");
+
+    // Trova la Bag nello zaino (se manca, raccoglie solo)
+    var bagList = Orion.FindType(BAG_ID, '-1', 'backpack');
+    var bagSerial = bagList.length ? bagList[0] : null;
+    if (!bagSerial)
+        Orion.CharPrint(Player.Serial(), 33, "⚠️ Bag of Sending non trovata!");
+
+    while (!Player.Dead()) {
+        var maxW = Player.MaxWeight();
+        var curW = Player.Weight();
+
+        // === 1) Invio a banca se peso >= 95% ===
+        if (bagSerial && curW >= Math.floor(maxW * 0.95)) {
+            Orion.UseObject(bagSerial);
+            if (Orion.WaitForTarget(3000)) {
+                var goldInBackpack = Orion.FindType(GOLD_ID, '-1', 'backpack');
+                if (goldInBackpack.length) {
+                    Orion.TargetObject(goldInBackpack[0]);
+                } else if (lastGoldSerial) {
+                    Orion.TargetObject(lastGoldSerial); // oro "in mano"
+                } else {
+                    var vicino = Orion.FindType(GOLD_ID, '-1', 'ground', 'near', 1);
+                    if (vicino.length) Orion.TargetObject(vicino[0]);
+                }
+                Orion.CharPrint(Player.Serial(), 65, "🏦 Oro inviato in banca (95%).");
+            } else {
+                Orion.CharPrint(Player.Serial(), 33, "⚠️ Nessun target dalla Bag of Sending.");
+            }
+            Orion.Wait(400);
+        }
+
+        // === 2) Cerca oro a terra e muoviti verso la pila più vicina ===
+        var piles = Orion.FindType(GOLD_ID, '-1', 'ground', 'near', RAGGIO_SCAN);
+        if (!piles.length) {
+            Orion.Wait(200);
+            continue;
+        }
+
+        var nearest = null;
+        var dist = 999;
+        for (var i = 0; i < piles.length; i++) {
+            var it = Orion.FindObject(piles[i]);
+            if (!it) continue;
+            if (it.Distance() < dist) {
+                dist = it.Distance();
+                nearest = it;
+            }
+        }
+        if (!nearest) {
+            Orion.Wait(150);
+            continue;
+        }
+
+        // Se troppo lontano, cammina verso di esso
+        if (nearest.Distance() > RAGGIO_PICKUP) {
+            Orion.WalkTo(nearest.X(), nearest.Y(), nearest.Z(), 1, 255, 1, 2, 5000);
+            Orion.Wait(400);
+        } else {
+            // Raccogli
+            lastGoldSerial = nearest.Serial();
+            Orion.MoveItem(nearest.Serial(), nearest.Amount, 'backpack');
+            Orion.Wait(600); // drag/drop fisso
+        }
+
+        Orion.Wait(150);
+    }
+
+    Orion.CharPrint(Player.Serial(), 55, "⛔ GoldRunner terminato.");
+}
+
+function SbloccaSeFermo() {
+    var lastX = Player.X();
+    var lastY = Player.Y();
+    var lastZ = Player.Z();
+    var stayCounter = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (Player.X() === lastX && Player.Y() === lastY && Player.Z() === lastZ) {
+            stayCounter++;
+        } else {
+            lastX = Player.X();
+            lastY = Player.Y();
+            lastZ = Player.Z();
+            stayCounter = 0;
+        }
+
+        if (stayCounter >= 55) { // 10 secondi (50 × 200ms)
+            stayCounter = 0;
+            Orion.CharPrint(Player.Serial(), 33, "*SBORRATO*");
+
+            var path = [5, 5, 5, 6, 6, 6, 2, 2, 2, 7, 7, 7];
+
+            for (var i = 0; i < path.length; i++) {
+                Orion.Step(path[i], true);
+                if (Orion.ObjAtLayer('Mount') !== null) {
+                    Orion.Wait(115);
+                } else {
+                    Orion.Wait(215);
+                }
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function SelectOrResetKhaldunWeapon() {
+    var varName = 'kaldun';
+
+    if (Orion.FindObject(varName)) {
+        Orion.RemoveObject(varName);
+        Shared.RemoveVar(varName + '_name');
+        PlayerConfig_RemoveObject(varName);
+        Orion.CharPrint(Player.Serial(), 33, 'Arma KALDHUN resettata!');
+    } else {
+        Orion.CharPrint(Player.Serial(), 55, 'Seleziona arma KALDHUN');
+        if (Orion.WaitForAddObject(varName, 15000)) {
+            var item = Orion.FindObject(varName);
+            if (item) {
+                Shared.AddVar(varName + '_name', item.Name());
+                PlayerConfig_SaveObject(varName, item.Serial(), item.Name());
+                Orion.CharPrint(Player.Serial(), 65, 'Arma KALDHUN salvata: ' + item.Name());
+            }
+        } else {
+            Orion.CharPrint(Player.Serial(), 33, 'Tempo scaduto: nessuna arma selezionata.');
+        }
+    }
+
+    GUI();
+}

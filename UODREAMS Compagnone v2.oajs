@@ -2,5 +2,5 @@
 // Real implementation lives in UODREAMS_GUI.oajs (rendering + interaction +
 // persistence) and the per-feature .oajs scripts launched via Orion.Exec.
 function Autostart() {
-    Orion.Exec('UODREAMS_GUI', 'true');
+    Orion.Exec('Compagnone-Start', 'true');
 }
