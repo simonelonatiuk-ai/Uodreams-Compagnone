@@ -8,20 +8,20 @@ var ignoredMobs = {};
 var isSendingGold = false;
 
 var LAYOUT = {
-    width:       13,
+    width:       12,
     gridUnit:    35,
     offsetX:    -75,
     offsetY:     200,
     headerY:     45,
-    tabSpacing:  85,
+    tabSpacing:  80,
     rowStep:     30,
     sectionGap:  40
 };
 
 var NAV = {
-    title:    { text: '*UODREAMS COMPAGNONE 2.6*', offsetX: 130, color: 89 },
+    title:    { text: '*UODREAMS COMPAGNONE 2.6*', offsetX: 120, color: 89 },
     tabs:     ['config', 'sampire', 'champ', 'misc', 'dress'],
-    positions: [30, 115, 200, 285, 370],
+    positions: [20, 100, 180, 260, 340],
     config:  { id: 1024, icon: 0x15CD, tip: 'Config Menu' },
     sampire: { id: 1015, icon: 0x15D3, tip: 'Sampire Menu' },
     champ:   { id: 1016, icon: 0x15D1, tip: 'Champ Selector Menu' },
@@ -280,7 +280,7 @@ function GUIConfig() {
     var offsetY = LAYOUT.offsetY;
     DrawFrame(g, 12);
     DrawNav(g, 'config');
-    g.AddText(offsetX + 130, offsetY + 130, 53, '*CHARACTER CONFIG*');
+    g.AddText(offsetX + 138, offsetY + 120, 53, '*CHARACTER CONFIG*');
     var rowY = offsetY + 160;
     var sx = offsetX + 220;
     g.AddText(offsetX + 30, rowY, 65, 'Personaggio:');
@@ -344,7 +344,7 @@ function GUISampire() {
     DrawFrame(g, 15);
     DrawNav(g, 'sampire');
 
-    g.AddText(offsetX + 85, offsetY + 130, 53, '     *COMBAT SYSTEM*');
+    g.AddText(offsetX + 150, offsetY + 120, 53, '*COMBAT SYSTEM*');
 
     prompt += 10;
     g.AddText(offsetX + 60, offsetY + prompt + 5, GetColorStatus('AutoDivine'), 'Auto Divine Fury');
@@ -391,7 +391,7 @@ function GUIChampSelector() {
     DrawFrame(g, 16);
     DrawNav(g, 'champ');
 
-    g.AddText(offsetX + 85, offsetY + 130, 53, '      *CHAMPION RAIL*');
+    g.AddText(offsetX + 150, offsetY + 120, 53, '*CHAMPION RAIL*');
 
     g.AddText(offsetX + 260, offsetY + prompt + 5, GetColorStatus('Mephitis'), 'MEPHITIS');
     g.AddButton(2051, offsetX + 225, offsetY + prompt, GetCheckboxStatus("Mephitis"), GetCheckboxStatus("Mephitis"), GetCheckboxStatus("Mephitis"), '');
@@ -427,7 +427,7 @@ function GUIChampSelector() {
 
     g.AddText(offsetX + 60, offsetY + prompt + 5, GetColorStatus('Khaldun'), 'KHALDUN');
     g.AddButton(2003, offsetX + 25, offsetY + prompt, GetCheckboxStatus("Khaldun"), GetCheckboxStatus("Khaldun"), GetCheckboxStatus("Khaldun"), '');
-    g.AddButton(5100, offsetX + 10, offsetY + prompt + 8, 0x2716, 0x2716, 0x2716, '77');
+    g.AddButton(5100, offsetX + 125, offsetY + prompt + 8, 0x2716, 0x2716, 0x2716, '77');
     g.AddTooltip('Seleziona o resetta ARMA KALDHUN');
     
     prompt += 30;
@@ -485,7 +485,7 @@ function GUIMisc(){
     DrawFrame(g, 16);
     DrawNav(g, 'misc');
 
-    g.AddText(offsetX + 85, offsetY + 130, 53, '         *UTILITIES*');
+    g.AddText(offsetX + 166, offsetY + 120, 53, '*UTILITIES*');
 
     // AddTo Autoloot & Insure
     g.AddButton(5031, offsetX + 240, offsetY + prompt + 28, '0x2716', '0x2716', '0x2716', '85');
@@ -510,7 +510,7 @@ g.AddText(offsetX + 260, offsetY + prompt + 21, 65, 'Honorati scemo');
 // ===== FAMA KARMA / HIDE CORPSE =====
 // Blocco destro più compatto e leggermente più alto
 
-var rbBaseY = offsetY + prompt + 14;
+var rbBaseY = offsetY + prompt + 45;
 var rbStep  = 24;
 
 // X blocco destro
@@ -537,7 +537,7 @@ g.AddButton(5110, hcBtnX, hcY + 2,
 g.AddTooltip('Toggle Hide Corpse');
 
 // ⬅️ testo avvicinato alla checkbox
-g.AddText(rbXText - 20, hcY + 6, GetColorStatus('hideCorpse'), 'Hide Corspses');
+g.AddText(rbXText - 20, hcY + 6, GetColorStatus('hideCorpse'), 'Hide Corpses');
 
 // CLICCA TUTTO (sotto Nascondi Corpi)
 var ctY    = hcY + rbStep;        // subito sotto Hide Corpse
@@ -582,10 +582,19 @@ g.AddTooltip('Toggle Auto Vampiric Embrace');
 
 g.AddText(rbXText - 20, avY + 6, GetColorStatus('AutoVampiricEmbrace'), 'Auto Vampiric');
 
+// RECALL CASA
+var rcasaY = avY + rbStep + 5;
+g.AddText(hcBtnX, rcasaY + 6, 65, 'Recall Casa');
+g.AddButton(5105, offsetX + 340, rcasaY + 8, '0x04B9', '0x04BA', '0x04B9', '');
+g.AddTooltip('Esegui Recall Casa');
 
+// RECALL LUNA BANK
+var rlbankY = rcasaY + rbStep;
+g.AddText(hcBtnX, rlbankY + 6, 65, 'Recall Luna Bank');
+g.AddButton(5107, offsetX + 340, rlbankY + 8, '0x04B9', '0x04BA', '0x04B9', '');
+g.AddTooltip('Esegui Recall Luna Bank');
 
-
-    prompt += 20;
+    prompt += 30;
     g.AddText(offsetX + 60, offsetY + prompt + 5, GetColorStatus('AutoLogoutOnDeath'), 'Auto Logout on death');
     g.AddButton(3005, offsetX + 25, offsetY + prompt, GetCheckboxStatus("AutoLogoutOnDeath"), GetCheckboxStatus("AutoLogoutOnDeath"), GetCheckboxStatus("AutoLogoutOnDeath"), '');
 
@@ -615,7 +624,7 @@ g.AddText(rbXText - 20, avY + 6, GetColorStatus('AutoVampiricEmbrace'), 'Auto Va
     prompt += 30;
     g.AddText(offsetX + 60, offsetY + prompt + 5, GetColorStatus('CercaOggettoTerra'), 'Cerca Oggetto a Terra');
     g.AddButton(3017, offsetX + 25, offsetY + prompt, GetCheckboxStatus("CercaOggettoTerra"), GetCheckboxStatus("CercaOggettoTerra"), GetCheckboxStatus("CercaOggettoTerra"), '');
-    g.AddButton(1023, offsetX + 10, offsetY + prompt+8, '0x2716', '0x2716', '0x2716', '15');
+    g.AddButton(1023, offsetX + 205, offsetY + prompt+8, '0x2716', '0x2716', '0x2716', '15');
     g.AddTooltip('Aggiungi ITEM alla lista');
     
     prompt += 30;
