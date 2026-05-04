@@ -532,7 +532,7 @@ function OnClick() {
         case 3043: SelectOrResetWeapon('generic_area'); break;
         case 3044: SelectOrResetWeapon('boss'); break;
         case 3045: ToggleDressWeapon('Dress_Evento'); break;
-        case 3046: SelectOrResetWeapon('Bleed'); break;
+        case 3046: SelectOrResetWeapon('evento'); break;
 
         case 3047: ToggleDressWeapon('Dress_BladedDragon'); break;
         case 3048: SelectOrResetWeapon('bladed_dragon'); break;
@@ -873,34 +873,34 @@ function ToggleDressWeapon(scriptName) {
     ];
 
     const weaponObjectMap = {
-        'Dress_DemonAxe': 'demon_axe',
-        'Dress_DemonBladed': 'demon_bladed',
-        'Dress_DemonArea': 'demon_area',
-        'Dress_Dragon': 'dragon',
-        'Dress_DragonArea': 'dragon_area',
-        'Dress_Reptile': 'reptile',
-        'Dress_Fey': 'fey',
-        'Dress_Ogre': 'ogre',
-        'Dress_Repond': 'repond',
-        'Dress_Undead': 'undead',
-        'Dress_GenericArea': 'generic_area',
-        'Dress_Boss': 'boss',
-        'Dress_Evento': 'EVENTO',
-        'Dress_BladedDragon': 'bladed_dragon',
-        'Dress_BladedFey': 'bladed_fey',
-        'Dress_BladedRepond': 'bladed_repond',
-        'Dress_BladedSatellite': 'bladed_satellite',
-        'Dress_BladedUndead': 'bladed_undead',
-        'Dress_BladedSpider': 'bladed_spider',
-        'Dress_Spider': 'spider',
-        'Dress_BladedSearing': 'bladed_searing',
-        'Dress_DoomDarknightCreeper': 'doom_darknight_creeper',
-        'Dress_DoomFleshrenderer': 'doom_fleshrenderer',
-        'Dress_DoomImpaler': 'doom_impaler',
-        'Dress_DoomShadowKnight': 'doom_shadow_knight',
-        'Dress_DoomAbyssmalHorror': 'doom_abyssmal_horror',
-        'Dress_DoomDarkFather': 'doom_dark_father'
-    };
+    'Dress_DemonAxe': 'demon_axe',
+    'Dress_DemonBladed': 'demon_bladed',
+    'Dress_DemonArea': 'demon_area',
+    'Dress_Dragon': 'dragon',
+    'Dress_DragonArea': 'dragon_area',
+    'Dress_Reptile': 'reptile',
+    'Dress_Fey': 'fey',
+    'Dress_Ogre': 'ogre',
+    'Dress_Repond': 'repond',
+    'Dress_Undead': 'undead',
+    'Dress_GenericArea': 'generic_area',
+    'Dress_Boss': 'boss',
+    'Dress_Evento': 'evento',
+    'Dress_BladedDragon': 'bladed_dragon',
+    'Dress_BladedFey': 'bladed_fey',
+    'Dress_BladedRepond': 'bladed_repond',
+    'Dress_BladedSatellite': 'bladed_satellite',
+    'Dress_BladedUndead': 'bladed_undead',
+    'Dress_BladedSpider': 'bladed_spider',
+    'Dress_Spider': 'spider',
+    'Dress_BladedSearing': 'bladed_searing',
+    'Dress_DoomDarknightCreeper': 'doom_darknight_creeper',
+    'Dress_DoomFleshrenderer': 'doom_fleshrenderer',
+    'Dress_DoomImpaler': 'doom_impaler',
+    'Dress_DoomShadowKnight': 'doom_shadow_knight',
+    'Dress_DoomAbyssmalHorror': 'doom_abyssmal_horror',
+    'Dress_DoomDarkFather': 'doom_dark_father'
+};
 
     for (var i = 0; i < allWeapons.length; i++) Orion.Terminate(allWeapons[i]);
 
