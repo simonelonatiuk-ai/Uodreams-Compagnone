@@ -4279,28 +4279,24 @@ function TurboRandomWander() {
     Orion.Wait(100);
 }
 
+function CheckWeightAndSend(threshold) {
+    if (Player.Weight() < Player.MaxWeight() - threshold) return;
+    var bones = Orion.FindType(bonesGraphic, 'any', 'backpack');
+    if (!bones.length) return;
+    var bag = Orion.FindObject(bagOfSendingSerial);
+    if (!bag) { Orion.Print(33, 'ERRORE: Bag of Sending non trovata!'); return; }
+    Orion.Print(33, 'Zaino quasi pieno. Invio ossa in banca...');
+    Orion.UseObject(bagOfSendingSerial);
+    if (Orion.WaitForTarget(2000)) {
+        Orion.TargetObject(bones[0]);
+        Orion.Wait(1000);
+        Orion.Print(65, 'Ossa inviate correttamente.');
+    }
+}
+
 function BoneCheckWeightAndSend() {
     Orion.GetStatus(Player.Serial());
-
-    if (Player.Weight() >= Player.MaxWeight() - 20) {
-        Orion.Print(33, 'Zaino pieno (' + Player.Weight() + '/' + Player.MaxWeight() + ').');
-
-        var foundBones = Orion.FindType(bonesGraphic, 'any', 'backpack', 'item', '', '', true);
-
-        if (foundBones.length > 0) {
-            var bag = Orion.FindObject(bagOfSendingSerial);
-
-            if (bag) {
-                Orion.Print(65, 'Spedisco ossa...');
-                Orion.UseObject(bagOfSendingSerial);
-
-                if (Orion.WaitForTarget(2500)) {
-                    Orion.TargetObject(foundBones[0]);
-                    Orion.Wait(1000);
-                }
-            }
-        }
-    }
+    CheckWeightAndSend(20);
 }
 
 function StopBoneScavenger() {
@@ -4426,27 +4422,7 @@ function LootBones() {
 }
 
 function DragonCheckWeightAndSend() {
-    if (Player.Weight() < Player.MaxWeight() - 30) return;
-
-    Orion.Print(33, 'Zaino quasi pieno. Invio ossa in banca...');
-
-    var bonesInPack = Orion.FindType(bonesGraphic, 'any', 'backpack');
-
-    if (bonesInPack.length > 0) {
-        var bag = Orion.FindObject(bagOfSendingSerial);
-
-        if (bag) {
-            Orion.UseObject(bagOfSendingSerial);
-
-            if (Orion.WaitForTarget(2000)) {
-                Orion.TargetObject(bonesInPack[0]);
-                Orion.Wait(1000);
-                Orion.Print(65, 'Ossa inviate correttamente.');
-            }
-        } else {
-            Orion.Print(33, 'ERRORE: Bag of Sending non trovata!');
-        }
-    }
+    CheckWeightAndSend(30);
 }
 
 function HonorTargetSerial(serial) {
