@@ -2275,12 +2275,65 @@ function AggroMobs() {
 function HonorTarget(target) {
     if (!target) return false;
 
-    Orion.InvokeVirtue('Honor');
+    var serial = null;
 
-    if (Orion.WaitForTarget(2000)) {
-        Orion.TargetObject(target.Serial());
-        Orion.Wait(200);
+    if (typeof target === 'string' || typeof target === 'number') {
+        serial = target;
+    } else if (target.Serial && typeof target.Serial === 'function') {
+        serial = target.Serial();
+    }
+
+    if (!serial) {
+        Orion.Print(33, 'HonorTarget: target non valido');
+        return false;
+    }
+
+    if (String(serial).toLowerCase() === String(Player.Serial()).toLowerCase()) {
+        Orion.Print(33, 'HonorTarget BLOCCATO: stava tentando di honorare SELF');
+        Orion.CharPrint(Player.Serial(), 33, '*HONOR SELF BLOCCATO*');
+        return false;
+    }
+
+    var obj = Orion.FindObject(serial);
+
+    if (!obj || !Orion.ObjectExists(serial)) {
+        Orion.Print(33, 'HonorTarget: oggetto non trovato');
+        return false;
+    }
+
+    if (obj.Dead && obj.Dead()) {
+        Orion.Print(33, 'HonorTarget: target morto');
+        return false;
+    }
+
+    if (obj.Distance && obj.Distance() > 12) {
+        Orion.Print(33, 'HonorTarget: target troppo lontano');
+        return false;
+    }
+
+    Orion.ClearJournal();
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.Wait(50);
+
+    Orion.WaitTargetObject(serial);
+    Orion.InvokeVirtue('Honor');
+    Orion.Wait(300);
+
+    if (Orion.InJournal('You started Honorable Combat')) {
+        Orion.CharPrint(serial, 65, '*HONORATO*');
         return true;
+    }
+
+    if (Orion.InJournal('You cannot honor this monster because it is too damaged')) {
+        Orion.CharPrint(serial, 44, '*GIA DANNEGGIATO*');
+        return false;
+    }
+
+    if (Orion.InJournal('You embrace your honor')) {
+        Orion.CharPrint(Player.Serial(), 33, '*ERRORE: HAI HONORATO TE STESSO*');
+        Orion.Print(33, 'HonorTarget: self honor rilevato, target=' + serial);
+        return false;
     }
 
     return false;
@@ -3472,66 +3525,126 @@ function GetClosestEnemySolo() {
     return filtered[0];
 }
 
-function TryHonorEnemy(enemy) {
-    if (!enemy || enemy.Serial() === Player.Serial()) return false;
-    if (failedHonorTargets[enemy.Serial()]) return false;
+// =====================================================
+// HONOR UNIFICATO E SICURO
+// =====================================================
 
-    function tryOnce() {
-        Orion.Ignore('self');
-        Orion.RemoveObject('target');
-        Orion.AddObject('target', enemy.Serial());
-        Orion.Wait(100);
+var failedHonorTargets = {};
+var lastHonorAttemptTime = 0;
+var HONOR_COOLDOWN_MS = 700;
 
-        Orion.ClearJournal();
+function HonorEnemy(target) {
+    if (!target) return false;
+
+    var serial = null;
+    var obj = null;
+
+    if (typeof target === 'string' || typeof target === 'number') {
+        serial = String(target);
+        obj = Orion.FindObject(serial);
+    } else if (target.Serial && typeof target.Serial === 'function') {
+        serial = String(target.Serial());
+        obj = target;
+    }
+
+    if (!serial || !obj) return false;
+
+    var playerSerial = String(Player.Serial()).toLowerCase();
+    var targetSerial = String(serial).toLowerCase();
+
+    if (targetSerial === playerSerial || serial === 'self') {
+        Orion.CharPrint(Player.Serial(), 33, '*HONOR SELF BLOCCATO*');
+        Orion.Print(33, 'HonorEnemy: tentativo di honor su self bloccato.');
+        return false;
+    }
+
+    if (failedHonorTargets[targetSerial]) return false;
+
+    if (!Orion.ObjectExists(serial)) return false;
+    if (obj.Dead && obj.Dead()) return false;
+    if (obj.Hits && obj.Hits() <= 0) return false;
+    if (obj.Distance && obj.Distance() > 12) return false;
+
+    if (Orion.Now() - lastHonorAttemptTime < HONOR_COOLDOWN_MS) return false;
+    lastHonorAttemptTime = Orion.Now();
+
+    Orion.ClearJournal();
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.Wait(80);
+
+    Orion.Ignore('self');
+
+    Orion.InvokeVirtue('Honor');
+
+    if (!Orion.WaitForTarget(1200)) {
         Orion.CancelTarget();
-        Orion.WaitTargetObject(enemy.Serial());
-        Orion.InvokeVirtue('Honor');
-        Orion.Wait(250);
+        Orion.CancelWaitTarget();
+        return false;
     }
 
-    tryOnce();
+    var checkObj = Orion.FindObject(serial);
 
-    if (Orion.InJournal('Target cannot be seen')) {
-        Orion.Wait(300);
-        tryOnce();
+    if (!checkObj || !Orion.ObjectExists(serial)) {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        return false;
     }
+
+    if (String(serial).toLowerCase() === String(Player.Serial()).toLowerCase()) {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        Orion.CharPrint(Player.Serial(), 33, '*HONOR SELF BLOCCATO*');
+        return false;
+    }
+
+    Orion.TargetObject(serial);
+    Orion.Wait(450);
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
 
     if (Orion.InJournal('You started Honorable Combat')) {
-        Orion.CharPrint(Player.Serial(), 65, 'HONORATO: ' + enemy.Name());
+        Orion.CharPrint(serial, 65, '*HONORATO*');
         return true;
     }
 
     if (Orion.InJournal('You cannot honor this monster because it is too damaged')) {
-        Orion.CharPrint(Player.Serial(), 44, 'GIA DANNEGGIATO -> ' + enemy.Name());
-        failedHonorTargets[enemy.Serial()] = true;
-        Orion.CancelTarget();
+        failedHonorTargets[targetSerial] = true;
+        Orion.CharPrint(serial, 44, '*GIA DANNEGGIATO*');
+        return false;
+    }
+
+    if (Orion.InJournal('You must wait') || Orion.InJournal('not yet recovered')) {
         return false;
     }
 
     if (Orion.InJournal('You embrace your honor')) {
-        Orion.CharPrint(Player.Serial(), 33, 'HONORATO TE STESSO PER ERRORE!');
-        failedHonorTargets[enemy.Serial()] = true;
+        Orion.CharPrint(Player.Serial(), 33, '*ERRORE: HONOR SELF RILEVATO*');
+        Orion.Print(33, 'HonorEnemy: il server ha restituito honor self. Target previsto: ' + serial);
+        failedHonorTargets[targetSerial] = true;
         return false;
     }
 
     return false;
 }
 
-function TryHonorEnemy2(enemy) {
-    return TryHonorEnemy(enemy);
+function TryHonorEnemy(enemy) {
+    return HonorEnemy(enemy);
 }
 
-function ResetIgnoredMobs() {
-    ignoredMobs = {};
-    Orion.IgnoreReset();
-    Orion.CharPrint(Player.Serial(), 65, 'Lista ignorati azzerata');
+function TryHonorEnemy2(enemy) {
+    return HonorEnemy(enemy);
+}
+
+function HonorTarget(target) {
+    return HonorEnemy(target);
 }
 
 function AutoHonorMob() {
     var currentHonored = null;
-    var failedHonor = {};
     var lastHonorTime = 0;
-    var COOLDOWN_MS = 400;
+    var COOLDOWN_MS = 700;
 
     function nearestEnemy() {
         var list = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 12, 'gray|criminal|red|enemy|orange');
@@ -3541,7 +3654,11 @@ function AutoHonorMob() {
 
         for (var i = 0; i < list.length; i++) {
             var o = Orion.FindObject(list[i]);
-            if (o) objs.push(o);
+            if (!o) continue;
+            if (o.Serial && String(o.Serial()).toLowerCase() === String(Player.Serial()).toLowerCase()) continue;
+            if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(o)) continue;
+
+            objs.push(o);
         }
 
         if (!objs.length) return null;
@@ -3551,49 +3668,8 @@ function AutoHonorMob() {
     }
 
     function hardClearTargets() {
-        if (Orion.HaveTarget && Orion.HaveTarget()) return;
-
-        try { Orion.CancelTarget(); } catch(e) {}
-        try { Orion.CancelWaitTarget && Orion.CancelWaitTarget(); } catch(e) {}
-        try { Orion.ClearTargetQueue && Orion.ClearTargetQueue(); } catch(e) {}
-        try { Orion.ClearTargets && Orion.ClearTargets(); } catch(e) {}
-    }
-
-    function tryHonor(target) {
-        if (!target || failedHonor[target.Serial()]) return false;
-
-        Orion.ClearJournal();
-        hardClearTargets();
-        Orion.Wait(50);
-
-        Orion.WaitTargetObject(target.Serial());
-        Orion.InvokeVirtue('Honor');
-        Orion.Wait(250);
-
-        if (Orion.InJournal('You started Honorable Combat')) {
-            Orion.CharPrint(target.Serial(), 65, 'HONORATO -> ' + target.Name());
-            currentHonored = target.Serial();
-            lastHonorTime = Orion.Now();
-            return true;
-        }
-
-        if (Orion.InJournal('You cannot honor this monster because it is too damaged')) {
-            Orion.CharPrint(target.Serial(), 44, 'Gia danneggiato -> ' + target.Name());
-            failedHonor[target.Serial()] = true;
-            lastHonorTime = Orion.Now();
-            return false;
-        }
-
-        if (Orion.InJournal('You embrace your honor')) {
-            Orion.CharPrint(Player.Serial(), 33, 'Hai honorato te stesso per errore!');
-            failedHonor[target.Serial()] = true;
-            lastHonorTime = Orion.Now();
-            return false;
-        }
-
-        if (Orion.InJournal('You must wait') || Orion.InJournal('not yet recovered')) lastHonorTime = Orion.Now();
-
-        return false;
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
     }
 
     while (!Player.Dead()) {
@@ -3602,7 +3678,7 @@ function AutoHonorMob() {
         if (currentHonored) {
             var obj = Orion.FindObject(currentHonored);
 
-            if (!obj || obj.Hits && obj.Hits() <= 0) {
+            if (!obj || !Orion.ObjectExists(currentHonored) || obj.Dead && obj.Dead() || obj.Hits && obj.Hits() <= 0) {
                 currentHonored = null;
                 hardClearTargets();
                 Orion.ClearJournal();
@@ -3619,7 +3695,14 @@ function AutoHonorMob() {
         }
 
         var enemy = nearestEnemy();
-        if (enemy && !currentHonored) tryHonor(enemy);
+
+        if (enemy && !currentHonored) {
+            if (HonorEnemy(enemy)) {
+                currentHonored = enemy.Serial();
+            }
+
+            lastHonorTime = Orion.Now();
+        }
 
         Orion.Wait(150);
     }
