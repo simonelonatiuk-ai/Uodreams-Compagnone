@@ -2449,8 +2449,6 @@ function Damwin()   { RunChampion('Damwin');   }
 // MEPHITIS / OAKS SPECIAL
 // =====================================================
 
-function Mephitis() { RunChampion('Mephitis'); }
-
 function FindNearestEnemyMephitis() {
     return FindNearestEnemyCore(6, 'gray|criminal|red|enemy|orange', false,
         function(mob) { return !mob.Hits || mob.Hits() > 0; }, null);
@@ -3166,10 +3164,6 @@ function TryHonorEnemy(enemy) {
     }
 
     return false;
-}
-
-function TryHonorEnemy2(enemy) {
-    return TryHonorEnemy(enemy);
 }
 
 function ResetIgnoredMobs() {
@@ -4343,7 +4337,7 @@ function StartDragonFarmer() {
             var target = enemies[0].Serial();
 
             Orion.Print(33, 'Drago rilevato! Attacco in corso...');
-            HonorTarget(target);
+            HonorTargetSerial(target);
             DragonExecuteCombat(target);
             LootBones();
 
@@ -4457,7 +4451,7 @@ function DragonCheckWeightAndSend() {
     }
 }
 
-function HonorTarget(serial) {
+function HonorTargetSerial(serial) {
     if (!serial) return;
 
     Orion.CancelTarget();
