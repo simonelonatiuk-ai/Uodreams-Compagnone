@@ -1485,31 +1485,37 @@ function isIgnoredSummon(mob) {
     return false;
 }
 
-function FindNearestEnemy() {
+function FindNearestEnemyCore(range, noto, doIgnoreReset, extraFilter, flags) {
+    if (doIgnoreReset) Orion.IgnoreReset();
     Orion.Ignore('self');
-
     var friends = Orion.GetFriendList();
     for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
 
-    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|near', 17, 'gray|criminal|red|enemy|orange');
+    var enemies = Orion.FindTypeEx('any', 'any', 'ground',
+        flags || 'ignoreself|ignorefriends|live|inlos|near', range,
+        noto || 'gray|criminal|red|enemy|orange');
 
-    var validEnemies = enemies.filter(function(mob) {
-        if (ignoredMobs[mob.Serial()]) return false;
-
+    var valid = [];
+    for (var j = 0; j < enemies.length; j++) {
+        var mob = enemies[j];
+        if (!mob || !mob.Serial || !mob.Serial()) continue;
+        if (ignoredMobs[mob.Serial()]) continue;
         if (isIgnoredSummon(mob)) {
             Orion.Ignore(mob.Serial());
-            return false;
+            ignoredMobs[mob.Serial()] = true;
+            continue;
         }
-
-        return true;
-    });
-
-    if (validEnemies.length > 0) {
-        validEnemies.sort(function(a, b) { return a.Distance() - b.Distance(); });
-        return validEnemies[0];
+        if (extraFilter && !extraFilter(mob)) continue;
+        valid.push(mob);
     }
 
-    return null;
+    if (!valid.length) return null;
+    valid.sort(function(a, b) { return a.Distance() - b.Distance(); });
+    return valid[0];
+}
+
+function FindNearestEnemy() {
+    return FindNearestEnemyCore(17, 'gray|criminal|red|enemy|orange', false, null, null);
 }
 
 // =====================================================
@@ -2442,36 +2448,10 @@ function Damwin()   { RunChampion('Damwin');   }
 function Mephitis() { RunChampion('Mephitis'); }
 
 function FindNearestEnemyMephitis() {
-    Orion.Ignore('self');
-
-    var friends = Orion.GetFriendList();
-    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
-
-    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|near', 6, 'gray|criminal|red|enemy|orange');
-    if (!enemies || !enemies.length) return null;
-
-    var valid = [];
-
-    for (var j = 0; j < enemies.length; j++) {
-        var mob = enemies[j];
-
-        if (!mob || !mob.Serial || !mob.Serial()) continue;
-        if (ignoredMobs[mob.Serial()]) continue;
-
-        if (isIgnoredSummon(mob)) {
-            Orion.Ignore(mob.Serial());
-            continue;
-        }
-
-        if (mob.Hits && mob.Hits() <= 0) continue;
-        valid.push(mob);
-    }
-
-    if (!valid.length) return null;
-
-    valid.sort(function(a, b) { return a.Distance() - b.Distance(); });
-    return valid[0];
+    return FindNearestEnemyCore(6, 'gray|criminal|red|enemy|orange', false,
+        function(mob) { return !mob.Hits || mob.Hits() > 0; }, null);
 }
+
 
 function AttackNearestEnemyMephitis(target) {
     if (Orion.GetGlobal('StopAllScripts') === 'true' || !target) return false;
@@ -2529,16 +2509,7 @@ function AttackNearestEnemyMephitis(target) {
 }
 
 function FindNearestEnemy_OAKS() {
-    Orion.Ignore('self');
-
-    var friends = Orion.GetFriendList();
-    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
-
-    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|near', 4, 'gray|criminal|red|enemy|orange|blue');
-    if (!enemies.length) return null;
-
-    enemies.sort(function(a, b) { return a.Distance() - b.Distance(); });
-    return enemies[0];
+    return FindNearestEnemyCore(4, 'gray|criminal|red|enemy|orange|blue', false, null, null);
 }
 
 function AttackNearestEnemy_OAKS() {
@@ -3144,33 +3115,8 @@ function SoloFollowAndAttackSS() {
 }
 
 function GetClosestEnemySolo() {
-    Orion.IgnoreReset();
-    Orion.Ignore('self');
-
-    var friends = Orion.GetFriendList();
-    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
-
-    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|mobile', 10, 'gray|criminal|red|orange|enemy');
-    var filtered = [];
-
-    for (var j = 0; j < enemies.length; j++) {
-        var o = enemies[j];
-        if (!o) continue;
-        if (ignoredMobs[o.Serial()]) continue;
-
-        if (isIgnoredSummon(o)) {
-            Orion.Ignore(o.Serial());
-            ignoredMobs[o.Serial()] = true;
-            continue;
-        }
-
-        filtered.push(o);
-    }
-
-    if (!filtered.length) return null;
-
-    filtered.sort(function(a, b) { return a.Distance() - b.Distance(); });
-    return filtered[0];
+    return FindNearestEnemyCore(10, 'gray|criminal|red|orange|enemy', true, null,
+        'ignoreself|ignorefriends|live|inlos|mobile');
 }
 
 function TryHonorEnemy(enemy) {
