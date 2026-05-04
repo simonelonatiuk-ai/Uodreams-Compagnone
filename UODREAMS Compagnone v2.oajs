@@ -42,6 +42,7 @@ var targetRange = 12;
 var targetNoto = 'gray|criminal|red|enemy|orange';
 var ignoredMobs = {};
 var isSendingGold = false;
+var bagOfSendingGraphic = '0x0E76'; // <-- metti qui il graphic corretto della Bag of Sending
 
 // =====================================================
 // AUTOSTART
@@ -4674,6 +4675,9 @@ var bellPos = { x: 417, y: 246, z: 23 };
 var msgAlreadySummoned = 'The ferry man has already been summoned. There is no need to ring for him again.';
 var lastClickTime = 0;
 
+// Bag of Sending generica per graphic, NON per seriale
+var bagOfSendingGraphic = '0x0E76';
+
 function StartDragonFarmer() {
     Orion.Print(65, '--- Avvio Farmer Campana Drago ---');
 
@@ -4700,8 +4704,9 @@ function StartDragonFarmer() {
 
             ReturnToBell();
         } else {
-            if (Orion.GetDistance(bellPos.x, bellPos.y) > 2) ReturnToBell();
-            else {
+            if (Orion.GetDistance(bellPos.x, bellPos.y) > 2) {
+                ReturnToBell();
+            } else {
                 var currentTime = Orion.Now();
 
                 if (Orion.InJournal(msgAlreadySummoned)) {
@@ -4717,7 +4722,9 @@ function StartDragonFarmer() {
                     lastClickTime = currentTime;
                     Orion.Wait(1500);
 
-                    if (Orion.InJournal(msgAlreadySummoned)) Orion.Print(33, 'Server conferma: Drago già presente.');
+                    if (Orion.InJournal(msgAlreadySummoned)) {
+                        Orion.Print(33, 'Server conferma: Drago già presente.');
+                    }
                 } else {
                     Orion.Wait(500);
                 }
@@ -4751,7 +4758,9 @@ function DragonExecuteCombat(serial) {
 
         HandleBloodOath();
 
-        if (Orion.GetDistance(serial) > 1) Orion.WalkTo(mob.X(), mob.Y(), mob.Z(), 1, 255, 1, 2, 500);
+        if (Orion.GetDistance(serial) > 1) {
+            Orion.WalkTo(mob.X(), mob.Y(), mob.Z(), 1, 255, 1, 2, 500);
+        }
 
         var nearbyCount = Orion.FindType('any', 'any', 'ground', 'live|ignoreself', 2, targetNoto).length;
 
@@ -4781,6 +4790,26 @@ function LootBones() {
     }
 }
 
+function FindBagOfSendingByGraphic() {
+    var bags = Orion.FindType(bagOfSendingGraphic, 'any', 'backpack');
+
+    for (var i = 0; i < bags.length; i++) {
+        var obj = Orion.FindObject(bags[i]);
+
+        if (!obj || !obj.Exists()) continue;
+
+        var props = obj.Properties();
+
+        if (props && props.indexOf('Bag of Sending') !== -1) {
+            return bags[i];
+        }
+    }
+
+    if (bags.length > 0) return bags[0];
+
+    return null;
+}
+
 function DragonCheckWeightAndSend() {
     if (Player.Weight() < Player.MaxWeight() - 30) return;
 
@@ -4788,30 +4817,27 @@ function DragonCheckWeightAndSend() {
 
     var bonesInPack = Orion.FindType(bonesGraphic, 'any', 'backpack');
 
-    if (bonesInPack.length > 0) {
-        var bag = Orion.FindObject(bagOfSendingSerial);
-
-        if (bag) {
-            Orion.UseObject(bagOfSendingSerial);
-
-            if (Orion.WaitForTarget(2000)) {
-                Orion.TargetObject(bonesInPack[0]);
-                Orion.Wait(1000);
-                Orion.Print(65, 'Ossa inviate correttamente.');
-            }
-        } else {
-            Orion.Print(33, 'ERRORE: Bag of Sending non trovata!');
-        }
+    if (bonesInPack.length <= 0) {
+        Orion.Print(33, 'Nessuna ossa trovata nello zaino.');
+        return;
     }
-}
 
-function HonorTarget(serial) {
-    if (!serial) return;
+    var bag = FindBagOfSendingByGraphic();
 
-    Orion.CancelTarget();
-    Orion.InvokeVirtue('Honor');
-    Orion.WaitTargetObject(serial);
-    Orion.Wait(100);
+    if (!bag) {
+        Orion.Print(33, 'ERRORE: Bag of Sending non trovata nello zaino!');
+        return;
+    }
+
+    Orion.UseObject(bag);
+
+    if (Orion.WaitForTarget(2000)) {
+        Orion.TargetObject(bonesInPack[0]);
+        Orion.Wait(1000);
+        Orion.Print(65, 'Ossa inviate correttamente con Bag of Sending.');
+    } else {
+        Orion.Print(33, 'ERRORE: target Bag of Sending non apparso.');
+    }
 }
 
 function StopDragonFarmer() {
