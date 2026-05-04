@@ -33,6 +33,10 @@ var isSendingGold = false;
 // CORE HELPERS
 // =====================================================
 
+function IsStopped() {
+    return Orion.GetGlobal('StopAllScripts') === 'true';
+}
+
 function SelectOrResetItem(varName, resetMsg, promptMsg, savedMsg, timeoutMs, afterSelectFn) {
     if (Orion.FindObject(varName) || Shared.GetVar(varName + '_name')) {
         Orion.RemoveObject(varName);
@@ -1560,7 +1564,7 @@ function CheckCurseAndPoison() {
     }
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         if (Player.Hits() < Player.MaxHits()) {
             Orion.Wait(50);
@@ -1596,7 +1600,7 @@ function CheckCurseAndPoison() {
 
 function UseSpecialAbilities() {
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
         var nearbyEnemies = enemiesAround.filter(function(enemy) {
@@ -1648,7 +1652,7 @@ function UseSpecialAbilities() {
 
 function UseSpecialAbilitiesSS() {
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
         var nearbyEnemies = enemiesAround.filter(function(enemy) {
@@ -1689,7 +1693,7 @@ function UseSpecialAbilitiesSS() {
 
 function UseArcheryPrimaryOnly() {
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         if (Player.Mana() >= 17 && !Orion.AbilityStatus('Primary')) {
             Orion.UseAbility('Primary');
@@ -1742,7 +1746,7 @@ function AutoBushidoAbilities() {
     var lastEvasionTime = 0;
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         var attackerSerial = Orion.ClientLastAttack();
         var attacker = Orion.FindObject(attackerSerial);
@@ -2066,7 +2070,7 @@ function doomBoneCutter() {
     var boneTypes = '0x0ECA|0x0ECB|0x0ECC|0x0ECD|0x0ECE|0x0ECF|0x0ED0|0x0ED1|0x0ED2';
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         var bones = Orion.FindTypeEx(boneTypes, 'any', 'ground', 'item|near', 2);
 
@@ -2167,7 +2171,7 @@ function AttackNearestEnemy() {
     for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
 
     while (!Player.Dead() && waitCount < maxWaitCycles) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return false;
+        if (IsStopped()) return false;
         if (HandleBloodOath()) continue;
 
         Orion.WarMode(true);
@@ -2198,7 +2202,7 @@ function AttackNearestEnemy() {
         var stayCounter = 0, walkAttempts = 0;
 
         while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
-            if (Orion.GetGlobal('StopAllScripts') === 'true') {
+            if (IsStopped()) {
                 Orion.CloseStatusbar(currentSerial);
                 return false;
             }
@@ -2294,7 +2298,7 @@ function RunRailCombat(railCoordinates, walkTimeout, customTargetFn, customAttac
     var currentIndex = 0;
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
         if (currentIndex >= railCoordinates.length) currentIndex = 0;
 
         var coord = railCoordinates[currentIndex];
@@ -2454,7 +2458,7 @@ function FindNearestEnemyMephitis() {
 
 
 function AttackNearestEnemyMephitis(target) {
-    if (Orion.GetGlobal('StopAllScripts') === 'true' || !target) return false;
+    if (IsStopped() || !target) return false;
 
     var t = target;
 
@@ -2475,7 +2479,7 @@ function AttackNearestEnemyMephitis(target) {
     var walkAttempts = 0;
 
     while (!Player.Dead() && Orion.ObjectExists(t.Serial())) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') break;
+        if (IsStopped()) break;
 
         var refreshed = Orion.FindObject(t.Serial());
         if (!refreshed) break;
@@ -2866,7 +2870,7 @@ function SbloccaSeFermo() {
     var stayCounter = 0;
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         if (Player.X() === lastX && Player.Y() === lastY && Player.Z() === lastZ) stayCounter++;
         else {
@@ -2963,7 +2967,7 @@ function CercaOggettoTerra() {
 
 function WalkToRailWithCombat(x, y) {
     while (!Player.Dead() && Orion.GetDistance(x, y) > 2) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         var target = FindNearestEnemy();
 
@@ -2988,7 +2992,7 @@ function SoloFollowAndAttack() {
     ignoredMobs = {};
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
         if (HandleBloodOath()) continue;
 
         Orion.WarMode(true);
@@ -3062,7 +3066,7 @@ function SoloFollowAndAttackSS() {
     ignoredMobs = {};
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
         if (HandleBloodOath()) continue;
 
         Orion.WarMode(true);
@@ -3244,7 +3248,7 @@ function AutoHonorMob() {
     }
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         if (currentHonored) {
             var obj = Orion.FindObject(currentHonored);
@@ -3278,7 +3282,7 @@ function AutoHonorMob() {
 
 function AutoConsecrate() {
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         var target = Orion.FindObject(Orion.ClientLastAttack());
 
@@ -3293,7 +3297,7 @@ function AutoConsecrate() {
 
 function AutoDivine() {
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
 
         var target = Orion.FindObject(Orion.ClientLastAttack());
 
@@ -3459,7 +3463,7 @@ function autoRemoveBloodOath() {
 // =====================================================
 
 function AutoArcheryAttack() {
-    if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+    if (IsStopped()) return;
     if (HandleBloodOath()) return;
 
     var enemy = Orion.FindObject('myTarget');
@@ -3737,7 +3741,7 @@ function KillGenerali() {
     Orion.Print('Ricerca e attacco dei GENERALI...');
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (IsStopped()) return;
         if (HandleBloodOath()) continue;
 
         var generali = FindGenerali();
@@ -3748,7 +3752,7 @@ function KillGenerali() {
         }
 
         for (var i = 0; i < generali.length; i++) {
-            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+            if (IsStopped()) return;
             if (HandleBloodOath()) break;
 
             var mob = generali[i];
@@ -3767,7 +3771,7 @@ function KillGenerali() {
             TryHonorEnemy(mob);
 
             while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
-                if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+                if (IsStopped()) return;
                 if (HandleBloodOath()) break;
 
                 var refreshed = Orion.FindObject(currentSerial);
@@ -4744,7 +4748,7 @@ function EventoVoid() {
     Orion.Print(66, '--- Evento Void: Aggro Prioritario Attivo ---');
 
     while (!Player.Dead()) {
-        if (Orion.GetGlobal('StopAllScripts') === 'true') {
+        if (IsStopped()) {
             Orion.StopWalking();
             return;
         }
