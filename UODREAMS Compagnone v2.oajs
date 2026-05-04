@@ -3,6 +3,7 @@
 // =====================================================
 
 //#include OA/repair bench.oajs
+//#include OA/compagnone_positions.oajs
 
 var ICON_SAMPIRE = 0x15CD; // ingranaggi
 var ICON_CHAMP   = 0x15B8; // sega
@@ -1113,26 +1114,32 @@ function EscapeRepairString(str) {
 // =====================================================
 
 function InitGuiPositions() {
-    if (Shared.GetVar('compagnone_gui_x') === undefined) Shared.AddVar('compagnone_gui_x', DEFAULT_COMPAGNONE_X);
-    if (Shared.GetVar('compagnone_gui_y') === undefined) Shared.AddVar('compagnone_gui_y', DEFAULT_COMPAGNONE_Y);
-    if (Shared.GetVar('durability_gui_x') === undefined) Shared.AddVar('durability_gui_x', DEFAULT_DURABILITY_X);
-    if (Shared.GetVar('durability_gui_y') === undefined) Shared.AddVar('durability_gui_y', DEFAULT_DURABILITY_Y);
+    if (Shared.GetVar('positions_loaded_from_file') !== true) {
+        LoadGuiPositionsFromFile();
+        Shared.AddVar('positions_loaded_from_file', true);
+    }
+
+    if (Shared.GetVar('compagnone_gui_x') == null) Shared.AddVar('compagnone_gui_x', DEFAULT_COMPAGNONE_X);
+    if (Shared.GetVar('compagnone_gui_y') == null) Shared.AddVar('compagnone_gui_y', DEFAULT_COMPAGNONE_Y);
+    if (Shared.GetVar('durability_gui_x') == null) Shared.AddVar('durability_gui_x', DEFAULT_DURABILITY_X);
+    if (Shared.GetVar('durability_gui_y') == null) Shared.AddVar('durability_gui_y', DEFAULT_DURABILITY_Y);
 }
 
 function GetCompagnoneGuiX() { InitGuiPositions(); return Number(Shared.GetVar('compagnone_gui_x')); }
 function GetCompagnoneGuiY() { InitGuiPositions(); return Number(Shared.GetVar('compagnone_gui_y')); }
 function GetDurabilityGuiX() { InitGuiPositions(); return Number(Shared.GetVar('durability_gui_x')); }
 function GetDurabilityGuiY() { InitGuiPositions(); return Number(Shared.GetVar('durability_gui_y')); }
-
 function SaveCompagnoneGuiPos(x, y) {
     Shared.AddVar('compagnone_gui_x', x);
     Shared.AddVar('compagnone_gui_y', y);
+    SaveGuiPositionsToFile();
     Orion.Print(65, 'Posizione Compagnone salvata: X=' + x + ' Y=' + y);
 }
 
 function SaveDurabilityGuiPos(x, y) {
     Shared.AddVar('durability_gui_x', x);
     Shared.AddVar('durability_gui_y', y);
+    SaveGuiPositionsToFile();
     Orion.Print(65, 'Posizione Durability salvata: X=' + x + ' Y=' + y);
 }
 
@@ -1154,6 +1161,7 @@ function MoveDurabilityGui(dx, dy) {
 function ResetCompagnoneGuiPos() {
     Shared.AddVar('compagnone_gui_x', DEFAULT_COMPAGNONE_X);
     Shared.AddVar('compagnone_gui_y', DEFAULT_COMPAGNONE_Y);
+    SaveGuiPositionsToFile();
     GUI();
     PositionManagerGUI();
 }
@@ -1161,8 +1169,55 @@ function ResetCompagnoneGuiPos() {
 function ResetDurabilityGuiPos() {
     Shared.AddVar('durability_gui_x', DEFAULT_DURABILITY_X);
     Shared.AddVar('durability_gui_y', DEFAULT_DURABILITY_Y);
+    SaveGuiPositionsToFile();
     Orion.MoveGump('custom', DEFAULT_DURABILITY_X, DEFAULT_DURABILITY_Y, 'any', DURABILITY_GUMP_ID);
     PositionManagerGUI();
+}
+
+// =====================================================
+// POSITION PERSISTENCE
+// =====================================================
+
+var COMPAGNONE_POSITIONS_FILE = '/OA/compagnone_positions.oajs';
+
+function LoadGuiPositionsFromFile() {
+    // Queste variabili arrivano da //#include compagnone_positions.oajs
+    if (typeof SAVED_COMPAGNONE_GUI_X !== 'undefined') {
+        Shared.AddVar('compagnone_gui_x', SAVED_COMPAGNONE_GUI_X);
+    }
+
+    if (typeof SAVED_COMPAGNONE_GUI_Y !== 'undefined') {
+        Shared.AddVar('compagnone_gui_y', SAVED_COMPAGNONE_GUI_Y);
+    }
+
+    if (typeof SAVED_DURABILITY_GUI_X !== 'undefined') {
+        Shared.AddVar('durability_gui_x', SAVED_DURABILITY_GUI_X);
+    }
+
+    if (typeof SAVED_DURABILITY_GUI_Y !== 'undefined') {
+        Shared.AddVar('durability_gui_y', SAVED_DURABILITY_GUI_Y);
+    }
+}
+
+var COMPAGNONE_POSITIONS_FILE = 'OA/compagnone_positions.oajs';
+
+function SaveGuiPositionsToFile() {
+    var filePath = COMPAGNONE_POSITIONS_FILE;
+    var file = Orion.NewFile();
+
+    var content =
+        "var SAVED_COMPAGNONE_GUI_X = " + GetCompagnoneGuiX() + ";\n" +
+        "var SAVED_COMPAGNONE_GUI_Y = " + GetCompagnoneGuiY() + ";\n" +
+        "var SAVED_DURABILITY_GUI_X = " + GetDurabilityGuiX() + ";\n" +
+        "var SAVED_DURABILITY_GUI_Y = " + GetDurabilityGuiY() + ";\n";
+
+    file.Open(filePath, true);
+    Orion.Wait(50);
+    file.Write(content);
+    file.Close();
+
+    Orion.Print(65, '[2] Posizioni GUI salvate su file:');
+    Orion.Print(65, filePath);
 }
 
 function PositionManagerGUI() {
