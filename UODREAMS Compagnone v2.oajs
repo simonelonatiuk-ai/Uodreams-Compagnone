@@ -1124,22 +1124,20 @@ function InitGuiPositions() {
     if (Shared.GetVar('durability_gui_y') === undefined) Shared.AddVar('durability_gui_y', DEFAULT_DURABILITY_Y);
 }
 
-function GetCompagnoneGuiX() { InitGuiPositions(); return Number(Shared.GetVar('compagnone_gui_x')); }
-function GetCompagnoneGuiY() { InitGuiPositions(); return Number(Shared.GetVar('compagnone_gui_y')); }
-function GetDurabilityGuiX() { InitGuiPositions(); return Number(Shared.GetVar('durability_gui_x')); }
-function GetDurabilityGuiY() { InitGuiPositions(); return Number(Shared.GetVar('durability_gui_y')); }
-
-function SaveCompagnoneGuiPos(x, y) {
-    Shared.AddVar('compagnone_gui_x', x);
-    Shared.AddVar('compagnone_gui_y', y);
-    Orion.Print(65, 'Posizione Compagnone salvata: X=' + x + ' Y=' + y);
+function GetGuiPos(name, axis) { InitGuiPositions(); return Number(Shared.GetVar(name + '_gui_' + axis)); }
+function SaveGuiPos(name, label, x, y) {
+    Shared.AddVar(name + '_gui_x', x);
+    Shared.AddVar(name + '_gui_y', y);
+    Orion.Print(65, 'Posizione ' + label + ' salvata: X=' + x + ' Y=' + y);
 }
 
-function SaveDurabilityGuiPos(x, y) {
-    Shared.AddVar('durability_gui_x', x);
-    Shared.AddVar('durability_gui_y', y);
-    Orion.Print(65, 'Posizione Durability salvata: X=' + x + ' Y=' + y);
-}
+function GetCompagnoneGuiX() { return GetGuiPos('compagnone', 'x'); }
+function GetCompagnoneGuiY() { return GetGuiPos('compagnone', 'y'); }
+function GetDurabilityGuiX() { return GetGuiPos('durability', 'x'); }
+function GetDurabilityGuiY() { return GetGuiPos('durability', 'y'); }
+
+function SaveCompagnoneGuiPos(x, y) { SaveGuiPos('compagnone', 'Compagnone', x, y); }
+function SaveDurabilityGuiPos(x, y)  { SaveGuiPos('durability',  'Durability',  x, y); }
 
 function MoveCompagnoneGui(dx, dy) {
     Shared.AddVar('compagnone_gui_x', GetCompagnoneGuiX() + dx);
