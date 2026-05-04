@@ -30,6 +30,31 @@ var ignoredMobs = {};
 var isSendingGold = false;
 
 // =====================================================
+// CORE HELPERS
+// =====================================================
+
+function SelectOrResetItem(varName, resetMsg, promptMsg, savedMsg, timeoutMs, afterSelectFn) {
+    if (Orion.FindObject(varName) || Shared.GetVar(varName + '_name')) {
+        Orion.RemoveObject(varName);
+        Shared.RemoveVar(varName + '_name');
+        Orion.CharPrint(Player.Serial(), 33, resetMsg);
+    } else {
+        Orion.CharPrint(Player.Serial(), 55, promptMsg);
+        if (Orion.WaitForAddObject(varName, timeoutMs)) {
+            var item = Orion.FindObject(varName);
+            if (item) {
+                if (afterSelectFn) afterSelectFn(item);
+                Shared.AddVar(varName + '_name', item.Name());
+                Orion.CharPrint(Player.Serial(), 65, savedMsg + item.Name());
+            }
+        } else {
+            Orion.CharPrint(Player.Serial(), 33, 'Tempo scaduto: nessuna selezione.');
+        }
+    }
+    GUI();
+}
+
+// =====================================================
 // AUTOSTART
 // =====================================================
 
@@ -647,23 +672,11 @@ function SetActiveEquipDress(dressName) { Shared.AddVar('active_equip_dress', dr
 // =====================================================
 
 function SelectOrResetTalisman(varName) {
-    if (Orion.FindObject(varName)) {
-        Orion.RemoveObject(varName);
-        Shared.RemoveVar(varName + '_name');
-        Orion.CharPrint(Player.Serial(), 33, 'Talismano ' + varName + ' resettato!');
-    } else {
-        Orion.CharPrint(Player.Serial(), 55, 'Seleziona il talismano per ' + varName);
-
-        if (Orion.WaitForAddObject(varName, 15000)) {
-            var item = Orion.FindObject(varName);
-            if (item) {
-                Shared.AddVar(varName + '_name', item.Name());
-                Orion.CharPrint(Player.Serial(), 65, 'Talismano salvato: ' + item.Name());
-            }
-        }
-    }
-
-    GUI();
+    SelectOrResetItem(varName,
+        'Talismano ' + varName + ' resettato!',
+        'Seleziona il talismano per ' + varName,
+        'Talismano salvato: ',
+        15000, null);
 }
 
 function EquipTalismanQuick(varName) {
@@ -770,23 +783,11 @@ function GetSavedWeaponName(varName) {
 }
 
 function SelectOrResetWeapon(varName) {
-    if (Orion.FindObject(varName)) {
-        Orion.RemoveObject(varName);
-        Shared.RemoveVar(varName + '_name');
-        Orion.CharPrint(Player.Serial(), 33, 'Arma ' + varName + ' resettata!');
-    } else {
-        Orion.CharPrint(Player.Serial(), 55, 'Seleziona l\'arma per ' + varName);
-
-        if (Orion.WaitForAddObject(varName, 15000)) {
-            var item = Orion.FindObject(varName);
-            if (item) {
-                Shared.AddVar(varName + '_name', item.Name());
-                Orion.CharPrint(Player.Serial(), 65, 'Arma salvata: ' + item.Name());
-            }
-        }
-    }
-
-    GUI();
+    SelectOrResetItem(varName,
+        'Arma ' + varName + ' resettata!',
+        'Seleziona l\'arma per ' + varName,
+        'Arma salvata: ',
+        15000, null);
 }
 
 function EquipWeaponQuick(varName) {
@@ -1698,28 +1699,11 @@ function UseArcheryPrimaryOnly() {
 // =====================================================
 
 function SelectOrResetRunebook(varName, label) {
-    if (Orion.FindObject(varName)) {
-        Orion.RemoveObject(varName);
-        Shared.RemoveVar(varName + '_name');
-        Orion.CharPrint(Player.Serial(), 33, label + ' resettato!');
-        GUI();
-        return;
-    }
-
-    Orion.CharPrint(Player.Serial(), 55, 'Seleziona ' + label);
-
-    if (Orion.WaitForAddObject(varName, 15000)) {
-        var item = Orion.FindObject(varName);
-
-        if (item) {
-            Shared.AddVar(varName + '_name', item.Name());
-            Orion.CharPrint(Player.Serial(), 65, label + ' salvato: ' + item.Name());
-        }
-    } else {
-        Orion.CharPrint(Player.Serial(), 33, 'Tempo scaduto: nessuna selezione.');
-    }
-
-    GUI();
+    SelectOrResetItem(varName,
+        label + ' resettato!',
+        'Seleziona ' + label,
+        label + ' salvato: ',
+        15000, null);
 }
 
 function RecallRunebook(varName, label) {
@@ -2730,28 +2714,11 @@ function UseBagOfSending() {
 // =====================================================
 
 function SelectOrResetKhaldunWeapon() {
-    var varName = 'kaldun';
-
-    if (Orion.FindObject(varName)) {
-        Orion.RemoveObject(varName);
-        Shared.RemoveVar(varName + '_name');
-        Orion.CharPrint(Player.Serial(), 33, 'Arma KALDHUN resettata!');
-    } else {
-        Orion.CharPrint(Player.Serial(), 55, 'Seleziona arma KALDHUN');
-
-        if (Orion.WaitForAddObject(varName, 15000)) {
-            var item = Orion.FindObject(varName);
-
-            if (item) {
-                Shared.AddVar(varName + '_name', item.Name());
-                Orion.CharPrint(Player.Serial(), 65, 'Arma KALDHUN salvata: ' + item.Name());
-            }
-        } else {
-            Orion.CharPrint(Player.Serial(), 33, 'Tempo scaduto: nessuna arma selezionata.');
-        }
-    }
-
-    GUI();
+    SelectOrResetItem('kaldun',
+        'Arma KALDHUN resettata!',
+        'Seleziona arma KALDHUN',
+        'Arma KALDHUN salvata: ',
+        15000, null);
 }
 
 function MountPetManager() {
@@ -2818,27 +2785,12 @@ function autoMount() {
 }
 
 function SetKnifeForBoneCutter() {
-    var knife = Orion.FindObject('bone_knife');
-    var savedKnifeName = Shared.GetVar('bone_knife_name');
-
-    if (knife || savedKnifeName) {
-        Orion.RemoveObject('bone_knife');
-        Shared.RemoveVar('bone_knife_name');
-        Orion.CharPrint(Player.Serial(), 33, 'Coltello BoneCutter resettato!');
-    } else {
-        Orion.CharPrint(Player.Serial(), 55, 'Seleziona il coltello per il BoneCutter!');
-
-        if (Orion.WaitForAddObject('bone_knife', 25000)) {
-            var selected = Orion.FindObject('bone_knife');
-
-            if (selected) {
-                Orion.GetStatus(selected.Serial());
-                Shared.AddVar('bone_knife_name', selected.Name());
-            }
-        }
-    }
-
-    GUI();
+    SelectOrResetItem('bone_knife',
+        'Coltello BoneCutter resettato!',
+        'Seleziona il coltello per il BoneCutter!',
+        'Coltello salvato: ',
+        25000,
+        function(item) { Orion.GetStatus(item.Serial()); });
 }
 
 function GetKnifeName() {
