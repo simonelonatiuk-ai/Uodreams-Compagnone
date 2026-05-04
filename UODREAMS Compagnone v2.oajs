@@ -5,11 +5,27 @@
 //#include OA/repair bench.oajs
 //#include OA/compagnone_positions.oajs
 
+// =====================================================
+// GUI STYLE - CHARACTER ASSISTANT LOOK
+// =====================================================
+
+var HUE_FRAME        = 1905;
+var HUE_TITLE        = 1152;
+var HUE_STATUS_LABEL = 902;
+var HUE_STATUS_TEXT  = 945;
+var HUE_LABEL_OFF    = 902;
+var HUE_LABEL_ON     = 945;
+var HUE_NAV_OFF      = '1900';
+var HUE_NAV_ON       = '1159';
+var HUE_BIG_BUTTON   = '1900';
+var HUE_SMALL_BUTTON = '1900';
+var DEFAULT_POSITION_MANAGER_X = 410;
+var DEFAULT_POSITION_MANAGER_Y = 280;
+var DEFAULT_POSITION_STEP = 10;
 var ICON_SAMPIRE = 0x15CD; // ingranaggi
 var ICON_CHAMP   = 0x15B8; // sega
 var ICON_MISC    = 0x15A9; // simbolo Ultima Online / globo
 var ICON_DRESS   = 0x15D1; // spade incrociate
-
 var COMPAGNONE_GUMP_ID = 101099;
 var DURABILITY_GUMP_ID = 69;
 var RAIL_RECORDER_GUMP_ID = 101100;
@@ -17,16 +33,13 @@ var REPAIR_TOOL_GUMP_ID = 101101;
 var POSITION_MANAGER_GUMP_ID = 101102;
 var DOOM_MENU_GUMP_ID = 101103;
 var TALISMAN_MENU_GUMP_ID = 101104;
-
 var DEFAULT_COMPAGNONE_X = -75, DEFAULT_COMPAGNONE_Y = 200;
 var DEFAULT_DURABILITY_X = -55, DEFAULT_DURABILITY_Y = -55;
 var POSITION_STEP = 10;
-
 var targetGraphics = 'any';
 var targetFlags = 'ignoreself|ignorefriends|live|inlos|near';
 var targetRange = 12;
 var targetNoto = 'gray|criminal|red|enemy|orange';
-
 var ignoredMobs = {};
 var isSendingGold = false;
 
@@ -45,21 +58,34 @@ function Autostart() {
 function DrawPanel(g, offsetX, offsetY, width, height) {
     for (var y = 0; y < height; ++y) {
         for (var x = 0; x < width; ++x) {
-            var drawX = offsetX + x * 35, drawY = offsetY + y * 35;
+            var drawX = offsetX + x * 35;
+            var drawY = offsetY + y * 35;
 
-            if (y === 0 && x === 0) g.AddGumpPic(drawX, drawY, 0x9C40);
-            else if (x === 0 && y === height - 1) g.AddGumpPic(drawX, drawY, 0x9C46);
-            else if (x === 0 && y > 0 && y < height - 1) g.AddGumpPic(drawX, drawY, 0x9C43);
-            else if (x === width - 1 && y > 0 && y < height - 1) g.AddGumpPic(drawX, drawY, 0x9C45);
-            else if (y === height - 1 && x === width - 1) g.AddGumpPic(drawX, drawY, 0x9C48);
-            else if (y === 0 && x === width - 1) g.AddGumpPic(drawX, drawY, 0x9C42);
-            else if (y === 0 && x > 0 && x < width - 1) g.AddGumpPic(drawX, drawY, 0x9C41);
-            else if (y === height - 1 && x > 0 && x < width - 1) g.AddGumpPic(drawX, drawY, 0x9C47);
-            else g.AddGumpPic(drawX, drawY, 0x9C44);
+            if (y === 0 && x === 0) {
+                g.AddGumpPic(drawX, drawY, 0x9BF5, HUE_FRAME);
+            } else if (x === 0 && y === height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFB, HUE_FRAME);
+            } else if (x === 0 && y > 0 && y < height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF8, HUE_FRAME);
+            } else if (x === width - 1 && y > 0 && y < height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFA, HUE_FRAME);
+            } else if (y === height - 1 && x === width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFD, HUE_FRAME);
+            } else if (y === 0 && x === width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF7, HUE_FRAME);
+            } else if (y === 0 && x > 0 && x < width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF6, HUE_FRAME);
+            } else if (y === height - 1 && x > 0 && x < width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFC, HUE_FRAME);
+            } else {
+                g.AddGumpPic(drawX, drawY, 0x9BF9, HUE_FRAME);
+            }
         }
     }
+}
 
-    g.AddCheckerTrans(offsetX, offsetY, width * 35, height * 35);
+function CalculateCenteredX(guiWidth, text, averageCharWidth) {
+    return Math.floor((guiWidth - (text.length * averageCharWidth)) / 2);
 }
 
 function AddGuiTitle(g, offsetX, offsetY) {
@@ -73,16 +99,48 @@ function AddPlayerNameBlock(g, offsetX, offsetY, baseY) {
 }
 
 function AddNavButtons(g, offsetX, offsetY, active) {
-    g.AddButton(active === 2 ? 1017 : 1015, offsetX + 30,  offsetY + 45, ICON_SAMPIRE, ICON_SAMPIRE, ICON_SAMPIRE, active === 2 ? '66' : '');
+    g.AddButton(
+        active === 2 ? 1017 : 1015,
+        offsetX + 30,
+        offsetY + 45,
+        ICON_SAMPIRE,
+        ICON_SAMPIRE,
+        ICON_SAMPIRE,
+        active === 2 ? HUE_NAV_ON : HUE_NAV_OFF
+    );
     g.AddTooltip(active === 2 ? 'Collapse Menu' : 'Sampire Menu');
 
-    g.AddButton(active === 1 ? 1017 : 1016, offsetX + 115, offsetY + 45, ICON_CHAMP, ICON_CHAMP, ICON_CHAMP, active === 1 ? '66' : '');
+    g.AddButton(
+        active === 1 ? 1017 : 1016,
+        offsetX + 115,
+        offsetY + 45,
+        ICON_CHAMP,
+        ICON_CHAMP,
+        ICON_CHAMP,
+        active === 1 ? HUE_NAV_ON : HUE_NAV_OFF
+    );
     g.AddTooltip(active === 1 ? 'Collapse Menu' : 'Champ Selector Menu');
 
-    g.AddButton(active === 3 ? 1017 : 1018, offsetX + 200, offsetY + 45, ICON_MISC, ICON_MISC, ICON_MISC, active === 3 ? '66' : '');
+    g.AddButton(
+        active === 3 ? 1017 : 1018,
+        offsetX + 200,
+        offsetY + 45,
+        ICON_MISC,
+        ICON_MISC,
+        ICON_MISC,
+        active === 3 ? HUE_NAV_ON : HUE_NAV_OFF
+    );
     g.AddTooltip(active === 3 ? 'Collapse Menu' : 'Miscellaneous Menu');
 
-    g.AddButton(1019, offsetX + 285, offsetY + 45, ICON_DRESS, ICON_DRESS, ICON_DRESS, active === 4 ? '66' : '');
+    g.AddButton(
+        active === 4 ? 1017 : 1019,
+        offsetX + 285,
+        offsetY + 45,
+        ICON_DRESS,
+        ICON_DRESS,
+        ICON_DRESS,
+        active === 4 ? HUE_NAV_ON : HUE_NAV_OFF
+    );
     g.AddTooltip(active === 4 ? 'Collapse Menu' : 'Dress Menu');
 }
 
@@ -123,7 +181,7 @@ function GUISelector() {
 
     DrawPanel(g, offsetX, offsetY, width, height);
     AddNavButtons(g, offsetX, offsetY, 0);
-    AddGuiTitle(g, offsetX, offsetY);
+	AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
 
     g.Update();
 }
@@ -144,7 +202,7 @@ function GUISampire() {
 
     DrawPanel(g, offsetX, offsetY, width, height);
     AddNavButtons(g, offsetX, offsetY, 2);
-    AddGuiTitle(g, offsetX, offsetY);
+	AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
     AddPlayerNameBlock(g, offsetX, offsetY, 110);
 
     var bx = offsetX + 235, by = offsetY + 185;
@@ -201,7 +259,7 @@ function GUIChampSelector() {
 
     DrawPanel(g, offsetX, offsetY, width, height);
     AddNavButtons(g, offsetX, offsetY, 1);
-    AddGuiTitle(g, offsetX, offsetY);
+    AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
 
     g.AddText(offsetX + 85, offsetY + 130, 53, '      *CHAMPION RAIL*');
 
@@ -264,7 +322,7 @@ function GUIMisc() {
 
     DrawPanel(g, offsetX, offsetY, width, height);
     AddNavButtons(g, offsetX, offsetY, 3);
-    AddGuiTitle(g, offsetX, offsetY);
+    AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
     AddPlayerNameBlock(g, offsetX, offsetY, 110);
 
     AddBigButton(g, 5113, offsetX + 125, offsetY + 160, '', 22, 'Fama - Karma', 'Mostra Fama e Karma', 12);
@@ -361,7 +419,7 @@ function GUIDress() {
 
     DrawPanel(g, offsetX, offsetY, width, height);
     AddNavButtons(g, offsetX, offsetY, 4);
-    AddGuiTitle(g, offsetX, offsetY);
+    AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
 
     g.AddText(offsetX + 75, offsetY + 130, 53, '*DOUBLE AXE*');
     g.AddText(offsetX + 235, offsetY + 130, 53, '*BLADED STAFF*');
@@ -998,12 +1056,21 @@ function AddToRepairBench() {
 
 function RepairBenchToolSelectorGUI() {
     var g = Orion.CreateCustomGump(REPAIR_TOOL_GUMP_ID);
-    g.Clear(); g.SetCallback('RepairBenchToolOnClick');
+    g.Clear();
+    g.SetCallback('RepairBenchToolOnClick');
 
-    var offsetX = 350, offsetY = 280, width = 8, height = 5;
+    var offsetX = 350;
+    var offsetY = 280;
+    var width = 8;
+    var height = 5;
+
     DrawPanel(g, offsetX, offsetY, width, height);
 
-    g.AddText(offsetX + 55, offsetY + 15, 89, 'SELECT REPAIR TOOL');
+    if (typeof AddGuiTitle === 'function') {
+        AddGuiTitle(g, offsetX, offsetY, width, 'SELECT REPAIR TOOL');
+    } else {
+        g.AddText(offsetX + 55, offsetY + 15, 89, 'SELECT REPAIR TOOL');
+    }
 
     AddBigButton(g, 8001, offsetX + 55, offsetY + 55, '', '0x796', 'Blacksmith', 'Usa Blacksmith', 22);
     AddBigButton(g, 8002, offsetX + 55, offsetY + 85, '', '0x796', 'Tailor', 'Usa Tailor', 22);
@@ -1020,9 +1087,17 @@ function RepairBenchToolOnClick() {
     var buttonID = CustomGumpResponse.ReturnCode();
 
     switch (buttonID) {
-        case 8001: SaveRepairBenchItem('blacksmith'); break;
-        case 8002: SaveRepairBenchItem('tailor'); break;
-        case 8003: SaveRepairBenchItem('tinker'); break;
+        case 8001:
+            SaveRepairBenchItem('blacksmith');
+            break;
+
+        case 8002:
+            SaveRepairBenchItem('tailor');
+            break;
+
+        case 8003:
+            SaveRepairBenchItem('tinker');
+            break;
 
         case 8000:
             var g = Orion.CreateCustomGump(REPAIR_TOOL_GUMP_ID);
@@ -1041,7 +1116,8 @@ function SaveRepairBenchItem(toolType) {
     }
 
     graphic = NormalizeRepairGraphic(graphic);
-    itemName = EscapeRepairString(itemName);
+    itemName = CleanRepairString(itemName);
+    toolType = CleanRepairString(toolType);
 
     var alreadyExists = RepairGraphicAlreadyExists(graphic);
     var filePath = Orion.CurrentScriptDirPath() + '/repair bench.oajs';
@@ -1049,8 +1125,12 @@ function SaveRepairBenchItem(toolType) {
     var line =
         "\n// Added by Compagnone Repair Bench" +
         (alreadyExists ? " - OVERRIDE GRAPHIC ESISTENTE" : "") + "\n" +
-        "if (typeof customRepairArr === 'undefined') var customRepairArr = [];\n" +
-        "customRepairArr.push('" + graphic + "','" + itemName + "','" + toolType + "');\n";
+        "if (typeof customRepairArr === \"undefined\") var customRepairArr = [];\n" +
+        "customRepairArr.push(" +
+            QuoteRepairString(graphic) + "," +
+            QuoteRepairString(itemName) + "," +
+            QuoteRepairString(toolType) +
+        ");\n";
 
     var file = Orion.NewFile();
 
@@ -1060,11 +1140,18 @@ function SaveRepairBenchItem(toolType) {
     file.Write(line);
     file.Close();
 
-    if (typeof itemArr !== 'undefined') itemArr.push(graphic, itemName, toolType);
+    if (typeof itemArr !== 'undefined') {
+        itemArr.push(graphic, itemName, toolType);
+    }
 
     RememberRepairGraphic(graphic);
 
-    Orion.CharPrint(Player.Serial(), alreadyExists ? 33 : 65, alreadyExists ? 'Graphic gia presente: usero ultimo inserito.' : 'Nuovo graphic aggiunto alla Repair Bench.');
+    Orion.CharPrint(
+        Player.Serial(),
+        alreadyExists ? 33 : 65,
+        alreadyExists ? 'Graphic gia presente: usero ultimo inserito.' : 'Nuovo graphic aggiunto alla Repair Bench.'
+    );
+
     Orion.CharPrint(Player.Serial(), 65, 'Aggiunto: ' + itemName + ' / ' + toolType);
 
     Shared.RemoveVar('repairbench_pending_graphic');
@@ -1081,7 +1168,9 @@ function RepairGraphicAlreadyExists(graphic) {
 
     if (typeof itemArr !== 'undefined' && itemArr.length) {
         for (var i = 0; i < itemArr.length; i += 3) {
-            if (String(itemArr[i]).toLowerCase() === g) return true;
+            if (String(itemArr[i]).toLowerCase() === g) {
+                return true;
+            }
         }
     }
 
@@ -1101,12 +1190,29 @@ function RememberRepairGraphic(graphic) {
 
 function NormalizeRepairGraphic(graphic) {
     var g = String(graphic);
-    if (g.indexOf('0x') !== 0 && g.indexOf('0X') !== 0) g = '0x' + g;
+
+    if (g.indexOf('0x') !== 0 && g.indexOf('0X') !== 0) {
+        g = '0x' + g;
+    }
+
     return g.toUpperCase().replace('0X', '0x');
 }
 
-function EscapeRepairString(str) {
-    return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+function CleanRepairString(str) {
+    return String(str)
+        .replace(/\r/g, '')
+        .replace(/\n/g, ' ')
+        .replace(/\t/g, ' ')
+        .replace(/\s+/g, ' ');
+}
+
+function QuoteRepairString(str) {
+    return '"' + String(str)
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\r/g, '')
+        .replace(/\n/g, ' ')
+        + '"';
 }
 
 // =====================================================
@@ -1136,6 +1242,36 @@ function SaveCompagnoneGuiPos(x, y) {
     Orion.Print(65, 'Posizione Compagnone salvata: X=' + x + ' Y=' + y);
 }
 
+function InitPositionManagerVars() {
+    if (Shared.GetVar('position_manager_x') == null) Shared.AddVar('position_manager_x', DEFAULT_POSITION_MANAGER_X);
+    if (Shared.GetVar('position_manager_y') == null) Shared.AddVar('position_manager_y', DEFAULT_POSITION_MANAGER_Y);
+    if (Shared.GetVar('position_step') == null) Shared.AddVar('position_step', DEFAULT_POSITION_STEP);
+}
+
+function GetPositionManagerX() {
+    InitPositionManagerVars();
+    return Number(Shared.GetVar('position_manager_x'));
+}
+
+function GetPositionManagerY() {
+    InitPositionManagerVars();
+    return Number(Shared.GetVar('position_manager_y'));
+}
+
+function GetPositionStep() {
+    InitPositionManagerVars();
+    return Number(Shared.GetVar('position_step'));
+}
+
+function SetPositionStep(step) {
+    Shared.AddVar('position_step', step);
+    PositionManagerGUI();
+}
+
+function GetStepColor(step) {
+    return GetPositionStep() === step ? HUE_LABEL_ON : HUE_LABEL_OFF;
+}
+
 function SaveDurabilityGuiPos(x, y) {
     Shared.AddVar('durability_gui_x', x);
     Shared.AddVar('durability_gui_y', y);
@@ -1146,15 +1282,23 @@ function SaveDurabilityGuiPos(x, y) {
 function MoveCompagnoneGui(dx, dy) {
     Shared.AddVar('compagnone_gui_x', GetCompagnoneGuiX() + dx);
     Shared.AddVar('compagnone_gui_y', GetCompagnoneGuiY() + dy);
+
     GUI();
+
+    Orion.Wait(50);
     PositionManagerGUI();
 }
 
 function MoveDurabilityGui(dx, dy) {
-    var x = GetDurabilityGuiX() + dx, y = GetDurabilityGuiY() + dy;
+    var x = GetDurabilityGuiX() + dx;
+    var y = GetDurabilityGuiY() + dy;
+
     Shared.AddVar('durability_gui_x', x);
     Shared.AddVar('durability_gui_y', y);
+
     Orion.MoveGump('custom', x, y, 'any', DURABILITY_GUMP_ID);
+
+    Orion.Wait(50);
     PositionManagerGUI();
 }
 
@@ -1222,44 +1366,76 @@ function SaveGuiPositionsToFile() {
 
 function PositionManagerGUI() {
     InitGuiPositions();
+    InitPositionManagerVars();
 
     var g = Orion.CreateCustomGump(POSITION_MANAGER_GUMP_ID);
-    g.Clear(); g.SetCallback('PositionManagerOnClick');
+    g.Clear();
+    g.SetCallback('PositionManagerOnClick');
 
-    var offsetX = GetCompagnoneGuiX() + 410, offsetY = GetCompagnoneGuiY();
-    var width = 8, height = 7;
+    var offsetX = GetPositionManagerX();
+    var offsetY = GetPositionManagerY();
+
+    var width = 8;
+    var height = 8;
 
     DrawPanel(g, offsetX, offsetY, width, height);
 
-    g.AddText(offsetX + 55, offsetY + 12, 89, 'POSITION MANAGER');
+    g.AddText(offsetX + 65, offsetY + 12, HUE_TITLE, 'POSITION MANAGER');
 
-    g.AddText(offsetX + 35, offsetY + 45, 70, 'COMPAGNONE');
-    g.AddText(offsetX + 35, offsetY + 65, 65, 'X=' + GetCompagnoneGuiX() + ' Y=' + GetCompagnoneGuiY());
+    g.AddText(offsetX + 35, offsetY + 45, HUE_LABEL_ON, 'STEP');
+    g.AddButton(7311, offsetX + 80,  offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(1));
+    g.AddText(offsetX + 100, offsetY + 42, GetStepColor(1), '1');
 
-    g.AddButton(7101, offsetX + 45, offsetY + 95, 0x15E3, 0x15E3, 0x15E3, ''); g.AddTooltip('Compagnone sinistra');
-    g.AddButton(7102, offsetX + 75, offsetY + 95, 0x15E1, 0x15E1, 0x15E1, ''); g.AddTooltip('Compagnone destra');
-    g.AddButton(7103, offsetX + 105, offsetY + 95, 0x15E0, 0x15E0, 0x15E0, ''); g.AddTooltip('Compagnone su');
-    g.AddButton(7104, offsetX + 135, offsetY + 95, 0x15E2, 0x15E2, 0x15E2, ''); g.AddTooltip('Compagnone giu');
+    g.AddButton(7315, offsetX + 125, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(5));
+    g.AddText(offsetX + 145, offsetY + 42, GetStepColor(5), '5');
 
-    AddSmallSetButton(g, 7105, offsetX + 180, offsetY + 98, '65', 'Salva posizione Compagnone');
-    g.AddText(offsetX + 200, offsetY + 95, 65, 'SAVE');
+    g.AddButton(7320, offsetX + 170, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(20));
+    g.AddText(offsetX + 190, offsetY + 42, GetStepColor(20), '20');
 
-    g.AddText(offsetX + 35, offsetY + 130, 70, 'DURABILITY');
-    g.AddText(offsetX + 35, offsetY + 150, 65, 'X=' + GetDurabilityGuiX() + ' Y=' + GetDurabilityGuiY());
+    g.AddButton(7350, offsetX + 220, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(50));
+    g.AddText(offsetX + 240, offsetY + 42, GetStepColor(50), '50');
 
-    g.AddButton(7201, offsetX + 45, offsetY + 180, 0x15E3, 0x15E3, 0x15E3, ''); g.AddTooltip('Durability sinistra');
-    g.AddButton(7202, offsetX + 75, offsetY + 180, 0x15E1, 0x15E1, 0x15E1, ''); g.AddTooltip('Durability destra');
-    g.AddButton(7203, offsetX + 105, offsetY + 180, 0x15E0, 0x15E0, 0x15E0, ''); g.AddTooltip('Durability su');
-    g.AddButton(7204, offsetX + 135, offsetY + 180, 0x15E2, 0x15E2, 0x15E2, ''); g.AddTooltip('Durability giu');
+    g.AddText(offsetX + 35, offsetY + 80, HUE_LABEL_ON, 'COMPAGNONE');
+    g.AddText(offsetX + 35, offsetY + 100, HUE_STATUS_TEXT, 'X=' + GetCompagnoneGuiX() + ' Y=' + GetCompagnoneGuiY());
 
-    AddSmallSetButton(g, 7205, offsetX + 180, offsetY + 183, '65', 'Salva posizione Durability');
-    g.AddText(offsetX + 200, offsetY + 180, 65, 'SAVE');
+    g.AddButton(7101, offsetX + 45,  offsetY + 130, 0x15E3, 0x15E3, 0x15E3, '');
+    g.AddTooltip('Compagnone sinistra');
 
-    AddSmallSetButton(g, 7301, offsetX + 35, offsetY + 213, '33', 'Reset Compagnone');
-    g.AddText(offsetX + 55, offsetY + 210, 33, 'Reset GUI');
+    g.AddButton(7102, offsetX + 75,  offsetY + 130, 0x15E1, 0x15E1, 0x15E1, '');
+    g.AddTooltip('Compagnone destra');
 
-    AddSmallSetButton(g, 7302, offsetX + 145, offsetY + 213, '33', 'Reset Durability');
-    g.AddText(offsetX + 165, offsetY + 210, 33, 'Reset Dura');
+    g.AddButton(7103, offsetX + 105, offsetY + 130, 0x15E0, 0x15E0, 0x15E0, '');
+    g.AddTooltip('Compagnone su');
+
+    g.AddButton(7104, offsetX + 135, offsetY + 130, 0x15E2, 0x15E2, 0x15E2, '');
+    g.AddTooltip('Compagnone giu');
+
+    AddSmallSetButton(g, 7105, offsetX + 185, offsetY + 133, '65', 'Salva posizione Compagnone');
+    g.AddText(offsetX + 205, offsetY + 130, 65, 'SAVE');
+
+    g.AddText(offsetX + 35, offsetY + 165, HUE_LABEL_ON, 'DURABILITY');
+    g.AddText(offsetX + 35, offsetY + 185, HUE_STATUS_TEXT, 'X=' + GetDurabilityGuiX() + ' Y=' + GetDurabilityGuiY());
+
+    g.AddButton(7201, offsetX + 45,  offsetY + 215, 0x15E3, 0x15E3, 0x15E3, '');
+    g.AddTooltip('Durability sinistra');
+
+    g.AddButton(7202, offsetX + 75,  offsetY + 215, 0x15E1, 0x15E1, 0x15E1, '');
+    g.AddTooltip('Durability destra');
+
+    g.AddButton(7203, offsetX + 105, offsetY + 215, 0x15E0, 0x15E0, 0x15E0, '');
+    g.AddTooltip('Durability su');
+
+    g.AddButton(7204, offsetX + 135, offsetY + 215, 0x15E2, 0x15E2, 0x15E2, '');
+    g.AddTooltip('Durability giu');
+
+    AddSmallSetButton(g, 7205, offsetX + 185, offsetY + 218, '65', 'Salva posizione Durability');
+    g.AddText(offsetX + 205, offsetY + 215, 65, 'SAVE');
+
+    AddSmallSetButton(g, 7301, offsetX + 35, offsetY + 250, '33', 'Reset Compagnone');
+    g.AddText(offsetX + 55, offsetY + 247, 33, 'Reset GUI');
+
+    AddSmallSetButton(g, 7302, offsetX + 145, offsetY + 250, '33', 'Reset Durability');
+    g.AddText(offsetX + 165, offsetY + 247, 33, 'Reset Dura');
 
     g.AddButton(7300, offsetX + 250, offsetY + 12, 0xA94, 0xA94, 0xA95, '');
     g.AddTooltip('Chiudi');
@@ -1269,19 +1445,25 @@ function PositionManagerGUI() {
 }
 
 function PositionManagerOnClick() {
-    var buttonID = CustomGumpResponse.ReturnCode();
+    var id = CustomGumpResponse.ReturnCode();
+    var step = GetPositionStep();
 
-    switch (buttonID) {
-        case 7101: MoveCompagnoneGui(-POSITION_STEP, 0); break;
-        case 7102: MoveCompagnoneGui(POSITION_STEP, 0); break;
-        case 7103: MoveCompagnoneGui(0, -POSITION_STEP); break;
-        case 7104: MoveCompagnoneGui(0, POSITION_STEP); break;
+    switch (id) {
+        case 7311: SetPositionStep(1); break;
+        case 7315: SetPositionStep(5); break;
+        case 7320: SetPositionStep(20); break;
+        case 7350: SetPositionStep(50); break;
+
+        case 7101: MoveCompagnoneGui(-step, 0); break;
+        case 7102: MoveCompagnoneGui(step, 0); break;
+        case 7103: MoveCompagnoneGui(0, -step); break;
+        case 7104: MoveCompagnoneGui(0, step); break;
         case 7105: SaveCompagnoneGuiPos(GetCompagnoneGuiX(), GetCompagnoneGuiY()); PositionManagerGUI(); break;
 
-        case 7201: MoveDurabilityGui(-POSITION_STEP, 0); break;
-        case 7202: MoveDurabilityGui(POSITION_STEP, 0); break;
-        case 7203: MoveDurabilityGui(0, -POSITION_STEP); break;
-        case 7204: MoveDurabilityGui(0, POSITION_STEP); break;
+        case 7201: MoveDurabilityGui(-step, 0); break;
+        case 7202: MoveDurabilityGui(step, 0); break;
+        case 7203: MoveDurabilityGui(0, -step); break;
+        case 7204: MoveDurabilityGui(0, step); break;
         case 7205: SaveDurabilityGuiPos(GetDurabilityGuiX(), GetDurabilityGuiY()); PositionManagerGUI(); break;
 
         case 7301: ResetCompagnoneGuiPos(); break;
@@ -1978,6 +2160,17 @@ function SuperInsura() {
 // DURABILITY WATCHER
 // =====================================================
 
+function AddDurabilityTitle(g, offsetX, offsetY, width) {
+    var guiWidth = width * 35;
+    var text = "DURABILITY WATCHER";
+
+    var textWidth = text.length * 7;
+    var centeredX = offsetX + Math.floor((guiWidth - textWidth) / 2) - 4;
+
+    g.AddText(centeredX, offsetY + 15, HUE_TITLE, text, 0);
+    g.AddLine(offsetX + 35, offsetY + 42, offsetX + guiWidth - 35, offsetY + 42, 'white', 1);
+}
+
 function Durability_Watcher() {
     var delay = 100;
 
@@ -2000,31 +2193,14 @@ function Durability_Watcher() {
             var offsetX = GetDurabilityGuiX ? GetDurabilityGuiX() : -55;
             var offsetY = GetDurabilityGuiY ? GetDurabilityGuiY() : -55;
 
-            var gump = Orion.CreateCustomGump(69);
+            var gump = Orion.CreateCustomGump(DURABILITY_GUMP_ID);
             gump.Clear();
 
             var width = 10;
             var height = Math.max(4, Math.ceil((y - 15) / 35));
 
-            for (var gy = 0; gy < height; ++gy) {
-                for (var gx = 0; gx < width; ++gx) {
-                    var drawX = offsetX + gx * 35;
-                    var drawY = offsetY + gy * 35;
-
-                    if (gy === 0 && gx === 0) gump.AddGumpPic(drawX, drawY, 0x9C40);
-                    else if (gx === 0 && gy === height - 1) gump.AddGumpPic(drawX, drawY, 0x9C46);
-                    else if (gx === 0 && gy > 0 && gy < height - 1) gump.AddGumpPic(drawX, drawY, 0x9C43);
-                    else if (gx === width - 1 && gy > 0 && gy < height - 1) gump.AddGumpPic(drawX, drawY, 0x9C45);
-                    else if (gy === height - 1 && gx === width - 1) gump.AddGumpPic(drawX, drawY, 0x9C48);
-                    else if (gy === 0 && gx === width - 1) gump.AddGumpPic(drawX, drawY, 0x9C42);
-                    else if (gy === 0 && gx > 0 && gx < width - 1) gump.AddGumpPic(drawX, drawY, 0x9C41);
-                    else if (gy === height - 1 && gx > 0 && gx < width - 1) gump.AddGumpPic(drawX, drawY, 0x9C47);
-                    else gump.AddGumpPic(drawX, drawY, 0x9C44);
-                }
-            }
-
-            gump.AddCheckerTrans(offsetX, offsetY, width * 35, height * 35);
-            gump.AddText(offsetX + 95, offsetY + 15, 70, 'DURABILITY WATCHER');
+            DrawPanel(gump, offsetX, offsetY, width, height);
+            AddDurabilityTitle(gump, offsetX, offsetY, width);
 
             for (var j = 1; j < 24; j++) {
                 var item = Orion.ObjAtLayer(j);
@@ -2037,7 +2213,16 @@ function Durability_Watcher() {
                         var durability = Number(matches[1]);
                         var maxDurability = Number(matches[2]);
                         var percent = durability / maxDurability * 100;
-                        var textColor = percent < 20 ? 33 : percent < 60 ? 53 : 70;
+
+                        var textColor;
+
+if (durability < 50) {
+    textColor = 33;              // rosso
+} else if (durability < 150) {
+    textColor = 53;              // giallo
+} else {
+    textColor = HUE_STATUS_TEXT; // stile normale
+}
 
                         gump.AddText(offsetX + 15, offsetY + d, textColor, item.Name());
                         gump.AddText(offsetX + 255, offsetY + d, textColor, matches[1] + '/' + matches[2]);
