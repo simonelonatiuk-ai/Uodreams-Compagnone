@@ -3,11 +3,13 @@ setlocal
 
 set "URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/UODREAMS%%20Compagnone%%20v2.oajs"
 set "REPAIR_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/repair%%20bench.oajs"
+set "POSITIONS_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/compagnone_positions.oajs"
 
 set "SCRIPT_DIR=%~dp0"
 set "DEST=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO.oajs"
 set "BACKUP=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO backup.oajs"
 set "REPAIR_DEST=%SCRIPT_DIR%repair bench.oajs"
+set "POSITIONS_DEST=%SCRIPT_DIR%compagnone_positions.oajs"
 
 echo.
 echo Aggiornamento UODREAMS Compagnone...
@@ -65,6 +67,32 @@ if exist "%REPAIR_DEST%" (
     echo.
     echo repair bench.oajs scaricato correttamente:
     echo %REPAIR_DEST%
+)
+
+echo.
+echo Controllo compagnone_positions.oajs...
+echo.
+
+if exist "%POSITIONS_DEST%" (
+    echo compagnone_positions.oajs gia presente.
+    echo Non viene riscaricato per non sovrascrivere la posizione salvata della tua GUI.
+) else (
+    echo compagnone_positions.oajs non trovato.
+    echo Download compagnone_positions.oajs...
+
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%POSITIONS_URL%' -OutFile '%POSITIONS_DEST%'"
+
+    if errorlevel 1 (
+        echo.
+        echo ERRORE: download compagnone_positions.oajs fallito.
+        echo Il Compagnone e stato comunque aggiornato.
+        pause
+        exit /b 1
+    )
+
+    echo.
+    echo compagnone_positions.oajs scaricato correttamente:
+    echo %POSITIONS_DEST%
 )
 
 echo.
