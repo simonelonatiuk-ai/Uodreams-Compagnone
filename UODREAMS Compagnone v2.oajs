@@ -3382,37 +3382,8 @@ function AutoVampiricEmbrace() {
     }
 }
 
-function OneShotHealChivalry() {
-    if (!Orion.BuffExists('Confidence')) {
-        Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
-        Orion.Cast('Confidence');
-        Orion.Wait(50);
-    }
-
-    if (Orion.BuffExists('Mortal Strike')) {
-        Orion.Cast('209');
-        if (Orion.WaitForTarget(1000)) Orion.TargetObject('self');
-        Orion.Wait(150);
-        return;
-    }
-
-    if (Orion.BuffExists('Poison')) {
-        Orion.Cast('Cleanse by Fire', 'self');
-        Orion.Wait(650);
-        return;
-    }
-
-    if (Player.Hits() < Player.MaxHits()) {
-        Orion.Cast('Close Wounds', 'self');
-        Orion.Wait(700);
-        return;
-    }
-
-    Orion.CharPrint(Player.Serial(), 25, '*Sti Bbon*');
-}
-
-function OneShotHealChivalryfc2() {
-    if (Player.Hits() < Player.MaxHits()) {
+function OneShotHealChivalryCore(healFirst) {
+    if (healFirst && Player.Hits() < Player.MaxHits()) {
         Orion.Cast('Close Wounds', 'self');
         Orion.Wait(400);
         return;
@@ -3433,12 +3404,21 @@ function OneShotHealChivalryfc2() {
 
     if (Orion.BuffExists('Poison')) {
         Orion.Cast('Cleanse by Fire', 'self');
-        Orion.Wait(750);
+        Orion.Wait(healFirst ? 750 : 650);
+        return;
+    }
+
+    if (!healFirst && Player.Hits() < Player.MaxHits()) {
+        Orion.Cast('Close Wounds', 'self');
+        Orion.Wait(700);
         return;
     }
 
     Orion.CharPrint(Player.Serial(), 25, '*Sti Bbon*');
 }
+
+function OneShotHealChivalry()    { OneShotHealChivalryCore(false); }
+function OneShotHealChivalryfc2() { OneShotHealChivalryCore(true);  }
 
 function autoRemoveBloodOath() {
     while (true) {
