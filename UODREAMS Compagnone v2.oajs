@@ -1648,6 +1648,7 @@ function StartProfile(profileName, railScript, attackScript, isSS, isArchery) {
 
     Orion.SetGlobal('StopAllScripts', 'false');
 
+    Orion.Exec('CheckCurseAndPoison', 'true');
     Orion.Exec('CheckAndDispelRevenant', 'true');
     Orion.Exec('AutoBushidoAbilities', 'true');
     Orion.Exec('autoMount', 'true');
@@ -1680,7 +1681,6 @@ function SOLO() {
     try { Orion.IgnoreReset(); } catch(e) {}
     ignoredMobs = {};
     Orion.SetGlobal('LastEnemySerial', '');
-    Orion.Exec('CheckCurseAndPoison', 'true');
     StartProfile('Sampire SOLO', null, 'SoloFollowAndAttack');
 }
 
