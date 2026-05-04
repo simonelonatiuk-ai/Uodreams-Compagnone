@@ -5174,12 +5174,20 @@ function ShowKarmaFama() {
 
         Orion.Print(65, 'Fame/Karma: ' + text);
 
-        var match = text.match(/Fame\s*=\s*([0-9]+)\s+Karma\s*=\s*([0-9]+)/i);
+        var match = text.match(/Fame\s*=\s*(-?\d+)\s+Karma\s*=\s*(-?\d+)/i);
 
         if (match) {
-            Orion.CharPrint(Player.Serial(), 1153, '*FAMA* : ' + match[1]);
+            var fame = Number(match[1]);
+            var karma = Number(match[2]);
+
+            Orion.CharPrint(Player.Serial(), 1153, '*FAMA* : ' + fame);
             Orion.Wait(150);
-            Orion.CharPrint(Player.Serial(), 88, '*KARMA* : ' + match[2]);
+
+            if (karma < 0) {
+                Orion.CharPrint(Player.Serial(), 33, '*KARMA* : ' + karma);
+            } else {
+                Orion.CharPrint(Player.Serial(), 88, '*KARMA* : ' + karma);
+            }
         } else {
             Orion.CharPrint(Player.Serial(), 33, '*Formato Fame/Karma non letto*');
             Orion.Print(33, 'Testo ricevuto: ' + text);
