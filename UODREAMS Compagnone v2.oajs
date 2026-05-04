@@ -4595,25 +4595,20 @@ function SortByDistance(serials) {
     return serials;
 }
 
+function MarkMobOnce(serial, map, actionFn) {
+    if (!map[serial]) { actionFn(serial); map[serial] = true; }
+}
+
 function HighlightAggroMobOnce(serial) {
-    if (!_eventHighlightDone[serial]) {
-        Orion.AddHighlightCharacter(serial, EVENT_HIGHLIGHT_COLOR, true);
-        _eventHighlightDone[serial] = true;
-    }
+    MarkMobOnce(serial, _eventHighlightDone, function(s) { Orion.AddHighlightCharacter(s, EVENT_HIGHLIGHT_COLOR, true); });
 }
 
 function MarkPrimaryTargetOnce(serial) {
-    if (!_eventPrimaryMarked[serial]) {
-        Orion.CharPrint(serial, 48, '*TARGET*');
-        _eventPrimaryMarked[serial] = true;
-    }
+    MarkMobOnce(serial, _eventPrimaryMarked, function(s) { Orion.CharPrint(s, 48, '*TARGET*'); });
 }
 
 function MarkAggroOnce(serial) {
-    if (!_eventSecondaryMarked[serial]) {
-        Orion.CharPrint(serial, 63, '*AGGRATO*');
-        _eventSecondaryMarked[serial] = true;
-    }
+    MarkMobOnce(serial, _eventSecondaryMarked, function(s) { Orion.CharPrint(s, 63, '*AGGRATO*'); });
 }
 
 function AggroMobOnce(serial, isPrimary) {
