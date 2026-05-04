@@ -1,3 +1,11 @@
+function FindRepairArrIndex(graphic) {
+    var g = String(graphic).toLowerCase();
+    for (var i = itemArr.length - 3; i >= 0; i -= 3) {
+        if (String(itemArr[i]).toLowerCase() === g) return i;
+    }
+    return -1;
+}
+
 function RepairGear() {
     MergeCustomRepairArr();
 
@@ -38,14 +46,7 @@ function RepairGear() {
 
         var properties = item.Properties();
         var currentGraphic = item.Graphic().toLowerCase();
-        var objInd = -1;
-
-for (var j = itemArr.length - 3; j >= 0; j -= 3) {
-    if (itemArr[j].toLowerCase() === currentGraphic) {
-        objInd = j;
-        break;
-    }
-}
+        var objInd = FindRepairArrIndex(currentGraphic);
 
         // 1. Salta se l'oggetto è Imbued
         if (Orion.Contains(properties, "Imbued")) {
