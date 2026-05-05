@@ -1544,13 +1544,22 @@ function DoomMenuGUI() {
     g.AddText(offsetX + 150, offsetY + 12, 31, '*DOOM MENU*');
     AddBigButton(g, 7400, offsetX + 140, offsetY + 40, '3', 31, 'START DOOM', 'Avvia Doom classico', 15);
 
+    var doomTooltip = '';
+    doomTooltip += 'START DOOM: avvia il giro completo dal centro. ';
+    doomTooltip += 'I bottoni stanza partono fuori dalla stanza scelta. ';
+    doomTooltip += 'Impostare arma con primary bleeding per ShadowKnight. ';
+    doomTooltip += 'Durante DF usa arma Generica Area se spawnano mob. ';
+    doomTooltip += 'Quando resta solo DF rimette arma DarkFather.';
+
+g.AddButton(7410, offsetX + 260, offsetY + 48, 0x15E6, 0x15E6, 0x15E6, '1153');
+g.AddTooltip(doomTooltip);
+
     g.AddText(offsetX + 45, offsetY + 85, 31, '  *STANZE*');
     g.AddText(offsetX + 225, offsetY + 85, 31, '    *ARMI*');
 
     var leftBtn = offsetX + 35;
     var rightSet = offsetX + 205, rightBtn = offsetX + 225, rightText = offsetX + 260;
     var ly = offsetY + 120, ry = offsetY + 120;
-
     AddBigButton(g, 7401, leftBtn, ly, '11', 1153, 'DarknightCreeper', 'Vai a Darknight Creeper', 5); ly += 32;
     AddBigButton(g, 7402, leftBtn, ly, '55', 1153, 'Fleshrenderer', 'Vai a Fleshrenderer', 18); ly += 32;
     AddBigButton(g, 7403, leftBtn, ly, '33', 1153, 'Impaler', 'Vai a Impaler', 22); ly += 32;
@@ -1577,6 +1586,10 @@ function DoomMenuOnClick() {
 
     switch (buttonID) {
         case 7400: ToggleDoomGauntlet(); DoomMenuGUI(); break;
+
+        case 7410:
+            DoomMenuGUI();
+            break;
 
         case 7401: Orion.Print(65, '>> Vai a Darknight Creeper'); AutoDoomGauntlet(1); DoomMenuGUI(); break;
         case 7402: Orion.Print(65, '>> Vai a Fleshrenderer'); AutoDoomGauntlet(2); DoomMenuGUI(); break;
@@ -4378,11 +4391,7 @@ function ToggleDoomGauntlet() {
         Orion.Terminate('AutoDoomGauntlet');
         Orion.CharPrint(Player.Serial(), 33, 'DOOM Gauntlet Disattivato');
     } else {
-        Orion.SetGlobal('StopAllScripts', 'false');
-
-        if (!Orion.ScriptRunning('AutoVampiricEmbrace')) Orion.Exec('AutoVampiricEmbrace', 'true');
-        if (!Orion.ScriptRunning('doomBoneCutter')) Orion.Exec('doomBoneCutter', 'true');
-        if (!Orion.ScriptRunning('AutoLogoutOnDeath')) Orion.Exec('AutoLogoutOnDeath', 'true');
+        ensureDoomSupportScripts();
 
         Orion.Exec('AutoDoomGauntlet', 'true');
         Orion.CharPrint(Player.Serial(), 65, 'DOOM Gauntlet ATTIVATO!');
@@ -4488,30 +4497,40 @@ function fightLogic(range, roomNum) {
             emptyCheckStarted = false;
             emptySince = 0;
 
-            if (roomNum === 6) {
-                var enemiesNear = Orion.FindTypeEx('any', 'any', 'ground', 'live|ignoreself|ignorefriends', 2, 'gray|criminal|red|enemy|orange');
-                var validEnemiesNear = 0;
+           if (roomNum === 6) {
+    var enemiesNear = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'live|ignoreself|ignorefriends',
+        2,
+        'gray|criminal|red|enemy|orange'
+    );
 
-                for (var j = 0; j < enemiesNear.length; j++) {
-                    var nearMob = enemiesNear[j];
-                    var ignored = false;
+    var validEnemiesNear = 0;
 
-                    if (typeof ignoredMobs !== 'undefined' && ignoredMobs[nearMob.Serial()]) ignored = true;
-                    if (!ignored && typeof isIgnoredSummon === 'function' && isIgnoredSummon(nearMob)) ignored = true;
-                    if (!ignored) validEnemiesNear++;
-                }
+    for (var j = 0; j < enemiesNear.length; j++) {
+        var nearMob = enemiesNear[j];
+        if (!nearMob) continue;
 
-                var enemyGraphic = enemy.Graphic ? enemy.Graphic().toString().toLowerCase() : '';
-                var enemyName = enemy.Name ? (enemy.Name() || '') : '';
-                var isDarkFather = enemyGraphic === '0x013e' || enemyName.indexOf('Dark Father') !== -1;
+        var ignored = false;
 
-                if (validEnemiesNear > 1) {
-                    safeToggleDressWeapon('Dress_GenericArea');
-                    if (!Orion.AbilityStatus('Secondary')) Orion.UseAbility('Secondary');
-                } else if (isDarkFather) {
-                    safeToggleDressWeapon('Dress_DoomDarkFather');
-                }
-            }
+        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[nearMob.Serial()]) ignored = true;
+        if (!ignored && typeof isIgnoredSummon === 'function' && isIgnoredSummon(nearMob)) ignored = true;
+
+        if (!ignored) validEnemiesNear++;
+    }
+
+    if (validEnemiesNear > 1) {
+        safeToggleDressWeapon('Dress_GenericArea');
+
+        if (!Orion.AbilityStatus('Secondary')) {
+            Orion.UseAbility('Secondary');
+        }
+    } else {
+        safeToggleDressWeapon('Dress_DoomDarkFather');
+    }
+}
 
             Orion.Wait(150);
         } else {
@@ -4526,11 +4545,28 @@ function fightLogic(range, roomNum) {
     }
 }
 
+function ensureDoomSupportScripts() {
+    Orion.SetGlobal('StopAllScripts', 'false');
+
+    if (!Orion.ScriptRunning('AutoVampiricEmbrace')) {
+        Orion.Exec('AutoVampiricEmbrace', 'true');
+    }
+
+    if (!Orion.ScriptRunning('doomBoneCutter')) {
+        Orion.Print(65, '>> Attivazione doomBoneCutter...');
+        Orion.Exec('doomBoneCutter', 'true');
+    }
+
+    if (!Orion.ScriptRunning('AutoLogoutOnDeath')) {
+        Orion.Exec('AutoLogoutOnDeath', 'true');
+    }
+}
+
 function AutoDoomGauntlet(stanza, singleRun) {
     Orion.Print(89, '=== Avvio Doom Gauntlet ===');
     Orion.IgnoreReset();
 
-    if (typeof GetCheckboxStatus === 'function' && !GetCheckboxStatus('AutoDoomGauntlet')) ToggleDoomGauntlet();
+    ensureDoomSupportScripts();
 
     var isSingle = singleRun === true;
     Orion.Wait(50);
@@ -4595,12 +4631,6 @@ function AutoDoomGauntlet(stanza, singleRun) {
 
         if (stanza <= 6) {
             Orion.Print(65, '>> Stanza 6 - Dark Father');
-
-            if (!Orion.ScriptRunning('doomBoneCutter')) {
-                Orion.Print(65, '>> Attivazione doomBoneCutter...');
-                Orion.Exec('doomBoneCutter', 'true');
-                GUI();
-            }
 
             safeToggleDressTalisman('Dress_TalismanDemon');
             Orion.Wait(150);
