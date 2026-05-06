@@ -4,6 +4,7 @@
 
 //#include OA/repair bench.oajs
 //#include OA/compagnone_positions.oajs
+//#include OA/compagnone_farm.oajs
 
 // =====================================================
 // GUI STYLE - CHARACTER ASSISTANT LOOK
@@ -33,6 +34,7 @@ var REPAIR_TOOL_GUMP_ID = 101101;
 var POSITION_MANAGER_GUMP_ID = 101102;
 var DOOM_MENU_GUMP_ID = 101103;
 var TALISMAN_MENU_GUMP_ID = 101104;
+var FARM_MENU_GUMP_ID = 101105;
 var DEFAULT_COMPAGNONE_X = -75, DEFAULT_COMPAGNONE_Y = 200;
 var DEFAULT_DURABILITY_X = -55, DEFAULT_DURABILITY_Y = -55;
 var POSITION_STEP = 10;
@@ -361,7 +363,7 @@ function GUIMisc() {
 	AddBigButton(g, 7040, leftBtn, offsetY + y1, '33', 1153, 'DOOM MENU', 'Apri Doom Menu', 18);
 
 	y1 += 35;
-	AddBigButton(g, 7042, leftBtn, offsetY + y1, '55', 1153, 'FARM OSSA', 'Avvia Farm Ossa', 20);
+	AddBigButton(g, 7042, leftBtn, offsetY + y1, '75', 1153, 'FARM MENU', 'Apri Farm Menu', 18);
 
     AddSmallSetButton(g, 5032, rightBtn, offsetY + y2 + 7, '95', 'Seleziona un oggetto da autolootare');
     g.AddText(rightText, offsetY + y2 + 5, 65, 'ADD to Autoloot');
@@ -613,16 +615,7 @@ function OnClick() {
         case 7031: CheckObjectColorNumber(); break;
         case 7040: DoomMenuGUI(); break;
         case 7041: TalismanMenuGUI(); break;
-        case 7042:
-    if (Orion.ScriptRunning('StartDragonFarmer')) {
-        Orion.Terminate('StartDragonFarmer');
-        Orion.CharPrint(Player.Serial(), 33, 'FARM OSSA STOPPATO');
-    } else {
-        Orion.Exec('StartDragonFarmer', 'true');
-        Orion.CharPrint(Player.Serial(), 65, 'FARM OSSA AVVIATO');
-    }
-    GUI();
-    break;
+        case 7042: FarmMenuGUI(); break;
 
         case 3017:
             if (Shared.GetVar('cerca_attivo')) Shared.RemoveVar('cerca_attivo');
@@ -1478,6 +1471,200 @@ function PositionManagerOnClick() {
 }
 
 // =====================================================
+// FARM MENU
+// =====================================================
+
+function FarmMenuOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 7501:
+            ToggleFarmScript('StartDragonFarmer', 'FARM OSSA CAMPANA');
+            Orion.Wait(150);
+            FarmMenuGUI();
+            break;
+
+        case 7502:
+            ToggleFarmScript('StartBoneScavenger', 'FARM OSSA DOOM');
+            Orion.Wait(150);
+            FarmMenuGUI();
+            break;
+
+        case 7503:
+            ToggleFarmScript('StartSkullDoomFarmer', 'FARM SKULL DOOM');
+            Orion.Wait(150);
+            FarmMenuGUI();
+            break;
+
+        case 7504:
+            ToggleFarmScript('StartFunghiFarmer', 'FARM FUNGHI');
+            Orion.Wait(150);
+            FarmMenuGUI();
+            break;
+
+        case 7599:
+            var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+function ToggleFarmScript(scriptName, label) {
+    if (Orion.ScriptRunning(scriptName)) {
+        Orion.Terminate(scriptName);
+        Orion.WarMode(false);
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+
+        var timeoutStop = Orion.Now() + 1000;
+        while (Orion.ScriptRunning(scriptName) && Orion.Now() < timeoutStop) {
+            Orion.Wait(50);
+        }
+
+        Orion.CharPrint(Player.Serial(), 33, label + ' STOPPATO');
+    } else {
+        Orion.Exec(scriptName, 'true');
+
+        var timeoutStart = Orion.Now() + 1000;
+        while (!Orion.ScriptRunning(scriptName) && Orion.Now() < timeoutStart) {
+            Orion.Wait(50);
+        }
+
+        Orion.CharPrint(Player.Serial(), 65, label + ' AVVIATO');
+    }
+}
+
+
+function FarmMenuGUI() {
+    var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+    g.Clear();
+    g.SetCallback('FarmMenuOnClick');
+
+    var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
+    var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 180 : 320;
+
+    var width = 9;
+    var height = 7;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    g.AddText(offsetX + 115, offsetY + 12, 53, '*FARM MENU*');
+
+    var btnX = offsetX + 55;
+    var textX = offsetX + 95;
+    var rowY = offsetY + 55;
+
+    AddFarmCheckRow(
+        g,
+        7501,
+        btnX,
+        textX,
+        rowY,
+        'StartDragonFarmer',
+        'FARM OSSA CAMPANA',
+        'Avvia/stoppa farm ossa campana drago'
+    );
+
+    AddFarmCheckRow(
+        g,
+        7502,
+        btnX,
+        textX,
+        rowY + 35,
+        'StartBoneScavenger',
+        'FARM OSSA DOOM',
+        'Avvia/stoppa farm ossa Doom'
+    );
+
+    AddFarmCheckRow(
+        g,
+        7503,
+        btnX,
+        textX,
+        rowY + 70,
+        'StartSkullDoomFarmer',
+        'FARM SKULL DOOM',
+        'Avvia/stoppa farm skull Doom'
+    );
+
+    AddFarmCheckRow(
+        g,
+        7504,
+        btnX,
+        textX,
+        rowY + 105,
+        'StartFunghiFarmer',
+        'FARM FUNGHI',
+        'Avvia/stoppa farm funghi'
+    );
+
+    g.AddButton(7599, offsetX + 285, offsetY + 12, 0xA94, 0xA94, 0xA95, '32');
+    g.AddTooltip('Chiudi Farm Menu');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function AddFarmCheckRow(g, id, xBtn, xText, y, scriptName, label, tooltip) {
+    var active = Orion.ScriptRunning(scriptName);
+
+    g.AddButton(
+        id,
+        xBtn,
+        y,
+        active ? 0x2602 : 0x2603,
+        active ? 0x2602 : 0x2603,
+        active ? 0x2602 : 0x2603,
+        ''
+    );
+
+    g.AddTooltip(tooltip || label);
+    g.AddText(xText, y + 5, active ? 70 : 33, label);
+}
+
+function FarmMenuOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 7501:
+            ToggleFarmScript('StartDragonFarmer', 'FARM OSSA CAMPANA');
+            FarmMenuGUI();
+            break;
+
+        case 7502:
+            ToggleFarmScript('StartBoneScavenger', 'FARM OSSA DOOM');
+            FarmMenuGUI();
+            break;
+
+        case 7503:
+            ToggleFarmScript('StartSkullDoomFarmer', 'FARM SKULL DOOM');
+            FarmMenuGUI();
+            break;
+
+        case 7504:
+            ToggleFarmScript('StartFunghiFarmer', 'FARM FUNGHI');
+            FarmMenuGUI();
+            break;
+
+        case 7599:
+            var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+function ToggleFarmScript(scriptName, label) {
+    if (Orion.ScriptRunning(scriptName)) {
+        Orion.Terminate(scriptName);
+        Orion.WarMode(false);
+        Orion.CharPrint(Player.Serial(), 33, label + ' STOPPATO');
+    } else {
+        Orion.Exec(scriptName, 'true');
+        Orion.CharPrint(Player.Serial(), 65, label + ' AVVIATO');
+    }
+}
+
+// =====================================================
 // TALISMANI MENU
 // =====================================================
 
@@ -1545,11 +1732,11 @@ function DoomMenuGUI() {
     AddBigButton(g, 7400, offsetX + 140, offsetY + 40, '3', 31, 'START DOOM', 'Avvia Doom classico', 15);
 
     var doomTooltip = '';
-    doomTooltip += 'START DOOM: avvia il giro completo dal centro. ';
-    doomTooltip += 'I bottoni stanza partono fuori dalla stanza scelta. ';
-    doomTooltip += 'Impostare arma con primary bleeding per ShadowKnight. ';
+    doomTooltip += 'il bottone START DOOM avvia il giro completo dal centro. ';
+    doomTooltip += 'I bottoni delle singole stanze partono fuori dalla stanza scelta nel caso muori e devi riniziare da una stanza specifica. ';
+    doomTooltip += 'Impostare arma con primary bleeding per ShadowKnight per rivelarlo. ';
     doomTooltip += 'Durante DF usa arma Generica Area se spawnano mob. ';
-    doomTooltip += 'Quando resta solo DF rimette arma DarkFather.';
+    doomTooltip += 'Quando resta solo DF rimette arma DarkFather. DISABILITARE da paperdoll Auto avoid Obstacles per la rail di doom.';
 
 g.AddButton(7410, offsetX + 260, offsetY + 48, 0x15E6, 0x15E6, 0x15E6, '1153');
 g.AddTooltip(doomTooltip);
@@ -1628,6 +1815,15 @@ function SpegniTutto() {
     Orion.SetGlobal('StopAllScripts', 'true');
     Shared.RemoveVar('cerca_attivo');
     Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    var farmGump = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+    farmGump.Close();
+
+    var doomGump = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
+    doomGump.Close();
+
     Orion.Wait(300);
     Orion.Exec('PostStopHandler');
     Orion.Terminate('all');
@@ -1773,7 +1969,7 @@ function RemoveCurseSelf() {
 
 function CheckCurseAndPoison() {
     var lastRemoveCurse = 0;
-    var removeCurseCooldown = 1200;
+    var removeCurseCooldown = 180;
 
     function HasCurseDebuff() {
         return Orion.BuffExists('Curse') || Orion.BuffExists('Corpse Skin');
@@ -1788,16 +1984,23 @@ function CheckCurseAndPoison() {
         return Player.Serial().toString().toLowerCase() === '0x0002c7ab';
     }
 
-    function CastRemoveCurseSelf() {
+    function CastRemoveCurseSelfFast() {
         ClearTargetHard();
+        Orion.ClearJournal();
 
         if (IsLagPlayer()) {
             Orion.Cast('209', 'self');
-            Orion.Wait(350);
+            Orion.Wait(180);
         } else {
             Orion.Cast('209');
-            if (Orion.WaitForTarget(1200)) Orion.TargetObject('self');
-            Orion.Wait(150);
+
+            if (Orion.WaitForTarget(450)) {
+                Orion.TargetObject('self');
+                Orion.Wait(120);
+            } else {
+                ClearTargetHard();
+                Orion.Wait(80);
+            }
         }
 
         ClearTargetHard();
@@ -1806,6 +2009,21 @@ function CheckCurseAndPoison() {
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
 
+        /*
+            Blood Oath resta prioritario.
+            Se è attivo, lascia lavorare HandleBloodOath().
+        */
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        /*
+            Questo script NON ferma il combat.
+            Però evita di sprecare Remove Curse mentre sei ferito,
+            come nella tua versione originale.
+        */
         if (Player.Hits() < Player.MaxHits()) {
             Orion.Wait(50);
             continue;
@@ -1814,22 +2032,35 @@ function CheckCurseAndPoison() {
         if (HasCurseDebuff()) {
             var now = Orion.Now();
 
-            if ((now - lastRemoveCurse) < removeCurseCooldown) {
-                Orion.Wait(50);
+            if ((now - lastRemoveCurse) >= removeCurseCooldown) {
+                lastRemoveCurse = now;
+
+                CastRemoveCurseSelfFast();
+
+                /*
+                    Se fizzla o non parte il target, non aspetta 1 secondo:
+                    riprova quasi subito.
+                */
+                if (
+                    Orion.InJournal('fizzles') ||
+                    Orion.InJournal('You are frozen') ||
+                    Orion.InJournal('You cannot move') ||
+                    Orion.InJournal('You must wait') ||
+                    Orion.InJournal('not yet recovered')
+                ) {
+                    Orion.Wait(80);
+                } else {
+                    Orion.Wait(80);
+                }
+
                 continue;
             }
 
-            lastRemoveCurse = now;
-            CastRemoveCurseSelf();
-
-            var timeout = Orion.Now() + 1500;
-            while (HasCurseDebuff() && Orion.Now() < timeout && !Player.Dead()) Orion.Wait(100);
-
-            ClearTargetHard();
-            Orion.Wait(150);
+            Orion.Wait(40);
             continue;
         }
 
+        ClearTargetHard();
         Orion.Wait(100);
     }
 }
@@ -1841,6 +2072,12 @@ function CheckCurseAndPoison() {
 function UseSpecialAbilities() {
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        
+        if (IsBloodOathLocked()) {
+    HandleBloodOath();
+    Orion.Wait(50);
+    continue;
+}
 
         var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
         var nearbyEnemies = enemiesAround.filter(function(enemy) {
@@ -1893,6 +2130,12 @@ function UseSpecialAbilities() {
 function UseSpecialAbilitiesSS() {
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        
+        if (IsBloodOathLocked()) {
+    HandleBloodOath();
+    Orion.Wait(50);
+    continue;
+}
 
         var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
         var nearbyEnemies = enemiesAround.filter(function(enemy) {
@@ -1934,6 +2177,12 @@ function UseSpecialAbilitiesSS() {
 function UseArcheryPrimaryOnly() {
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        
+                if (IsBloodOathLocked()) {
+    HandleBloodOath();
+    Orion.Wait(50);
+    continue;
+}
 
         if (Player.Mana() >= 17 && !Orion.AbilityStatus('Primary')) {
             Orion.UseAbility('Primary');
@@ -2372,43 +2621,101 @@ function HonorSelf() {
 // =====================================================
 
 function doomBoneCutter() {
-    var knifeObj = Orion.FindObject('bone_knife');
-
-    if (!knifeObj) {
-        Orion.CharPrint(Player.Serial(), 33, 'Nessun coltello selezionato!');
-        return;
-    }
-
-    var knifeSerial = knifeObj.Serial();
     var boneTypes = '0x0ECA|0x0ECB|0x0ECC|0x0ECD|0x0ECE|0x0ECF|0x0ED0|0x0ED1|0x0ED2';
+    var CUT_RANGE = 2;
+    var CUT_DELAY = 45;
+    var RETRY_DELAY = 55;
+
+    Orion.Print(65, 'doomBoneCutter TURBO avviato');
 
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
 
-        var bones = Orion.FindTypeEx(boneTypes, 'any', 'ground', 'item|near', 2);
-
-        if (bones.length > 0) {
-            for (var i = 0; i < bones.length; i++) {
-                var bone = bones[i];
-
-                if (bone && Orion.ObjectExists(bone.Serial())) {
-                    if (Orion.HaveTarget()) Orion.CancelTarget();
-
-                    Orion.CancelWaitTarget();
-                    Orion.WaitTargetObject(bone.Serial());
-                    Orion.UseObject(knifeSerial);
-
-                    var timeout = Orion.Now() + 200;
-                    while (Orion.ObjectExists(bone.Serial()) && Orion.Now() < timeout) Orion.Wait(20);
-                }
-            }
-
-            if (Orion.HaveTarget()) Orion.CancelTarget();
-            Orion.CancelWaitTarget();
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(40);
+            continue;
         }
 
-        Orion.Wait(100);
+        var knifeObj = Orion.FindObject('bone_knife');
+
+        if (!knifeObj || !Orion.ObjectExists(knifeObj.Serial())) {
+            Orion.CharPrint(Player.Serial(), 33, 'Coltello BoneCutter non trovato!');
+            Orion.Wait(500);
+            continue;
+        }
+
+        var knifeSerial = knifeObj.Serial();
+
+        var bones = Orion.FindTypeEx(boneTypes, 'any', 'ground', 'item|near', CUT_RANGE);
+
+        if (!bones || !bones.length) {
+            Orion.Wait(40);
+            continue;
+        }
+
+        for (var i = 0; i < bones.length; i++) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+            if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+                HandleBloodOath();
+                break;
+            }
+
+            var bone = bones[i];
+            if (!bone || !Orion.ObjectExists(bone.Serial())) continue;
+            if (bone.Distance() > CUT_RANGE) continue;
+
+            CutBoneTurbo(knifeSerial, bone.Serial(), CUT_DELAY, RETRY_DELAY);
+        }
+
+        Orion.Wait(25);
     }
+}
+
+function CutBoneTurbo(knifeSerial, boneSerial, cutDelay, retryDelay) {
+    if (!Orion.ObjectExists(boneSerial)) return false;
+
+    var boneObj = Orion.FindObject(boneSerial);
+    if (!boneObj || boneObj.Distance() > 2) return false;
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    Orion.UseObject(knifeSerial);
+
+    if (Orion.WaitForTarget(2000)) {
+        Orion.TargetObject(boneSerial);
+        Orion.Wait(cutDelay);
+
+        if (!Orion.ObjectExists(boneSerial)) return true;
+    } else {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        Orion.Wait(retryDelay);
+        return false;
+    }
+
+    /*
+        Retry immediato, ma solo uno.
+        Non deve restare incollato su un osso mentre arrivano mob.
+    */
+    if (Orion.ObjectExists(boneSerial)) {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+
+        Orion.UseObject(knifeSerial);
+
+        if (Orion.WaitForTarget(2000)) {
+            Orion.TargetObject(boneSerial);
+            Orion.Wait(cutDelay);
+        }
+    }
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    return !Orion.ObjectExists(boneSerial);
 }
 
 // =====================================================
@@ -4483,21 +4790,38 @@ function getEnemy(range) {
     return null;
 }
 
-function fightLogic(range, roomNum) {
-    resumeCombatMode();
+function IsWeaponEquipped() {
+    var left = Orion.ObjAtLayer('LeftHand');
+    var right = Orion.ObjAtLayer('RightHand');
 
-    var roomClear = false;
-    var emptyCheckStarted = false;
-    var emptySince = 0;
+    return !!(left || right);
+}
 
-    while (!Player.Dead() && !roomClear) {
-        var enemy = getEnemy(range);
+function EnsureDoomDFWeaponEquipped() {
+    if (!IsWeaponEquipped()) {
+        Orion.CharPrint(Player.Serial(), 33, '*NESSUNA ARMA - RIMETTO DARK FATHER*');
+        safeToggleDressWeapon('Dress_DoomDarkFather');
+        Orion.Wait(250);
+    }
+}
 
-        if (enemy) {
-            emptyCheckStarted = false;
-            emptySince = 0;
+function IsRevenantMob(mob) {
+    if (!mob) return false;
 
-           if (roomNum === 6) {
+    var name = mob.Name ? (mob.Name() || '').toLowerCase() : '';
+    var props = mob.Properties ? (mob.Properties() || '').toLowerCase() : '';
+    var graphic = mob.Graphic ? String(mob.Graphic()).toLowerCase() : '';
+
+    if (name.indexOf('revenant') !== -1) return true;
+    if (props.indexOf('revenant') !== -1) return true;
+
+    // sicurezza extra, se nel tuo shard il revenant usa questo graphic
+    if (graphic === '0x0190' && props.indexOf('a revenant') !== -1) return true;
+
+    return false;
+}
+
+function CountValidDFSpawnMobs() {
     var enemiesNear = Orion.FindTypeEx(
         'any',
         'any',
@@ -4513,27 +4837,92 @@ function fightLogic(range, roomNum) {
         var nearMob = enemiesNear[j];
         if (!nearMob) continue;
 
-        var ignored = false;
+        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[nearMob.Serial()]) continue;
+        if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(nearMob)) continue;
 
-        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[nearMob.Serial()]) ignored = true;
-        if (!ignored && typeof isIgnoredSummon === 'function' && isIgnoredSummon(nearMob)) ignored = true;
+        // IMPORTANTISSIMO:
+        // I revenant non fanno switchare alla generica.
+        // Devono essere gestiti solo da CheckAndDispelRevenant.
+        if (IsRevenantMob(nearMob)) continue;
 
-        if (!ignored) validEnemiesNear++;
+        validEnemiesNear++;
     }
 
-    if (validEnemiesNear > 1) {
-        safeToggleDressWeapon('Dress_GenericArea');
-
-        if (!Orion.AbilityStatus('Secondary')) {
-            Orion.UseAbility('Secondary');
-        }
-    } else {
-        safeToggleDressWeapon('Dress_DoomDarkFather');
-    }
+    return validEnemiesNear;
 }
+
+function fightLogic(range, roomNum) {
+    resumeCombatMode();
+
+    var roomClear = false;
+    var emptyCheckStarted = false;
+    var emptySince = 0;
+    var dfGenericMode = false;
+
+    while (!Player.Dead() && !roomClear) {
+
+        if (IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        /*
+            Check arma costante durante Doom.
+            Se per qualunque motivo sei senza arma in mano,
+            rimette subito quella del Dark Father.
+        */
+        if (roomNum === 6) {
+            EnsureDoomDFWeaponEquipped();
+        }
+
+        var enemy = getEnemy(range);
+
+        if (enemy) {
+            emptyCheckStarted = false;
+            emptySince = 0;
+
+            if (roomNum === 6) {
+                var validEnemiesNear = CountValidDFSpawnMobs();
+
+                if (validEnemiesNear > 1) {
+                    if (!dfGenericMode) {
+                        safeToggleDressWeapon('Dress_GenericArea');
+                        Orion.Wait(250);
+                        dfGenericMode = true;
+                    }
+
+                    if (!Orion.AbilityStatus('Secondary')) {
+                        Orion.UseAbility('Secondary');
+                    }
+                } else {
+                    if (dfGenericMode || !IsWeaponEquipped()) {
+                        safeToggleDressWeapon('Dress_DoomDarkFather');
+                        Orion.Wait(250);
+                        dfGenericMode = false;
+                    }
+                }
+
+                /*
+                    Secondo check dopo eventuale switch:
+                    se lo switch ha fallito o sei rimasto disarmato,
+                    forza di nuovo Dark Father.
+                */
+                EnsureDoomDFWeaponEquipped();
+            }
 
             Orion.Wait(150);
         } else {
+            if (roomNum === 6) {
+                if (dfGenericMode || !IsWeaponEquipped()) {
+                    safeToggleDressWeapon('Dress_DoomDarkFather');
+                    Orion.Wait(250);
+                    dfGenericMode = false;
+                }
+
+                EnsureDoomDFWeaponEquipped();
+            }
+
             if (!emptyCheckStarted) {
                 emptySince = Orion.Now();
                 emptyCheckStarted = true;
@@ -4542,6 +4931,16 @@ function fightLogic(range, roomNum) {
             if (Orion.Now() - emptySince >= 3000) roomClear = true;
             else Orion.Wait(250);
         }
+    }
+
+    /*
+        Prima di uscire dalla stanza 6, assicura che torni
+        sempre con l'arma Dark Father.
+    */
+    if (roomNum === 6) {
+        safeToggleDressWeapon('Dress_DoomDarkFather');
+        Orion.Wait(250);
+        EnsureDoomDFWeaponEquipped();
     }
 }
 
@@ -4588,6 +4987,13 @@ function AutoDoomGauntlet(stanza, singleRun) {
             safeToggleDressTalisman('Dress_TalismanUndead');
             Orion.Wait(150);
             safeToggleDressWeapon('Dress_DoomFleshrenderer');
+            
+if (Orion.BuffExists('Poison')) {
+    Orion.WarMode(false);
+    Orion.Cast('Cleanse by Fire', 'self');
+    Orion.Wait(1200);
+}
+
             walkPath(rails.r2);
             forceStep('South', 4);
             walkPath(rails.r2m);
@@ -4629,15 +5035,20 @@ function AutoDoomGauntlet(stanza, singleRun) {
             fightLogic(15, 5);
         }
 
-        if (stanza <= 6) {
-            Orion.Print(65, '>> Stanza 6 - Dark Father');
+if (stanza <= 6) {
+    Orion.Print(65, '>> Stanza 6 - Dark Father');
 
-            safeToggleDressTalisman('Dress_TalismanDemon');
-            Orion.Wait(150);
-            safeToggleDressWeapon('Dress_DoomDarkFather');
-            walkPath(rails.r6);
-            fightLogic(18, 6);
-        }
+    safeToggleDressTalisman('Dress_TalismanDemon');
+    Orion.Wait(150);
+    safeToggleDressWeapon('Dress_DoomDarkFather');
+    Orion.Wait(250);
+    EnsureDoomDFWeaponEquipped();
+
+    walkPath(rails.r6);
+    EnsureDoomDFWeaponEquipped();
+
+    fightLogic(18, 6);
+}
 
         if (isSingle) {
             Orion.Print(89, '=== Task terminato, ripristino DOOM principale ===');
@@ -4652,9 +5063,16 @@ function AutoDoomGauntlet(stanza, singleRun) {
 }
 
 function safeToggleDressWeapon(listName) {
-    if (currentWeaponDress !== listName) {
+    var forceEquip = false;
+
+    if (!IsWeaponEquipped()) {
+        forceEquip = true;
+    }
+
+    if (currentWeaponDress !== listName || forceEquip) {
         ToggleDressWeapon(listName);
         currentWeaponDress = listName;
+        Orion.Wait(250);
     }
 }
 
@@ -4665,299 +5083,7 @@ function safeToggleDressTalisman(listName) {
     }
 }
 
-// =====================================================
-// BONE SCAVENGER PROFILE
-// =====================================================
 
-var bonesGraphic = '0x0F80';
-var bagOfSendingSerial = '0x407F88C9';
-var targetRange = 18;
-var targetFlags = 'ignoreself|ignorefriends|live|inlos|near';
-var targetNoto = 'gray|criminal|red|enemy|orange';
-
-function StartBoneScavenger() {
-    Orion.Print(65, '--- Inizializzazione Profilo Sampire ---');
-    StartProfile('BoneScavenger', null, null, false, false);
-
-    Orion.Print(65, '--- Avvio Esplorazione e Loot Ossa ---');
-    Orion.CancelTarget();
-    Orion.IgnoreReset();
-
-    while (!Player.Dead()) {
-        HandleBloodOath();
-        BoneCheckWeightAndSend();
-
-        var enemies = Orion.FindTypeEx('any', 'any', 'ground', targetFlags, targetRange, targetNoto);
-
-        if (enemies.length > 0) {
-            var target = enemies[0].Serial();
-
-            Orion.Print(33, 'Bersaglio agganciato: ' + enemies[0].Name());
-            HonorTarget(target);
-            BoneExecuteCombat(target);
-            Orion.Wait(600);
-        } else {
-            TurboRandomWander();
-        }
-
-        Orion.Wait(50);
-    }
-}
-
-function BoneExecuteCombat(serial) {
-    var mob = Orion.FindObject(serial);
-    if (!mob) return;
-
-    Orion.WarMode(true);
-    Orion.Attack(serial);
-
-    while (mob && !mob.Dead() && Orion.ObjectExists(serial)) {
-        if (!Player.WarMode() || Orion.ClientLastAttack() !== serial) {
-            Orion.Print(33, 'Riprovo attacco su: ' + mob.Name());
-            Orion.WarMode(true);
-            Orion.Attack(serial);
-        }
-
-        if (Orion.BuffExists('Blood Oath')) {
-            HandleBloodOath();
-            Orion.Attack(serial);
-        }
-
-        if (Orion.GetDistance(serial) > 1) Orion.WalkTo(mob.X(), mob.Y(), mob.Z(), 1, 255, 1);
-
-        var nearbyCount = Orion.FindType('any', 'any', 'ground', 'live|ignoreself', 2, targetNoto).length;
-
-        if (nearbyCount > 1) {
-            if (!Orion.AbilityStatus('Secondary')) Orion.UseAbility('Secondary', true);
-        } else {
-            if (!Orion.AbilityStatus('Primary')) Orion.UseAbility('Primary', true);
-        }
-
-        Orion.Wait(200);
-        mob = Orion.FindObject(serial);
-    }
-
-    Orion.WarMode(false);
-}
-
-function TurboRandomWander() {
-    var destX = Player.X() + Orion.Random(31) - 15;
-    var destY = Player.Y() + Orion.Random(31) - 15;
-
-    Orion.Print(55, 'Esplorazione veloce...');
-    Orion.WalkTo(destX, destY, Player.Z(), 1, 255, 1, 1, 1200);
-    Orion.Wait(100);
-}
-
-function BoneCheckWeightAndSend() {
-    Orion.GetStatus(Player.Serial());
-
-    if (Player.Weight() >= Player.MaxWeight() - 20) {
-        Orion.Print(33, 'Zaino pieno (' + Player.Weight() + '/' + Player.MaxWeight() + ').');
-
-        var foundBones = Orion.FindType(bonesGraphic, 'any', 'backpack', 'item', '', '', true);
-
-        if (foundBones.length > 0) {
-            var bag = Orion.FindObject(bagOfSendingSerial);
-
-            if (bag) {
-                Orion.Print(65, 'Spedisco ossa...');
-                Orion.UseObject(bagOfSendingSerial);
-
-                if (Orion.WaitForTarget(2500)) {
-                    Orion.TargetObject(foundBones[0]);
-                    Orion.Wait(1000);
-                }
-            }
-        }
-    }
-}
-
-function StopBoneScavenger() {
-    Orion.Terminate('StartBoneScavenger');
-    Orion.WarMode(false);
-    Orion.Print(33, 'Bone Scavenger FERMATO.');
-}
-
-// =====================================================
-// DRAGON FARMER
-// =====================================================
-
-var bellSerial = '0x40144403';
-var bellPos = { x: 417, y: 246, z: 23 };
-var msgAlreadySummoned = 'The ferry man has already been summoned. There is no need to ring for him again.';
-var lastClickTime = 0;
-
-// Bag of Sending generica per graphic, NON per seriale
-var bagOfSendingGraphic = '0x0E76';
-
-function StartDragonFarmer() {
-    Orion.Print(65, '--- Avvio Farmer Campana Drago ---');
-
-    if (typeof StartProfile === 'function') StartProfile('DragonFarmer', null, null, false, false);
-
-    Orion.IgnoreReset();
-
-    while (!Player.Dead()) {
-        HandleBloodOath();
-        DragonCheckWeightAndSend();
-
-        var enemies = Orion.FindTypeEx('any', 'any', 'ground', targetFlags, 20, targetNoto);
-
-        if (enemies.length > 0) {
-            var target = enemies[0].Serial();
-
-            Orion.Print(33, 'Drago rilevato! Attacco in corso...');
-            HonorTarget(target);
-            DragonExecuteCombat(target);
-            LootBones();
-
-            Orion.ClearJournal();
-            lastClickTime = 0;
-
-            ReturnToBell();
-        } else {
-            if (Orion.GetDistance(bellPos.x, bellPos.y) > 2) {
-                ReturnToBell();
-            } else {
-                var currentTime = Orion.Now();
-
-                if (Orion.InJournal(msgAlreadySummoned)) {
-                    Orion.Print(33, 'Drago evocato ma non ancora visibile. Attendo spawn...');
-                    Orion.Wait(2000);
-                    continue;
-                }
-
-                if (currentTime - lastClickTime > 7000) {
-                    Orion.ClearJournal();
-                    Orion.Print(65, 'Attivazione campana...');
-                    Orion.UseObject(bellSerial);
-                    lastClickTime = currentTime;
-                    Orion.Wait(1500);
-
-                    if (Orion.InJournal(msgAlreadySummoned)) {
-                        Orion.Print(33, 'Server conferma: Drago già presente.');
-                    }
-                } else {
-                    Orion.Wait(500);
-                }
-            }
-        }
-
-        Orion.Wait(200);
-    }
-}
-
-function ReturnToBell() {
-    if (Orion.GetDistance(bellPos.x, bellPos.y) > 2) {
-        Orion.Print(55, 'Torno alla campana...');
-        Orion.WalkTo(bellPos.x, bellPos.y, bellPos.z, 1, 255, 1, 2, 5000);
-        Orion.Wait(500);
-    }
-}
-
-function DragonExecuteCombat(serial) {
-    var mob = Orion.FindObject(serial);
-    if (!mob) return;
-
-    Orion.WarMode(true);
-    Orion.Attack(serial);
-
-    while (mob && !mob.Dead() && Orion.ObjectExists(serial)) {
-        if (!Player.WarMode() || Orion.ClientLastAttack() !== serial) {
-            Orion.WarMode(true);
-            Orion.Attack(serial);
-        }
-
-        HandleBloodOath();
-
-        if (Orion.GetDistance(serial) > 1) {
-            Orion.WalkTo(mob.X(), mob.Y(), mob.Z(), 1, 255, 1, 2, 500);
-        }
-
-        var nearbyCount = Orion.FindType('any', 'any', 'ground', 'live|ignoreself', 2, targetNoto).length;
-
-        if (nearbyCount > 1) {
-            if (!Orion.AbilityStatus('Secondary')) Orion.UseAbility('Secondary', true);
-        } else {
-            if (!Orion.AbilityStatus('Primary')) Orion.UseAbility('Primary', true);
-        }
-
-        Orion.Wait(250);
-        mob = Orion.FindObject(serial);
-    }
-
-    Orion.WarMode(false);
-    Orion.Print(65, 'Drago eliminato.');
-}
-
-function LootBones() {
-    Orion.Print(55, 'Raccolta ossa...');
-
-    var bones = Orion.FindType(bonesGraphic, 'any', 'ground', 'item', 3);
-
-    while (bones.length > 0) {
-        Orion.MoveItem(bones[0], 0, 'backpack');
-        Orion.Wait(600);
-        bones = Orion.FindType(bonesGraphic, 'any', 'ground', 'item', 3);
-    }
-}
-
-function FindBagOfSendingByGraphic() {
-    var bags = Orion.FindType(bagOfSendingGraphic, 'any', 'backpack');
-
-    for (var i = 0; i < bags.length; i++) {
-        var obj = Orion.FindObject(bags[i]);
-
-        if (!obj || !obj.Exists()) continue;
-
-        var props = obj.Properties();
-
-        if (props && props.indexOf('Bag of Sending') !== -1) {
-            return bags[i];
-        }
-    }
-
-    if (bags.length > 0) return bags[0];
-
-    return null;
-}
-
-function DragonCheckWeightAndSend() {
-    if (Player.Weight() < Player.MaxWeight() - 30) return;
-
-    Orion.Print(33, 'Zaino quasi pieno. Invio ossa in banca...');
-
-    var bonesInPack = Orion.FindType(bonesGraphic, 'any', 'backpack');
-
-    if (bonesInPack.length <= 0) {
-        Orion.Print(33, 'Nessuna ossa trovata nello zaino.');
-        return;
-    }
-
-    var bag = FindBagOfSendingByGraphic();
-
-    if (!bag) {
-        Orion.Print(33, 'ERRORE: Bag of Sending non trovata nello zaino!');
-        return;
-    }
-
-    Orion.UseObject(bag);
-
-    if (Orion.WaitForTarget(2000)) {
-        Orion.TargetObject(bonesInPack[0]);
-        Orion.Wait(1000);
-        Orion.Print(65, 'Ossa inviate correttamente con Bag of Sending.');
-    } else {
-        Orion.Print(33, 'ERRORE: target Bag of Sending non apparso.');
-    }
-}
-
-function StopDragonFarmer() {
-    Orion.Terminate('StartDragonFarmer');
-    Orion.WarMode(false);
-    Orion.Print(33, 'Script Fermato.');
-}
 
 // =====================================================
 // SMELTING
@@ -5341,33 +5467,79 @@ function ShowKarmaFama() {
     if (gump1 !== null) gump1.Close();
 }
 
+function IsBloodOathLocked() {
+    return Orion.GetGlobal('BloodOathLock') === 'true' || Orion.BuffExists('Blood Oath');
+}
+
 function HandleBloodOath() {
-    if (!Orion.BuffExists('Blood Oath')) return false;
+    if (!Orion.BuffExists('Blood Oath')) {
+        Orion.SetGlobal('BloodOathLock', 'false');
+        return false;
+    }
+
+    Orion.SetGlobal('BloodOathLock', 'true');
 
     Orion.Print(33, 'BLOOD OATH RILEVATO!');
     Orion.CharPrint(Player.Serial(), 33, '*BLOOD OATH RILEVATO!*');
-    Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
 
     Orion.WarMode(false);
     Orion.CancelTarget();
     Orion.CancelWaitTarget();
 
-    while (Orion.BuffExists('Blood Oath') && !Player.Dead()) {
-        Orion.Cast('209');
+    var lastBeep = 0;
+    var lastCast = 0;
+    var maxSafetyTime = Orion.Now() + 15000;
 
-        if (Orion.WaitForTarget(2000)) {
-            Orion.TargetObject('self');
-        }
-
-        Orion.Wait(450);
+    while (!Player.Dead() && Orion.BuffExists('Blood Oath')) {
+        Orion.WarMode(false);
         Orion.CancelTarget();
         Orion.CancelWaitTarget();
+
+        if (Orion.Now() - lastBeep > 2500) {
+            Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
+            lastBeep = Orion.Now();
+        }
+
+        if (Orion.Now() - lastCast >= 180) {
+            lastCast = Orion.Now();
+
+            Orion.ClearJournal();
+            Orion.Cast('209'); // Remove Curse
+
+            if (Orion.WaitForTarget(1000)) {
+                Orion.TargetObject('self');
+                Orion.Wait(120);
+            } else {
+                Orion.CancelTarget();
+                Orion.CancelWaitTarget();
+                Orion.Wait(80);
+            }
+
+            if (
+                Orion.InJournal('fizzles') ||
+                Orion.InJournal('You are frozen') ||
+                Orion.InJournal('You cannot move') ||
+                Orion.InJournal('You must wait') ||
+                Orion.InJournal('not yet recovered')
+            ) {
+                Orion.Wait(80);
+            }
+        }
+
+        if (Orion.Now() > maxSafetyTime) {
+            maxSafetyTime = Orion.Now() + 15000;
+        }
+
+        Orion.Wait(40);
     }
 
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.SetGlobal('BloodOathLock', 'false');
+
     if (!Player.Dead()) {
-        Orion.CharPrint(Player.Serial(), 65, '*BLOOD OATH RIMOSSO!*');
-        Orion.Print(65, 'BLOOD OATH RIMOSSO!');
-        Orion.WarMode(true);
+        Orion.CharPrint(Player.Serial(), 65, '*BLOOD OATH RIMOSSO*');
+        Orion.Print(65, 'BLOOD OATH RIMOSSO');
     }
 
     return true;
