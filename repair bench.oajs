@@ -1,7 +1,7 @@
 function RepairGear() {
     MergeCustomRepairArr();
 
-    var minDura = 180; // Durabilità sotto la quale riparare
+    var minDura = 120; // Durabilità sotto la quale riparare
     var backpack = Orion.FindObject("backpack");
     
     if (!backpack) {
@@ -414,22 +414,34 @@ var customRepairArr = [
     '0x1B76','Heater Shield Of The Umbrascale','blacksmith'
 ];
 
-var customRepairMerged = false;
+//var customRepairMerged = false;
 
 function MergeCustomRepairArr() {
-    if (customRepairMerged) {
-        return;
-    }
-
     if (!customRepairArr || !customRepairArr.length) {
         return;
     }
 
     for (var i = 0; i < customRepairArr.length; i += 3) {
-        itemArr.push(customRepairArr[i], customRepairArr[i + 1], customRepairArr[i + 2]);
-    }
+        var graphic = String(customRepairArr[i]).toLowerCase();
+        var name = customRepairArr[i + 1];
+        var tool = customRepairArr[i + 2];
 
-    customRepairMerged = true;
+        var found = false;
+
+        for (var j = itemArr.length - 3; j >= 0; j -= 3) {
+            if (String(itemArr[j]).toLowerCase() === graphic) {
+                itemArr[j] = customRepairArr[i];
+                itemArr[j + 1] = name;
+                itemArr[j + 2] = tool;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            itemArr.push(customRepairArr[i], name, tool);
+        }
+    }
 }
 
 // Added by Compagnone Repair Bench
@@ -447,3 +459,7 @@ customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','blacksmith')
 // Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
 if (typeof customRepairArr === 'undefined') var customRepairArr = [];
 customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','tailor');
+
+// Added by Compagnone Repair Bench
+if (typeof customRepairArr === "undefined") var customRepairArr = [];
+customRepairArr.push("0xB2C7","Wyrmscale Helm","tinker");
