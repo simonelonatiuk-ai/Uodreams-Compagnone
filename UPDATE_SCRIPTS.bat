@@ -4,12 +4,15 @@ setlocal
 set "URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/UODREAMS%%20Compagnone%%20v2.oajs"
 set "REPAIR_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/repair%%20bench.oajs"
 set "POSITIONS_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/compagnone_positions.oajs"
+set "FARM_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/compagnone_farm.oajs"
 
 set "SCRIPT_DIR=%~dp0"
 set "DEST=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO.oajs"
 set "BACKUP=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO backup.oajs"
 set "REPAIR_DEST=%SCRIPT_DIR%repair bench.oajs"
 set "POSITIONS_DEST=%SCRIPT_DIR%compagnone_positions.oajs"
+set "FARM_DEST=%SCRIPT_DIR%compagnone_farm.oajs"
+set "FARM_BACKUP=%SCRIPT_DIR%compagnone_farm backup.oajs"
 
 echo.
 echo Aggiornamento UODREAMS Compagnone...
@@ -94,6 +97,34 @@ if exist "%POSITIONS_DEST%" (
     echo compagnone_positions.oajs scaricato correttamente:
     echo %POSITIONS_DEST%
 )
+
+echo.
+echo Aggiornamento compagnone_farm.oajs...
+echo.
+
+if exist "%FARM_DEST%" (
+    copy /Y "%FARM_DEST%" "%FARM_BACKUP%" >nul
+    echo Backup compagnone_farm creato:
+    echo %FARM_BACKUP%
+    echo.
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%FARM_URL%' -OutFile '%FARM_DEST%'"
+
+if errorlevel 1 (
+    echo.
+    echo ERRORE: download compagnone_farm.oajs fallito.
+    if exist "%FARM_BACKUP%" (
+        copy /Y "%FARM_BACKUP%" "%FARM_DEST%" >nul
+        echo Backup compagnone_farm ripristinato.
+    )
+    echo Il Compagnone e stato comunque aggiornato.
+    pause
+    exit /b 1
+)
+
+echo compagnone_farm.oajs aggiornato correttamente:
+echo %FARM_DEST%
 
 echo.
 echo Operazione completata!
