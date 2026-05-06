@@ -1,0 +1,570 @@
+// =====================================================
+// COMPAGNONE 2026 - FARM MODULE
+// =====================================================
+
+// =====================================================
+// VARIABILI FARM
+// =====================================================
+
+var bonesGraphic = '0x0F80';
+var bagOfSendingGraphic = '0x0E76';
+
+var bellSerial = '0x40144403';
+var bellPos = { x: 417, y: 246, z: 23 };
+var bellUseRange = 1;
+var msgAlreadySummoned = 'The ferry man has already been summoned. There is no need to ring for him again.';
+var lastClickTime = 0;
+
+
+// =====================================================
+// FARM OSSA DOOM
+// =====================================================
+
+
+var doomBoneRail = [
+    [438,205], [484,199], [479,139], [479,114], [481,70],  [467,28],
+    [441,28],  [420,36],  [392,36],  [358,39],  [299,16],  [275,27],
+    [356,40],  [332,83],  [284,93],  [317,101], [318,126], [314,154],
+    [291,154], [272,171], [292,178], [312,180], [337,178], [273,211],
+    [272,233], [296,237], [324,237], [353,237], [386,237], [427,205]
+];
+
+
+function StartBoneScavenger() {
+    Orion.Print(65, '--- FARM OSSA DOOM AVVIATO ---');
+
+    if (typeof StartProfile === 'function') {
+        StartProfile('BoneScavenger', null, null, false, false);
+    }
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.IgnoreReset();
+
+    RunRailBoneFarm(doomBoneRail);
+}
+
+function RunRailBoneFarm(railCoordinates) {
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        BoneCheckWeightAndSend();
+
+        if (currentIndex >= railCoordinates.length) currentIndex = 0;
+
+        var coord = railCoordinates[currentIndex];
+
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 2, 2000);
+
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+            if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+                HandleBloodOath();
+                Orion.Wait(50);
+                continue;
+            }
+
+            var target = FindNearestEnemy();
+
+            if (target) {
+                var success = AttackNearestEnemy();
+
+                if (success) {
+                    BoneQuickLoot();
+                    BoneCheckWeightAndSend();
+                    startTime = Orion.Now();
+                }
+            } else {
+                Orion.Wait(50);
+            }
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+function BoneQuickLoot() {
+    Orion.Print(55, 'Loot ossa rapido...');
+
+    var endTime = Orion.Now() + 1800;
+
+    while (!Player.Dead() && Orion.Now() < endTime) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var bonesGround = Orion.FindType(bonesGraphic, 'any', 'ground', 'item|near', 3);
+
+        for (var i = 0; i < bonesGround.length; i++) {
+            var bone = Orion.FindObject(bonesGround[i]);
+
+            if (bone && bone.Distance() <= 3) {
+                Orion.MoveItem(bone.Serial(), 0, 'backpack');
+                Orion.Wait(120);
+            }
+        }
+
+        var corpses = Orion.FindTypeEx('0x2006', 'any', 'ground', 'item|near', 3);
+
+        for (var c = 0; c < corpses.length; c++) {
+            var corpse = corpses[c];
+            if (!corpse) continue;
+
+            Orion.UseObject(corpse.Serial());
+            Orion.Wait(100);
+
+            var bonesCorpse = Orion.FindType(bonesGraphic, 'any', corpse.Serial(), 'item|recurse');
+
+            for (var b = 0; b < bonesCorpse.length; b++) {
+                Orion.MoveItem(bonesCorpse[b], 0, 'backpack');
+                Orion.Wait(120);
+            }
+        }
+
+        Orion.Wait(80);
+    }
+}
+
+function BoneCheckWeightAndSend() {
+    Orion.GetStatus(Player.Serial());
+
+    if (Player.Weight() < Player.MaxWeight() - 20) return;
+
+    Orion.Print(33, 'Zaino pieno (' + Player.Weight() + '/' + Player.MaxWeight() + '). Invio ossa.');
+
+    var bonesInPack = Orion.FindType(bonesGraphic, 'any', 'backpack');
+
+    if (!bonesInPack || bonesInPack.length <= 0) {
+        Orion.Print(33, 'Nessuna ossa nello zaino.');
+        return;
+    }
+
+    var bag = FindBagOfSendingByGraphic();
+
+    if (!bag) {
+        Orion.Print(33, 'Bag of Sending non trovata nello zaino.');
+        return;
+    }
+
+    Orion.UseObject(bag);
+
+    if (Orion.WaitForTarget(2500)) {
+        Orion.TargetObject(bonesInPack[0]);
+        Orion.Wait(1000);
+        Orion.Print(65, 'Ossa inviate in banca.');
+    } else {
+        Orion.Print(33, 'Target Bag of Sending non apparso.');
+    }
+}
+
+function FindBagOfSendingByGraphic() {
+    var bags = Orion.FindType(bagOfSendingGraphic, 'any', 'backpack');
+
+    if (!bags || bags.length <= 0) return null;
+
+    for (var i = 0; i < bags.length; i++) {
+        var obj = Orion.FindObject(bags[i]);
+        if (!obj) continue;
+
+        var props = obj.Properties ? obj.Properties() : '';
+        var name = obj.Name ? (obj.Name() || '') : '';
+
+        if (
+            props.indexOf('Bag of Sending') !== -1 ||
+            name.indexOf('Bag of Sending') !== -1
+        ) {
+            return bags[i];
+        }
+    }
+
+    return bags[0];
+}
+
+
+function StopBoneScavenger() {
+    Orion.Terminate('StartBoneScavenger');
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.Print(33, 'Bone Scavenger FERMATO.');
+}
+
+
+// =====================================================
+// FARM OSSA CAMPANA
+// =====================================================
+
+function StartDragonFarmer() {
+    Orion.Print(65, '--- Avvio Farmer Campana Drago ---');
+
+    if (typeof StartProfile === 'function') {
+        StartProfile('DragonFarmer', null, null, false, false);
+    }
+
+    Orion.IgnoreReset();
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        DragonCheckWeightAndSend();
+
+        var enemies = Orion.FindTypeEx(
+            'any',
+            'any',
+            'ground',
+            targetFlags,
+            20,
+            targetNoto
+        );
+
+        if (enemies && enemies.length > 0) {
+            var target = enemies[0].Serial();
+
+            Orion.Print(33, 'Drago rilevato! Attacco in corso...');
+
+            if (typeof HonorTarget === 'function') {
+                HonorTarget(target);
+            }
+
+            DragonExecuteCombat(target);
+
+            /*
+                Loot dal corpo appena generato, non da terra.
+                Questo è il punto importante.
+            */
+            LootLastDragonCorpse();
+
+            Orion.ClearJournal();
+            lastClickTime = 0;
+
+            ReturnToBell();
+        } else {
+            if (!IsNearBell()) {
+                ReturnToBell();
+            } else {
+                var currentTime = Orion.Now();
+
+                if (Orion.InJournal(msgAlreadySummoned)) {
+                    Orion.Print(33, 'Drago evocato ma non ancora visibile. Attendo spawn...');
+                    Orion.Wait(2000);
+                    continue;
+                }
+
+                if (currentTime - lastClickTime > 7000) {
+                    Orion.ClearJournal();
+                    Orion.Print(65, 'Attivazione campana...');
+                    UseBell();
+                    lastClickTime = currentTime;
+                    Orion.Wait(1500);
+
+                    if (Orion.InJournal(msgAlreadySummoned)) {
+                        Orion.Print(33, 'Server conferma: Drago già presente.');
+                    }
+                } else {
+                    Orion.Wait(500);
+                }
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function IsNearBell() {
+    return Orion.GetDistance(bellPos.x, bellPos.y) <= bellUseRange;
+}
+
+function ReturnToBell() {
+    if (IsNearBell()) return;
+
+    Orion.Print(55, 'Torno a 1 tile dalla campana...');
+
+    var bellTiles = [
+        [bellPos.x + 1, bellPos.y],
+        [bellPos.x - 1, bellPos.y],
+        [bellPos.x,     bellPos.y + 1],
+        [bellPos.x,     bellPos.y - 1],
+        [bellPos.x + 1, bellPos.y + 1],
+        [bellPos.x + 1, bellPos.y - 1],
+        [bellPos.x - 1, bellPos.y + 1],
+        [bellPos.x - 1, bellPos.y - 1]
+    ];
+
+    var bestTile = bellTiles[0];
+    var bestDist = 9999;
+
+    for (var i = 0; i < bellTiles.length; i++) {
+        var d = Orion.GetDistance(bellTiles[i][0], bellTiles[i][1]);
+
+        if (d < bestDist) {
+            bestDist = d;
+            bestTile = bellTiles[i];
+        }
+    }
+
+    Orion.WalkTo(bestTile[0], bestTile[1], bellPos.z, 0, 255, 1, 2, 5000);
+    Orion.Wait(300);
+
+    if (IsNearBell()) {
+        Orion.Print(65, 'Sono a 1 tile dalla campana.');
+    } else {
+        Orion.Print(33, 'Non sono ancora a range campana, riprovo.');
+    }
+}
+
+function UseBell() {
+    if (!IsNearBell()) {
+        ReturnToBell();
+    }
+
+    if (IsNearBell()) {
+        Orion.UseObject(bellSerial);
+    } else {
+        Orion.Print(33, 'Campana fuori range: non clicco.');
+    }
+}
+
+function DragonExecuteCombat(serial) {
+    var mob = Orion.FindObject(serial);
+    if (!mob) return;
+
+    Orion.WarMode(true);
+    Orion.Attack(serial);
+
+    while (mob && !mob.Dead() && Orion.ObjectExists(serial)) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        mob = Orion.FindObject(serial);
+        if (!mob || mob.Dead()) break;
+
+        if (!Player.WarMode() || Orion.ClientLastAttack() !== serial) {
+            Orion.WarMode(true);
+            Orion.Attack(serial);
+        }
+
+        if (Orion.GetDistance(serial) > 1) {
+            Orion.WalkTo(mob.X(), mob.Y(), mob.Z(), 1, 255, 1, 2, 500);
+        }
+
+        var nearbyCount = Orion.FindType(
+            'any',
+            'any',
+            'ground',
+            'live|ignoreself',
+            2,
+            targetNoto
+        ).length;
+
+        if (nearbyCount > 1) {
+            if (!Orion.AbilityStatus('Secondary')) {
+                Orion.UseAbility('Secondary', true);
+            }
+        } else {
+            if (!Orion.AbilityStatus('Primary')) {
+                Orion.UseAbility('Primary', true);
+            }
+        }
+
+        Orion.Wait(250);
+        mob = Orion.FindObject(serial);
+    }
+
+    Orion.WarMode(false);
+    Orion.Print(65, 'Drago eliminato.');
+}
+
+
+function LootLastDragonCorpse() {
+    Orion.Print(55, 'Cerco corpo drago per loot ossa...');
+
+    var corpse = FindNearestCorpseForLoot();
+
+    if (!corpse) {
+        Orion.Print(33, 'Nessun corpse trovato vicino.');
+        return;
+    }
+
+    Orion.UseObject(corpse.Serial());
+    Orion.Wait(300);
+
+    var lootTimeout = Orion.Now() + 5000;
+
+    while (!Player.Dead() && Orion.Now() < lootTimeout) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        var bones = Orion.FindType(bonesGraphic, 'any', corpse.Serial(), 'item|recurse');
+
+        if (!bones || bones.length <= 0) {
+            Orion.Wait(150);
+
+            bones = Orion.FindType(bonesGraphic, 'any', corpse.Serial(), 'item|recurse');
+
+            if (!bones || bones.length <= 0) {
+                Orion.Print(65, 'Loot ossa completato o nessuna ossa nel corpse.');
+                return;
+            }
+        }
+
+        for (var i = 0; i < bones.length; i++) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+            if (!Orion.ObjectExists(bones[i])) continue;
+
+            Orion.MoveItem(bones[i], 0, 'backpack');
+            Orion.Wait(350);
+        }
+
+        Orion.Wait(100);
+    }
+
+    Orion.Print(33, 'Timeout loot corpse.');
+}
+
+function FindBagOfSendingByGraphic() {
+    var bags = Orion.FindType(bagOfSendingGraphic, 'any', 'backpack');
+
+    if (!bags || bags.length <= 0) return null;
+
+    for (var i = 0; i < bags.length; i++) {
+        var obj = Orion.FindObject(bags[i]);
+        if (!obj) continue;
+
+        var props = obj.Properties ? obj.Properties() : '';
+        var name = obj.Name ? (obj.Name() || '') : '';
+
+        if (
+            props.indexOf('Bag of Sending') !== -1 ||
+            name.indexOf('Bag of Sending') !== -1
+        ) {
+            return bags[i];
+        }
+    }
+
+    /*
+        Fallback: se trova un oggetto con graphic 0x0E76 nello zaino,
+        usa il primo anche se le properties non sono ancora caricate.
+    */
+    return bags[0];
+}
+
+function DragonCheckWeightAndSend() {
+    if (Player.Weight() < Player.MaxWeight() - 30) return;
+
+    Orion.Print(33, 'Zaino quasi pieno. Invio ossa in banca...');
+
+    var bonesInPack = Orion.FindType(bonesGraphic, 'any', 'backpack');
+
+    if (!bonesInPack || bonesInPack.length <= 0) {
+        Orion.Print(33, 'Nessuna ossa trovata nello zaino.');
+        return;
+    }
+
+    var bag = FindBagOfSendingByGraphic();
+
+    if (!bag) {
+        Orion.Print(33, 'ERRORE: Bag of Sending non trovata nello zaino!');
+        return;
+    }
+
+    Orion.UseObject(bag);
+
+    if (Orion.WaitForTarget(2500)) {
+        Orion.TargetObject(bonesInPack[0]);
+        Orion.Wait(1000);
+        Orion.Print(65, 'Ossa inviate correttamente con Bag of Sending.');
+    } else {
+        Orion.Print(33, 'ERRORE: target Bag of Sending non apparso.');
+    }
+}
+
+function FindNearestCorpseForLoot() {
+    var corpses = Orion.FindTypeEx(
+        '0x2006',
+        'any',
+        'ground',
+        'item|near',
+        4
+    );
+
+    if (!corpses || !corpses.length) return null;
+
+    corpses.sort(function(a, b) {
+        return a.Distance() - b.Distance();
+    });
+
+    return corpses[0];
+}
+
+function StopDragonFarmer() {
+    Orion.Terminate('StartDragonFarmer');
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.Print(33, 'Dragon Farmer FERMATO.');
+}
+
+
+// =====================================================
+// FARM SKULL DOOM - PLACEHOLDER
+// =====================================================
+
+function StartSkullDoomFarmer() {
+    Orion.Print(33, 'StartSkullDoomFarmer non ancora configurato.');
+    Orion.CharPrint(Player.Serial(), 33, 'FARM SKULL DOOM non ancora pronto');
+}
+
+function StopSkullDoomFarmer() {
+    Orion.Terminate('StartSkullDoomFarmer');
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.Print(33, 'Farm Skull Doom fermato.');
+}
+
+
+// =====================================================
+// FARM FUNGHI - PLACEHOLDER
+// =====================================================
+
+function StartFunghiFarmer() {
+    Orion.Print(33, 'StartFunghiFarmer non ancora configurato.');
+    Orion.CharPrint(Player.Serial(), 33, 'FARM FUNGHI non ancora pronto');
+}
+
+function StopFunghiFarmer() {
+    Orion.Terminate('StartFunghiFarmer');
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.Print(33, 'Farm Funghi fermato.');
+}
+
