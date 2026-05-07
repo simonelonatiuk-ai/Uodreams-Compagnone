@@ -4170,9 +4170,9 @@ function OneShotHealChivalry() {
     if (Orion.BuffExists('Mortal Strike')) {
         Orion.Cast('209');
 
-        if (Orion.WaitForTarget(1000)) {
+        if (Orion.WaitForTarget(3000)) {
             Orion.TargetObject('self');
-            Orion.Wait(200);
+            Orion.Wait(400);
         } else {
             Orion.CancelTarget();
             Orion.CancelWaitTarget();
@@ -4186,7 +4186,7 @@ function OneShotHealChivalry() {
 
         if (Orion.WaitForTarget(1000)) {
             Orion.TargetObject('self');
-            Orion.Wait(200);
+            Orion.Wait(400);
         } else {
             Orion.CancelTarget();
             Orion.CancelWaitTarget();
@@ -4198,9 +4198,9 @@ function OneShotHealChivalry() {
     if (Player.Hits() < Player.MaxHits()) {
         Orion.Cast('Close Wounds');
 
-        if (Orion.WaitForTarget(1000)) {
+        if (Orion.WaitForTarget(3000)) {
             Orion.TargetObject('self');
-            Orion.Wait(200);
+            Orion.Wait(400);
         } else {
             Orion.CancelTarget();
             Orion.CancelWaitTarget();
@@ -4233,9 +4233,9 @@ function OneShotHealChivalryfc2() {
     if (Orion.BuffExists('Mortal Strike')) {
         Orion.Cast('209');
 
-        if (Orion.WaitForTarget(1000)) {
+        if (Orion.WaitForTarget(3000)) {
             Orion.TargetObject('self');
-            Orion.Wait(200);
+            Orion.Wait(400);
         } else {
             Orion.CancelTarget();
             Orion.CancelWaitTarget();
@@ -4247,9 +4247,9 @@ function OneShotHealChivalryfc2() {
     if (Orion.BuffExists('Poison')) {
         Orion.Cast('Cleanse by Fire');
 
-        if (Orion.WaitForTarget(1000)) {
+        if (Orion.WaitForTarget(3000)) {
             Orion.TargetObject('self');
-            Orion.Wait(200);
+            Orion.Wait(400);
         } else {
             Orion.CancelTarget();
             Orion.CancelWaitTarget();
@@ -4261,9 +4261,9 @@ function OneShotHealChivalryfc2() {
     if (Player.Hits() < Player.MaxHits()) {
         Orion.Cast('Close Wounds');
 
-        if (Orion.WaitForTarget(1000)) {
+        if (Orion.WaitForTarget(3000)) {
             Orion.TargetObject('self');
-            Orion.Wait(200);
+            Orion.Wait(400);
         } else {
             Orion.CancelTarget();
             Orion.CancelWaitTarget();
