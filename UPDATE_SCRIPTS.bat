@@ -87,7 +87,7 @@ if exist "%POSITIONS_DEST%" (
 
     if errorlevel 1 (
         echo.
-        echo ERRORE: download compagnone_positions.oajs fallito.
+        echo ERRORE: downloads compagnone_positions.oajs fallito.
         echo Il Compagnone e stato comunque aggiornato.
         pause
         exit /b 1
