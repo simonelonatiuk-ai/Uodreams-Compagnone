@@ -1478,29 +1478,20 @@ function FarmMenuOnClick() {
     var buttonID = CustomGumpResponse.ReturnCode();
 
     switch (buttonID) {
-        case 7501:
-            ToggleFarmScript('StartDragonFarmer', 'FARM OSSA CAMPANA');
-            Orion.Wait(150);
-            FarmMenuGUI();
-            break;
+        case 7501: ToggleFarmScript('StartDragonFarmer', 'FARM OSSA CAMPANA'); FarmMenuGUI(); break;
+        case 7502: ToggleFarmScript('StartBoneScavenger', 'FARM OSSA DOOM'); FarmMenuGUI(); break;
+        case 7503: ToggleFarmScript('StartSkullDoomFarmer', 'FARM SKULL DOOM'); FarmMenuGUI(); break;
+        case 7504: ToggleFarmScript('StartFunghiFarmer', 'FARM FUNGHI'); FarmMenuGUI(); break;
 
-        case 7502:
-            ToggleFarmScript('StartBoneScavenger', 'FARM OSSA DOOM');
-            Orion.Wait(150);
-            FarmMenuGUI();
-            break;
+        case 7511: SelectOrResetFarmRunebook('farm_runebook_ossa_campana', 'Runebook Ossa Campana'); FarmMenuGUI(); break;
+        case 7512: SelectOrResetFarmRunebook('farm_runebook_ossa_doom', 'Runebook Ossa Doom'); FarmMenuGUI(); break;
+        case 7513: SelectOrResetFarmRunebook('farm_runebook_skull_doom', 'Runebook Skull Doom'); FarmMenuGUI(); break;
+        case 7514: SelectOrResetFarmRunebook('farm_runebook_funghi', 'Runebook Funghi'); FarmMenuGUI(); break;
 
-        case 7503:
-            ToggleFarmScript('StartSkullDoomFarmer', 'FARM SKULL DOOM');
-            Orion.Wait(150);
-            FarmMenuGUI();
-            break;
-
-        case 7504:
-            ToggleFarmScript('StartFunghiFarmer', 'FARM FUNGHI');
-            Orion.Wait(150);
-            FarmMenuGUI();
-            break;
+        case 7521: FarmMenuGUI(); break;
+        case 7522: FarmMenuGUI(); break;
+        case 7523: FarmMenuGUI(); break;
+        case 7524: FarmMenuGUI(); break;
 
         case 7599:
             var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
@@ -1543,60 +1534,31 @@ function FarmMenuGUI() {
     var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
     var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 180 : 320;
 
-    var width = 9;
-    var height = 7;
+    var width = 9, height = 7;
+    var setX = offsetX + 25, btnX = offsetX + 55, textX = offsetX + 95, infoX = offsetX + 260, rowY = offsetY + 55;
 
     DrawPanel(g, offsetX, offsetY, width, height);
-
     g.AddText(offsetX + 115, offsetY + 12, 53, '*FARM MENU*');
 
-    var btnX = offsetX + 55;
-    var textX = offsetX + 95;
-    var rowY = offsetY + 55;
+    AddSmallSetButton(g, 7511, setX, rowY + 8, '75', 'Seleziona o resetta Runebook Ossa Campana');
+    AddFarmCheckRow(g, 7501, btnX, textX, rowY, 'StartDragonFarmer', 'FARM OSSA CAMPANA', 'Avvia/stoppa farm ossa campana drago');
+    g.AddButton(7521, infoX, rowY + 4, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM OSSA CAMPANA: usa il runebook dedicato. Runa 1 = banca per depositare le ossa. Runa 7 = zona campana drago. Quando lo zaino e pieno torna in banca, deposita, poi recalla di nuovo alla campana.');
 
-    AddFarmCheckRow(
-        g,
-        7501,
-        btnX,
-        textX,
-        rowY,
-        'StartDragonFarmer',
-        'FARM OSSA CAMPANA',
-        'Avvia/stoppa farm ossa campana drago'
-    );
+    AddSmallSetButton(g, 7512, setX, rowY + 43, '75', 'Seleziona o resetta Runebook Ossa Doom');
+    AddFarmCheckRow(g, 7502, btnX, textX, rowY + 35, 'StartBoneScavenger', 'FARM OSSA DOOM', 'Avvia/stoppa farm ossa Doom');
+    g.AddButton(7522, infoX, rowY + 39, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM OSSA DOOM: usa il runebook dedicato. Runa 1 = banca per depositare le ossa. Runa 2 = strega Doom, da li riprende la rail. Quando lo zaino e pieno torna in banca, deposita, poi recalla alla strega.');
 
-    AddFarmCheckRow(
-        g,
-        7502,
-        btnX,
-        textX,
-        rowY + 35,
-        'StartBoneScavenger',
-        'FARM OSSA DOOM',
-        'Avvia/stoppa farm ossa Doom'
-    );
+    AddSmallSetButton(g, 7513, setX, rowY + 78, '75', 'Seleziona o resetta Runebook Skull Doom');
+    AddFarmCheckRow(g, 7503, btnX, textX, rowY + 70, 'StartSkullDoomFarmer', 'FARM SKULL DOOM', 'Avvia/stoppa farm skull Doom');
+    g.AddButton(7523, infoX, rowY + 74, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM SKULL DOOM: usa il runebook Skull Doom. Runa 1 = banca. Runa 2 = Victoria / strega Doom. Prende ossa, consegna quest, uccide Bone Demon, prende Golden Skull e lo deposita in banca.');
 
-    AddFarmCheckRow(
-        g,
-        7503,
-        btnX,
-        textX,
-        rowY + 70,
-        'StartSkullDoomFarmer',
-        'FARM SKULL DOOM',
-        'Avvia/stoppa farm skull Doom'
-    );
-
-    AddFarmCheckRow(
-        g,
-        7504,
-        btnX,
-        textX,
-        rowY + 105,
-        'StartFunghiFarmer',
-        'FARM FUNGHI',
-        'Avvia/stoppa farm funghi'
-    );
+    AddSmallSetButton(g, 7514, setX, rowY + 113, '75', 'Seleziona o resetta Runebook Funghi');
+    AddFarmCheckRow(g, 7504, btnX, textX, rowY + 105, 'StartFunghiFarmer', 'FARM FUNGHI', 'Avvia/stoppa farm funghi');
+    g.AddButton(7524, infoX, rowY + 109, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM FUNGHI: usa il runebook Funghi. Runa 1 = banca. Rune 3-6 = zone Solen. Recaller, segue mini rail, uccide Solen, loota funghi 0x26B7 e deposita in banca quando arriva al limite.');
 
     g.AddButton(7599, offsetX + 285, offsetY + 12, 0xA94, 0xA94, 0xA95, '32');
     g.AddTooltip('Chiudi Farm Menu');
@@ -1622,47 +1584,6 @@ function AddFarmCheckRow(g, id, xBtn, xText, y, scriptName, label, tooltip) {
     g.AddText(xText, y + 5, active ? 70 : 33, label);
 }
 
-function FarmMenuOnClick() {
-    var buttonID = CustomGumpResponse.ReturnCode();
-
-    switch (buttonID) {
-        case 7501:
-            ToggleFarmScript('StartDragonFarmer', 'FARM OSSA CAMPANA');
-            FarmMenuGUI();
-            break;
-
-        case 7502:
-            ToggleFarmScript('StartBoneScavenger', 'FARM OSSA DOOM');
-            FarmMenuGUI();
-            break;
-
-        case 7503:
-            ToggleFarmScript('StartSkullDoomFarmer', 'FARM SKULL DOOM');
-            FarmMenuGUI();
-            break;
-
-        case 7504:
-            ToggleFarmScript('StartFunghiFarmer', 'FARM FUNGHI');
-            FarmMenuGUI();
-            break;
-
-        case 7599:
-            var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
-            g.Close();
-            break;
-    }
-}
-
-function ToggleFarmScript(scriptName, label) {
-    if (Orion.ScriptRunning(scriptName)) {
-        Orion.Terminate(scriptName);
-        Orion.WarMode(false);
-        Orion.CharPrint(Player.Serial(), 33, label + ' STOPPATO');
-    } else {
-        Orion.Exec(scriptName, 'true');
-        Orion.CharPrint(Player.Serial(), 65, label + ' AVVIATO');
-    }
-}
 
 // =====================================================
 // TALISMANI MENU
@@ -2285,29 +2206,42 @@ function AutoBushidoAbilities() {
 // SUPER INSURA
 // =====================================================
 
+function ResetSuperInsuraIgnore() {
+    Orion.SetGlobal('SuperInsura_IgnoreSerials', '');
+    Orion.Print(65, 'Ignore SuperInsura resettato.');
+}
+
 function SuperInsura() {
     const contextMenu = Player.Serial();
 
-    var ignoreList = ['0xA3E8'];
+    // === CONFIG ===
+    var ignoreList = [
+        '0xA3E8'
+    ];
+
     var maxAttemptsBeforeIgnore = 1;
-    var attemptCount = {};
-    var ignoreSet = loadPersistentIgnoreList();
 
-    for (var k = 0; k < ignoreList.length; k++) ignoreSet[toKey(ignoreList[k])] = true;
-    savePersistentIgnoreList(ignoreSet);
-
+    // === UTILS: normalizzazione seriale in chiave comparabile ===
     function toKey(x) {
-        var s = String(x).toLowerCase();
+        var s = '' + x;
+        s = s.toLowerCase();
 
-        if (s.substr(0, 2) === '0x') {
+        if (s.length >= 2 && s.substr(0, 2) === '0x') {
             var body = s.substr(2);
-            while (body.length > 1 && body.charAt(0) === '0') body = body.substr(1);
+
+            while (body.length > 1 && body.charAt(0) === '0') {
+                body = body.substr(1);
+            }
+
             return '0x' + body;
         }
 
         var isDec = true;
+
         for (var i = 0; i < s.length; i++) {
-            if (s.charAt(i) < '0' || s.charAt(i) > '9') {
+            var c = s.charAt(i);
+
+            if (c < '0' || c > '9') {
                 isDec = false;
                 break;
             }
@@ -2315,12 +2249,18 @@ function SuperInsura() {
 
         if (isDec && s.length > 0) {
             var n = parseInt(s, 10);
-            if (n >= 0 && !isNaN(n)) return '0x' + n.toString(16);
+
+            if (n >= 0 && !isNaN(n)) {
+                var hex = n.toString(16);
+                return '0x' + hex;
+            }
         }
 
         var isHex = true;
+
         for (var j = 0; j < s.length; j++) {
             var d = s.charAt(j);
+
             if (!((d >= '0' && d <= '9') || (d >= 'a' && d <= 'f'))) {
                 isHex = false;
                 break;
@@ -2328,8 +2268,13 @@ function SuperInsura() {
         }
 
         if (isHex && s.length > 0) {
-            while (s.length > 1 && s.charAt(0) === '0') s = s.substr(1);
-            return '0x' + s;
+            var b = s;
+
+            while (b.length > 1 && b.charAt(0) === '0') {
+                b = b.substr(1);
+            }
+
+            return '0x' + b;
         }
 
         return s;
@@ -2339,11 +2284,16 @@ function SuperInsura() {
         var saved = Orion.GetGlobal('SuperInsura_IgnoreSerials');
         var set = {};
 
-        if (!saved || saved === '') return set;
+        if (!saved || saved === '') {
+            return set;
+        }
 
         var parts = saved.split('|');
+
         for (var i = 0; i < parts.length; i++) {
-            if (parts[i] && parts[i] !== '') set[parts[i]] = true;
+            if (parts[i] && parts[i] !== '') {
+                set[parts[i]] = true;
+            }
         }
 
         return set;
@@ -2353,7 +2303,9 @@ function SuperInsura() {
         var arr = [];
 
         for (var key in ignoreSet) {
-            if (ignoreSet[key]) arr.push(key);
+            if (ignoreSet[key]) {
+                arr.push(key);
+            }
         }
 
         Orion.SetGlobal('SuperInsura_IgnoreSerials', arr.join('|'));
@@ -2364,42 +2316,70 @@ function SuperInsura() {
         savePersistentIgnoreList(ignoreSet);
     }
 
-    while (!Player.Dead()) {
+    // crea set ignorati caricando anche quelli salvati
+    var ignoreSet = loadPersistentIgnoreList();
+
+    for (var k = 0; k < ignoreList.length; k++) {
+        ignoreSet[toKey(ignoreList[k])] = true;
+    }
+
+    savePersistentIgnoreList(ignoreSet);
+
+    var attemptCount = {};
+
+    while (Player.Dead() == false) {
         var backpackContents = Orion.FindList('insura', backpack);
 
         for (var i = 0; i < backpackContents.length; i++) {
             var itemSerial = backpackContents[i];
             var key = toKey(itemSerial);
 
-            if (ignoreSet[key]) continue;
+            // 1) ignora se in ignoreSet
+            if (ignoreSet[key]) {
+                continue;
+            }
 
             var itemInfo = Orion.FindObject(itemSerial);
-            if (!itemInfo) continue;
+
+            if (!itemInfo) {
+                continue;
+            }
 
             var props = itemInfo.Properties() || '';
 
-            if (Orion.Contains(props, 'Blessed') || Orion.Contains(props, 'Cursed')) continue;
+            // 2) salta Blessed/Cursed
+            if (Orion.Contains(props, 'Blessed') || Orion.Contains(props, 'Cursed')) {
+                continue;
+            }
 
+            // 3) se già insured, salta
             if (Orion.Contains(props, 'Insured|Assicurato')) {
                 attemptCount[key] = 0;
                 continue;
             }
 
+            // 4) prova ad assicurare
             Orion.ClearJournal();
+
             Orion.RequestContextMenu(contextMenu);
             Orion.WaitContextMenuID(contextMenu, 3);
             Orion.WaitTargetObject(itemSerial);
+
             Orion.Wait(600);
             Orion.CancelTarget();
 
+            // 5) se il server dice "You cannot insure that", salva il seriale in ignore
             if (Orion.InJournal('You cannot insure that')) {
                 addToIgnore(ignoreSet, key);
+
                 Orion.CharPrint(itemSerial, 33, '*NON ASSICURABILE*');
                 Orion.CharPrint(Player.Serial(), 33, '*Aggiunto a ignore SuperInsura*');
                 Orion.Print(33, 'SuperInsura ignore persistente: ' + key);
+
                 continue;
             }
 
+            // ricontrolla le proprietà
             var checkInfo = Orion.FindObject(itemSerial);
             var checkProps = checkInfo ? (checkInfo.Properties() || '') : '';
             var insuredNow = Orion.Contains(checkProps, 'Insured|Assicurato');
@@ -2408,10 +2388,14 @@ function SuperInsura() {
                 attemptCount[key] = 0;
                 Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
             } else {
-                var curr = (attemptCount[key] || 0) + 1;
+                var prev = attemptCount[key] ? attemptCount[key] : 0;
+                var curr = prev + 1;
+
                 attemptCount[key] = curr;
 
-                if (curr >= maxAttemptsBeforeIgnore) addToIgnore(ignoreSet, key);
+                if (curr >= maxAttemptsBeforeIgnore) {
+                    addToIgnore(ignoreSet, key);
+                }
             }
         }
 
@@ -2646,7 +2630,6 @@ function doomBoneCutter() {
         }
 
         var knifeSerial = knifeObj.Serial();
-
         var bones = Orion.FindTypeEx(boneTypes, 'any', 'ground', 'item|near', CUT_RANGE);
 
         if (!bones || !bones.length) {
@@ -2666,6 +2649,12 @@ function doomBoneCutter() {
             if (!bone || !Orion.ObjectExists(bone.Serial())) continue;
             if (bone.Distance() > CUT_RANGE) continue;
 
+            if (IsPlayerRemainsBone(bone)) {
+                Orion.Ignore(bone.Serial());
+                Orion.Print(33, 'BoneCutter: ignoro remains: ' + bone.Serial());
+                continue;
+            }
+
             CutBoneTurbo(knifeSerial, bone.Serial(), CUT_DELAY, RETRY_DELAY);
         }
 
@@ -2673,11 +2662,40 @@ function doomBoneCutter() {
     }
 }
 
+function IsPlayerRemainsBone(obj) {
+    if (!obj) return false;
+
+    var name = '';
+    var props = '';
+
+    try {
+        name = obj.Name ? (obj.Name() || '').toLowerCase() : '';
+    } catch (e1) {
+        name = '';
+    }
+
+    try {
+        props = obj.Properties ? (obj.Properties() || '').toLowerCase() : '';
+    } catch (e2) {
+        props = '';
+    }
+
+    if (name.indexOf('the remains of') !== -1) return true;
+    if (props.indexOf('the remains of') !== -1) return true;
+
+    return false;
+}
+
 function CutBoneTurbo(knifeSerial, boneSerial, cutDelay, retryDelay) {
     if (!Orion.ObjectExists(boneSerial)) return false;
 
     var boneObj = Orion.FindObject(boneSerial);
     if (!boneObj || boneObj.Distance() > 2) return false;
+
+    if (IsPlayerRemainsBone(boneObj)) {
+        Orion.Ignore(boneSerial);
+        return false;
+    }
 
     Orion.CancelTarget();
     Orion.CancelWaitTarget();
@@ -2696,11 +2714,14 @@ function CutBoneTurbo(knifeSerial, boneSerial, cutDelay, retryDelay) {
         return false;
     }
 
-    /*
-        Retry immediato, ma solo uno.
-        Non deve restare incollato su un osso mentre arrivano mob.
-    */
     if (Orion.ObjectExists(boneSerial)) {
+        boneObj = Orion.FindObject(boneSerial);
+
+        if (IsPlayerRemainsBone(boneObj)) {
+            Orion.Ignore(boneSerial);
+            return false;
+        }
+
         Orion.CancelTarget();
         Orion.CancelWaitTarget();
 
@@ -3720,18 +3741,18 @@ function SoloFollowAndAttack() {
 
                     var offTimeout = 0;
                     while (Orion.BuffExists('Enemy of One') && offTimeout < 10) {
-                        Orion.Wait(250);
+                        Orion.Wait(150);
                         offTimeout++;
                     }
 
-                    Orion.Wait(150);
+                    Orion.Wait(50);
                 }
 
                 Orion.Cast('Enemy of One');
 
                 var onTimeout = 0;
                 while (!Orion.BuffExists('Enemy of One') && onTimeout < 10) {
-                    Orion.Wait(200);
+                    Orion.Wait(100);
                     onTimeout++;
                 }
 
@@ -3771,7 +3792,7 @@ function SoloFollowAndAttackSS() {
         var enemy = GetClosestEnemySolo();
 
         if (!enemy) {
-            Orion.Wait(300);
+            Orion.Wait(100);
             continue;
         }
 
@@ -4143,28 +4164,62 @@ function AutoVampiricEmbrace() {
 }
 
 function OneShotHealChivalry() {
-    if (!Orion.BuffExists('Confidence')) {
-        Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
-        Orion.Cast('Confidence');
-        Orion.Wait(50);
-    }
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
 
     if (Orion.BuffExists('Mortal Strike')) {
         Orion.Cast('209');
-        if (Orion.WaitForTarget(1000)) Orion.TargetObject('self');
-        Orion.Wait(150);
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
         return;
     }
 
     if (Orion.BuffExists('Poison')) {
-        Orion.Cast('Cleanse by Fire', 'self');
-        Orion.Wait(650);
+        Orion.Cast('Cleanse by Fire');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
         return;
     }
 
     if (Player.Hits() < Player.MaxHits()) {
-        Orion.Cast('Close Wounds', 'self');
-        Orion.Wait(700);
+        Orion.Cast('Close Wounds');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        if (!Orion.BuffExists('Confidence')) {
+            Orion.Wait(50);
+            Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
+            Orion.Cast('Confidence');
+            Orion.Wait(200);
+        }
+
+        return;
+    }
+
+    if (!Orion.BuffExists('Confidence')) {
+        Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
+        Orion.Cast('Confidence');
+        Orion.Wait(200);
         return;
     }
 
@@ -4172,28 +4227,62 @@ function OneShotHealChivalry() {
 }
 
 function OneShotHealChivalryfc2() {
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    if (Orion.BuffExists('Mortal Strike')) {
+        Orion.Cast('209');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        return;
+    }
+
+    if (Orion.BuffExists('Poison')) {
+        Orion.Cast('Cleanse by Fire');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        return;
+    }
+
     if (Player.Hits() < Player.MaxHits()) {
-        Orion.Cast('Close Wounds', 'self');
-        Orion.Wait(400);
+        Orion.Cast('Close Wounds');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        if (!Orion.BuffExists('Confidence')) {
+            Orion.Wait(50);
+            Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
+            Orion.Cast('Confidence');
+            Orion.Wait(200);
+        }
+
         return;
     }
 
     if (!Orion.BuffExists('Confidence')) {
         Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
         Orion.Cast('Confidence');
-        Orion.Wait(50);
-    }
-
-    if (Orion.BuffExists('Mortal Strike')) {
-        Orion.Cast('209');
-        if (Orion.WaitForTarget(1000)) Orion.TargetObject('self');
-        Orion.Wait(150);
-        return;
-    }
-
-    if (Orion.BuffExists('Poison')) {
-        Orion.Cast('Cleanse by Fire', 'self');
-        Orion.Wait(750);
+        Orion.Wait(200);
         return;
     }
 
