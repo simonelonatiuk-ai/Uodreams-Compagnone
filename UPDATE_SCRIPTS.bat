@@ -1,135 +1,5635 @@
-@echo off
-setlocal
+// =====================================================
+// COMPAGNONE 2026 - GUI CORE
+// =====================================================
 
-set "URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/UODREAMS%%20Compagnone%%20v2.oajs"
-set "REPAIR_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/repair%%20bench.oajs"
-set "POSITIONS_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/compagnone_positions.oajs"
-set "FARM_URL=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/compagnone_farm.oajs"
+//#include OA/repair bench.oajs
+//#include OA/compagnone_positions.oajs
+//#include OA/compagnone_farm.oajs
 
-set "SCRIPT_DIR=%~dp0"
-set "DEST=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO.oajs"
-set "BACKUP=%SCRIPT_DIR%UODREAMS Compagnone AGGIORNATO backup.oajs"
-set "REPAIR_DEST=%SCRIPT_DIR%repair bench.oajs"
-set "POSITIONS_DEST=%SCRIPT_DIR%compagnone_positions.oajs"
-set "FARM_DEST=%SCRIPT_DIR%compagnone_farm.oajs"
-set "FARM_BACKUP=%SCRIPT_DIR%compagnone_farm backup.oajs"
+// =====================================================
+// GUI STYLE - CHARACTER ASSISTANT LOOK
+// =====================================================
 
-echo.
-echo Aggiornamento UODREAMS Compagnone...
-echo.
-echo File destinazione:
-echo %DEST%
-echo.
+var HUE_FRAME        = 1905;
+var HUE_TITLE        = 1152;
+var HUE_STATUS_LABEL = 902;
+var HUE_STATUS_TEXT  = 945;
+var HUE_LABEL_OFF    = 902;
+var HUE_LABEL_ON     = 945;
+var HUE_NAV_OFF      = '1900';
+var HUE_NAV_ON       = '1159';
+var HUE_BIG_BUTTON   = '1900';
+var HUE_SMALL_BUTTON = '1900';
+var DEFAULT_POSITION_MANAGER_X = 410;
+var DEFAULT_POSITION_MANAGER_Y = 280;
+var DEFAULT_POSITION_STEP = 10;
+var ICON_SAMPIRE = 0x15CD; // ingranaggi
+var ICON_CHAMP   = 0x15B8; // sega
+var ICON_MISC    = 0x15A9; // simbolo Ultima Online / globo
+var ICON_DRESS   = 0x15D1; // spade incrociate
+var COMPAGNONE_GUMP_ID = 101099;
+var DURABILITY_GUMP_ID = 69;
+var RAIL_RECORDER_GUMP_ID = 101100;
+var REPAIR_TOOL_GUMP_ID = 101101;
+var POSITION_MANAGER_GUMP_ID = 101102;
+var DOOM_MENU_GUMP_ID = 101103;
+var TALISMAN_MENU_GUMP_ID = 101104;
+var FARM_MENU_GUMP_ID = 101105;
+var DEFAULT_COMPAGNONE_X = -75, DEFAULT_COMPAGNONE_Y = 200;
+var DEFAULT_DURABILITY_X = -55, DEFAULT_DURABILITY_Y = -55;
+var POSITION_STEP = 10;
+var targetGraphics = 'any';
+var targetFlags = 'ignoreself|ignorefriends|live|inlos|near';
+var targetRange = 12;
+var targetNoto = 'gray|criminal|red|enemy|orange';
+var ignoredMobs = {};
+var isSendingGold = false;
+var bagOfSendingGraphic = '0x0E76'; // <-- metti qui il graphic corretto della Bag of Sending
 
-if exist "%DEST%" (
-    copy /Y "%DEST%" "%BACKUP%" >nul
-    echo Backup creato:
-    echo %BACKUP%
-    echo.
-)
+// =====================================================
+// AUTOSTART
+// =====================================================
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%URL%' -OutFile '%DEST%'"
+function Autostart() {
+    Orion.Exec('GUISelector', 'true');
+}
 
-if errorlevel 1 (
-    echo.
-    echo ERRORE: download Compagnone fallito.
-    if exist "%BACKUP%" (
-        copy /Y "%BACKUP%" "%DEST%" >nul
-        echo Backup ripristinato.
-    )
-    pause
-    exit /b 1
-)
+// =====================================================
+// HELPERS GRAFICI
+// =====================================================
 
-echo.
-echo Download Compagnone completato!
-echo Salvato come:
-echo %DEST%
-echo.
+function DrawPanel(g, offsetX, offsetY, width, height) {
+    for (var y = 0; y < height; ++y) {
+        for (var x = 0; x < width; ++x) {
+            var drawX = offsetX + x * 35;
+            var drawY = offsetY + y * 35;
 
-echo Controllo repair bench.oajs...
-echo.
+            if (y === 0 && x === 0) {
+                g.AddGumpPic(drawX, drawY, 0x9BF5, HUE_FRAME);
+            } else if (x === 0 && y === height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFB, HUE_FRAME);
+            } else if (x === 0 && y > 0 && y < height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF8, HUE_FRAME);
+            } else if (x === width - 1 && y > 0 && y < height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFA, HUE_FRAME);
+            } else if (y === height - 1 && x === width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFD, HUE_FRAME);
+            } else if (y === 0 && x === width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF7, HUE_FRAME);
+            } else if (y === 0 && x > 0 && x < width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF6, HUE_FRAME);
+            } else if (y === height - 1 && x > 0 && x < width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFC, HUE_FRAME);
+            } else {
+                g.AddGumpPic(drawX, drawY, 0x9BF9, HUE_FRAME);
+            }
+        }
+    }
+}
 
-if exist "%REPAIR_DEST%" (
-    echo repair bench.oajs gia presente.
-    echo Non viene riscaricato per non sovrascrivere la tua lista custom.
-) else (
-    echo repair bench.oajs non trovato.
-    echo Download repair bench.oajs...
+function CalculateCenteredX(guiWidth, text, averageCharWidth) {
+    return Math.floor((guiWidth - (text.length * averageCharWidth)) / 2);
+}
 
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%REPAIR_URL%' -OutFile '%REPAIR_DEST%'"
+function AddGuiTitle(g, offsetX, offsetY) {
+    g.AddText(offsetX + 25, offsetY + 10, 89, "         *UODREAMS COMPAGNONE 2.5*");
+}
 
-    if errorlevel 1 (
-        echo.
-        echo ERRORE: download repair bench.oajs fallito.
-        echo Il Compagnone e stato comunque aggiornato.
-        pause
-        exit /b 1
-    )
+function AddPlayerNameBlock(g, offsetX, offsetY, baseY) {
+    var pgName = '[' + Player.Name() + ']';
+    var nameX = offsetX + 190 - (pgName.length * 4);
+    g.AddText(nameX, offsetY + baseY + 18, 65, pgName);
+}
 
-    echo.
-    echo repair bench.oajs scaricato correttamente:
-    echo %REPAIR_DEST%
-)
+function AddNavButtons(g, offsetX, offsetY, active) {
+    g.AddButton(
+        active === 2 ? 1017 : 1015,
+        offsetX + 30,
+        offsetY + 45,
+        ICON_SAMPIRE,
+        ICON_SAMPIRE,
+        ICON_SAMPIRE,
+        active === 2 ? HUE_NAV_ON : HUE_NAV_OFF
+    );
+    g.AddTooltip(active === 2 ? 'Collapse Menu' : 'Sampire Menu');
 
-echo.
-echo Controllo compagnone_positions.oajs...
-echo.
+    g.AddButton(
+        active === 1 ? 1017 : 1016,
+        offsetX + 115,
+        offsetY + 45,
+        ICON_CHAMP,
+        ICON_CHAMP,
+        ICON_CHAMP,
+        active === 1 ? HUE_NAV_ON : HUE_NAV_OFF
+    );
+    g.AddTooltip(active === 1 ? 'Collapse Menu' : 'Champ Selector Menu');
 
-if exist "%POSITIONS_DEST%" (
-    echo compagnone_positions.oajs gia presente.
-    echo Non viene riscaricato per non sovrascrivere la posizione salvata della tua GUI.
-) else (
-    echo compagnone_positions.oajs non trovato.
-    echo Download compagnone_positions.oajs...
+    g.AddButton(
+        active === 3 ? 1017 : 1018,
+        offsetX + 200,
+        offsetY + 45,
+        ICON_MISC,
+        ICON_MISC,
+        ICON_MISC,
+        active === 3 ? HUE_NAV_ON : HUE_NAV_OFF
+    );
+    g.AddTooltip(active === 3 ? 'Collapse Menu' : 'Miscellaneous Menu');
 
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%POSITIONS_URL%' -OutFile '%POSITIONS_DEST%'"
+    g.AddButton(
+        active === 4 ? 1017 : 1019,
+        offsetX + 285,
+        offsetY + 45,
+        ICON_DRESS,
+        ICON_DRESS,
+        ICON_DRESS,
+        active === 4 ? HUE_NAV_ON : HUE_NAV_OFF
+    );
+    g.AddTooltip(active === 4 ? 'Collapse Menu' : 'Dress Menu');
+}
 
-    if errorlevel 1 (
-        echo.
-        echo ERRORE: download compagnone_positions.oajs fallito.
-        echo Il Compagnone e stato comunque aggiornato.
-        pause
-        exit /b 1
-    )
+function AddCheckRow(g, id, xBtn, xText, y, scriptName, label) {
+    g.AddButton(id, xBtn, y, GetCheckboxStatus(scriptName), GetCheckboxStatus(scriptName), GetCheckboxStatus(scriptName), '');
+    g.AddText(xText, y + 5, GetColorStatus(scriptName), label);
+}
 
-    echo.
-    echo compagnone_positions.oajs scaricato correttamente:
-    echo %POSITIONS_DEST%
-)
+function AddSmallSetButton(g, id, x, y, hue, tooltip) {
+    g.AddButton(id, x, y, 0x2716, 0x2716, 0x2716, hue || '');
+    g.AddTooltip(tooltip || '');
+}
 
-echo.
-echo Aggiornamento compagnone_farm.oajs...
-echo.
+function AddBigButton(g, id, x, y, hue, textColor, label, tooltip, textOffset) {
+    g.AddButton(id, x, y, '0x2A30', '0x2A30', '0x2A30', hue || '');
+    g.AddTooltip(tooltip || label);
+    g.AddText(x + (textOffset || 18), y + 4, textColor || 1153, label);
+}
 
-if exist "%FARM_DEST%" (
-    copy /Y "%FARM_DEST%" "%FARM_BACKUP%" >nul
-    echo Backup compagnone_farm creato:
-    echo %FARM_BACKUP%
-    echo.
-)
+function AddDressWeaponRow(g, toggleId, setId, xSet, xBtn, xText, y, scriptName, label, hue) {
+    AddSmallSetButton(g, setId, xSet, y + 7, hue || '', 'Seleziona o resetta ' + label);
+    g.AddButton(toggleId, xBtn, y, GetCheckboxStatus(scriptName), GetCheckboxStatus(scriptName), GetCheckboxStatus(scriptName), '');
+    g.AddText(xText, y + 5, GetColorStatus(scriptName), label);
+}
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%FARM_URL%' -OutFile '%FARM_DEST%'"
+// =====================================================
+// GUI SELECTOR
+// =====================================================
 
-if errorlevel 1 (
-    echo.
-    echo ERRORE: download compagnone_farm.oajs fallito.
-    if exist "%FARM_BACKUP%" (
-        copy /Y "%FARM_BACKUP%" "%FARM_DEST%" >nul
-        echo Backup compagnone_farm ripristinato.
-    )
-    echo Il Compagnone e stato comunque aggiornato.
-    pause
-    exit /b 1
-)
+function GUISelector() {
+    Orion.Wait(100);
 
-echo compagnone_farm.oajs aggiornato correttamente:
-echo %FARM_DEST%
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear(); g.SetCallback('OnClick');
 
-echo.
-echo Operazione completata!
-echo.
-echo Ora apri Orion e carica:
-echo UODREAMS Compagnone AGGIORNATO.oajs
-echo.
-pause
+    var width = 11, height = 4;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddNavButtons(g, offsetX, offsetY, 0);
+	AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
+
+    g.Update();
+}
+
+// =====================================================
+// GUI SAMPIRE
+// =====================================================
+
+function GUISampire() {
+    Shared.AddVar('selector', 2); Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear(); g.SetCallback('OnClick');
+
+    var width = 11, height = 15;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+    var prompt = 170;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddNavButtons(g, offsetX, offsetY, 2);
+	AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
+    AddPlayerNameBlock(g, offsetX, offsetY, 110);
+
+    var bx = offsetX + 235, by = offsetY + 185;
+    AddBigButton(g, 7001, bx, by,       '23',   '0x796', 'Registra Rail', 'Apri Rail Recorder', 16);
+    AddBigButton(g, 5033, bx, by + 35,  '155',  65,      'Add To Repair', 'Aggiungi item alla lista Repair Bench', 12);
+    AddBigButton(g, 7030, bx, by + 70,  '44',   55,      'Posiziona UI',  'Apri Position Manager', 22);
+    AddBigButton(g, 7031, bx, by + 105, '1153', 22,      'Color - ID',    'Check Object Color Number', 22);
+
+    AddCheckRow(g, 3002, offsetX + 25, offsetX + 60, offsetY + prompt, 'Durability_Watcher', 'Check Durability');
+
+    prompt += 30;
+    AddCheckRow(g, 3001, offsetX + 25, offsetX + 60, offsetY + prompt, 'SuperInsura', 'Auto Insura Arte e Skull');
+
+    prompt += 30;
+    AddCheckRow(g, 3003, offsetX + 25, offsetX + 60, offsetY + prompt, 'autoMount', 'Auto Mount pet');
+    AddSmallSetButton(g, 1022, offsetX + 10, offsetY + prompt + 8, '75', 'Reset o Seleziona Mount');
+
+    prompt += 30;
+    AddCheckRow(g, 3005, offsetX + 25, offsetX + 60, offsetY + prompt, 'AutoLogoutOnDeath', 'Auto Logout on death');
+
+    prompt += 30;
+    AddCheckRow(g, 4321, offsetX + 25, offsetX + 60, offsetY + prompt, 'AutoVampiricEmbrace', 'Auto Vampiric');
+
+    prompt += 40;
+    AddSmallSetButton(g, 5114, offsetX + 23, offsetY + prompt + 8, '2785', 'Salva equip attuale come Dress Generico');
+    g.AddText(offsetX + 40, offsetY + prompt + 5, 55, 'Salva Dress Generico');
+
+    prompt += 26;
+    AddSmallSetButton(g, 5116, offsetX + 23, offsetY + prompt + 8, '2721', 'Salva equip attuale come Dress Luck');
+    g.AddText(offsetX + 40, offsetY + prompt + 5, 44, 'Salva Dress Luck');
+
+    prompt += 45;
+    AddCheckRow(g, 3009, offsetX + 25, offsetX + 60, offsetY + prompt, 'Nipo', 'Sabbia Niporailem');
+
+    prompt += 30;
+    AddCheckRow(g, 3007, offsetX + 25, offsetX + 60, offsetY + prompt, 'SbloccaSeFermo', 'Sblocca PG');
+
+    g.Update();
+}
+
+// =====================================================
+// GUI CHAMPION
+// =====================================================
+
+function GUIChampSelector() {
+    Shared.AddVar('selector', 1); Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear(); g.SetCallback('OnClick');
+
+    var width = 11, height = 16;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+    var prompt = 170;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddNavButtons(g, offsetX, offsetY, 1);
+    AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
+
+    g.AddText(offsetX + 85, offsetY + 130, 53, '      *CHAMPION RAIL*');
+
+    var leftBtn = offsetX + 25, leftText = offsetX + 60;
+    var rightBtn = offsetX + 225, rightSet = offsetX + 210, rightText = offsetX + 260;
+    var leftY = prompt, rightY = prompt;
+
+    AddCheckRow(g, 2001, leftBtn, leftText, offsetY + leftY, 'Abyssal', 'ABYSSAL');
+    leftY += 30; AddCheckRow(g, 2002, leftBtn, leftText, offsetY + leftY, 'Primeval', 'PRIMEVAL');
+    leftY += 30; AddCheckRow(g, 2051, leftBtn, leftText, offsetY + leftY, 'Mephitis', 'MEPHITIS');
+    leftY += 30; AddCheckRow(g, 2052, leftBtn, leftText, offsetY + leftY, 'Oaks', 'OAKS');
+    leftY += 30; AddCheckRow(g, 2004, leftBtn, leftText, offsetY + leftY, 'Neira', 'NEIRA');
+    leftY += 30; AddCheckRow(g, 2005, leftBtn, leftText, offsetY + leftY, 'Barra', 'BARRACOON');
+    leftY += 30; AddCheckRow(g, 2006, leftBtn, leftText, offsetY + leftY, 'Semidar', 'SEMIDAR');
+    leftY += 30; AddCheckRow(g, 2007, leftBtn, leftText, offsetY + leftY, 'Rikktor', 'RIKKTOR');
+    leftY += 30; AddCheckRow(g, 2008, leftBtn, leftText, offsetY + leftY, 'Formiche', 'FORMICHE');
+
+    AddSmallSetButton(g, 5100, rightSet, offsetY + rightY + 8, '77', 'Seleziona o resetta ARMA KALDHUN');
+    AddCheckRow(g, 2003, rightBtn, rightText, offsetY + rightY, 'Khaldun', 'KHALDUN');
+
+    rightY += 30;
+    AddCheckRow(g, 2100, rightBtn, rightText, offsetY + rightY, 'SOLOGENERAL', 'KILL GENERALI');
+
+    rightY += 45;
+    AddCheckRow(g, 2062, rightBtn, rightText, offsetY + rightY, 'Marble', 'MARBLE');
+
+    rightY += 30;
+    AddCheckRow(g, 2063, rightBtn, rightText, offsetY + rightY, 'Damwin', 'DAMWIN');
+
+    rightY += 105;
+    AddCheckRow(g, 2099, rightBtn, rightText, offsetY + rightY, 'EventoVoid', 'EVENTO');
+
+    rightY += 30;
+    AddBigButton(g, 5432, rightBtn, offsetY + rightY, '', 77, 'ADD ENEMY', 'Aggiungi nemico a lista Evento', 20);
+
+    var autoY = offsetY + 480;
+
+    AddCheckRow(g, 2009, offsetX + 25, offsetX + 60, autoY, 'SeguieMena', 'Champ Generico');
+    AddCheckRow(g, 2299, offsetX + 210, offsetX + 240, autoY, 'SoloFollowAndAttackSS', 'Sword&Shield Auto');
+
+    autoY += 30;
+    AddCheckRow(g, 1009, offsetX + 25, offsetX + 60, autoY, 'SoloFollowAndAttack', 'Sampire Auto Attack');
+    AddCheckRow(g, 2199, offsetX + 210, offsetX + 240, autoY, 'AutoArcheryAttack', 'Archer Auto Attack');
+
+    g.Update();
+}
+
+// =====================================================
+// GUI MISC
+// =====================================================
+
+function GUIMisc() {
+    Shared.AddVar('selector', 3); Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear(); g.SetCallback('OnClick');
+
+    var width = 11, height = 16;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddNavButtons(g, offsetX, offsetY, 3);
+    AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
+    AddPlayerNameBlock(g, offsetX, offsetY, 110);
+
+    AddBigButton(g, 5113, offsetX + 125, offsetY + 160, '', 22, 'Fama - Karma', 'Mostra Fama e Karma', 12);
+
+    var leftBtn = offsetX + 25, leftSet = offsetX + 10, leftText = offsetX + 60;
+    var rightBtn = offsetX + 225, rightText = offsetX + 260;
+    var y1 = 210, y2 = 210;
+
+    AddCheckRow(g, 3006, leftBtn, leftText, offsetY + y1, 'GoldRunnerChase95', 'Gold Diggers');
+
+    y1 += 30;
+    AddSmallSetButton(g, 1020, leftSet, offsetY + y1 + 8, '35', 'Reset o Seleziona Coltello BoneCutter');
+    AddCheckRow(g, 3008, leftBtn, leftText, offsetY + y1, 'doomBoneCutter', 'BoneCutter DOOM');
+
+    y1 += 30;
+    AddCheckRow(g, 3015, leftBtn, leftText, offsetY + y1, 'AggroMobs', 'Auto Aggro Mobs');
+
+    y1 += 30;
+    AddCheckRow(g, 3016, leftBtn, leftText, offsetY + y1, 'AutoHonorMob', 'Auto Honor Enemy');
+
+    y1 += 30;
+    AddSmallSetButton(g, 1023, leftSet, offsetY + y1 + 8, '15', 'Aggiungi ITEM alla lista');
+    AddCheckRow(g, 3017, leftBtn, leftText, offsetY + y1, 'CercaOggettoTerra', 'Cerca Oggetto a Terra');
+
+    y1 += 40;
+    AddCheckRow(g, 5110, leftBtn, leftText, offsetY + y1, 'hideCorpse', 'Hide Corspses');
+
+    y1 += 30;
+    AddCheckRow(g, 5111, leftBtn, leftText, offsetY + y1, 'ClickEverythingAround1Tile', 'Clikk tutt');
+
+    y1 += 30;
+    AddCheckRow(g, 5112, leftBtn, leftText, offsetY + y1, 'AutoHide', 'Auto Hide');
+
+  	 y1 += 48;
+	AddBigButton(g, 7040, leftBtn, offsetY + y1, '33', 1153, 'DOOM MENU', 'Apri Doom Menu', 18);
+
+	y1 += 35;
+	AddBigButton(g, 7042, leftBtn, offsetY + y1, '75', 1153, 'FARM MENU', 'Apri Farm Menu', 18);
+
+    AddSmallSetButton(g, 5032, rightBtn, offsetY + y2 + 7, '95', 'Seleziona un oggetto da autolootare');
+    g.AddText(rightText, offsetY + y2 + 5, 65, 'ADD to Autoloot');
+
+    y2 += 26;
+    AddSmallSetButton(g, 5031, rightBtn, offsetY + y2 + 7, '85', 'Seleziona un oggetto da insurare');
+    g.AddText(rightText, offsetY + y2 + 5, 65, 'ADD to Insure list');
+
+    y2 += 26;
+    AddSmallSetButton(g, 3062, rightBtn, offsetY + y2 + 7, '31', 'Honora te stesso');
+    g.AddText(rightText, offsetY + y2 + 5, 65, 'Honorati scemo');
+
+    y2 += 40;
+    AddSmallSetButton(g, 5104, rightBtn, offsetY + y2 + 8, '', 'Seleziona o resetta Runebook Casa');
+    g.AddButton(5105, rightBtn + 17, offsetY + y2 + 5, '0x15E1', '0x15E1', '0x15E1', '75');
+    g.AddTooltip('Recall CASA');
+    g.AddText(rightText + 17, offsetY + y2 + 5, 65, 'Casa');
+
+    y2 += 26;
+    AddSmallSetButton(g, 5106, rightBtn, offsetY + y2 + 8, '', 'Seleziona o resetta Runebook Luna Banca');
+    g.AddButton(5107, rightBtn + 17, offsetY + y2 + 5, '0x15E1', '0x15E1', '0x15E1', '75');
+    g.AddTooltip('Recall LUNA BANCA');
+    g.AddText(rightText + 17, offsetY + y2 + 5, 65, 'Luna Banca');
+
+    y2 += 40;
+    g.AddButton(5115, rightBtn, offsetY + y2, GetEquipDressCheckbox('generico'), GetEquipDressCheckbox('generico'), GetEquipDressCheckbox('generico'), '');
+    g.AddTooltip('Equippa Dress Generico');
+    g.AddText(rightText, offsetY + y2 + 5, GetEquipDressColor('generico'), 'Dress : Generico');
+
+    y2 += 30;
+    g.AddButton(5117, rightBtn, offsetY + y2, GetEquipDressCheckbox('luck'), GetEquipDressCheckbox('luck'), GetEquipDressCheckbox('luck'), '');
+    g.AddTooltip('Equippa Dress Luck');
+    g.AddText(rightText, offsetY + y2 + 5, GetEquipDressColor('luck'), 'Dress : Luck');
+
+    y2 += 45;
+    AddBigButton(g, 5034, rightBtn, offsetY + y2, '22', 1153, 'Repair Armor', 'Avvia Repair Gear', 15);
+
+    y2 += 35;
+    AddBigButton(g, 7041, rightBtn, offsetY + y2, '', 53, 'TALISMANI', 'Apri menu Talismani', 22);
+
+    g.Update();
+}
+
+// =====================================================
+// GUI DRESS
+// =====================================================
+
+function GUIDress() {
+    Shared.AddVar('selector', 4); Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear(); g.SetCallback('OnClick');
+
+    var width = 11, height = 16;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddNavButtons(g, offsetX, offsetY, 4);
+    AddGuiTitle(g, offsetX, offsetY, width, "UODREAMS COMPAGNONE");
+
+    g.AddText(offsetX + 75, offsetY + 130, 53, '*DOUBLE AXE*');
+    g.AddText(offsetX + 235, offsetY + 130, 53, '*BLADED STAFF*');
+
+    var leftSet = offsetX + 40, leftBtn = offsetX + 60, leftText = offsetX + 100;
+    var rightSet = offsetX + 220, rightBtn = offsetX + 240, rightText = offsetX + 280;
+    var leftY = 160, rightY = 160;
+
+    AddDressWeaponRow(g, 3011, 3021, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_DemonAxe', 'Demon'); leftY += 30;
+    AddDressWeaponRow(g, 3025, 3035, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_DemonArea', 'Demon Area'); leftY += 30;
+    AddDressWeaponRow(g, 3026, 3036, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Dragon', 'Dragon'); leftY += 30;
+    AddDressWeaponRow(g, 3027, 3037, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_DragonArea', 'Dragon Area'); leftY += 30;
+    AddDressWeaponRow(g, 3028, 3038, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Reptile', 'Reptile'); leftY += 30;
+    AddDressWeaponRow(g, 3029, 3039, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Fey', 'Fey'); leftY += 30;
+    AddDressWeaponRow(g, 3030, 3040, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Ogre', 'Ogre'); leftY += 30;
+    AddDressWeaponRow(g, 3080, 3090, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Spider', 'Spider'); leftY += 30;
+    AddDressWeaponRow(g, 3031, 3041, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Repond', 'Repond'); leftY += 30;
+    AddDressWeaponRow(g, 3032, 3042, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Undead', 'Undead'); leftY += 30;
+    AddDressWeaponRow(g, 3033, 3043, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_GenericArea', 'Generica Area'); leftY += 30;
+    AddDressWeaponRow(g, 3034, 3044, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Boss', 'Hit Life Leech');
+
+    AddDressWeaponRow(g, 3057, 3058, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedSearing', 'Lava Infused'); rightY += 30;
+    AddDressWeaponRow(g, 3012, 3022, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_DemonBladed', 'Demon'); rightY += 30;
+    AddDressWeaponRow(g, 3047, 3048, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedDragon', 'Dragon'); rightY += 30;
+    AddDressWeaponRow(g, 3049, 3050, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedFey', 'Fey'); rightY += 30;
+    AddDressWeaponRow(g, 3075, 3076, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedSpider', 'Spider'); rightY += 30;
+    AddDressWeaponRow(g, 3055, 3056, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedUndead', 'Undead'); rightY += 30;
+    AddDressWeaponRow(g, 3051, 3052, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedRepond', 'Repond'); rightY += 30;
+    AddDressWeaponRow(g, 3053, 3054, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedSatellite', 'Satellite');
+
+    rightY += 45;
+    AddDressWeaponRow(g, 3045, 3046, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_Evento', 'EVENTO');
+
+    g.Update();
+}
+
+// =====================================================
+// ONCLICK PRINCIPALE
+// =====================================================
+
+function OnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 1001: Orion.ToggleScript('AutoDivine'); break;
+        case 1002: Orion.ToggleScript('AutoConsecrate'); break;
+        case 1005: Orion.ToggleScript('UseSpecialAbilities'); break;
+        case 1006: Orion.ToggleScript('AutoBushidoAbilities'); break;
+        case 1010: Orion.ToggleScript('CheckCurseAndPoison'); break;
+        case 3004: Orion.ToggleScript('CheckAndDispelRevenant'); break;
+        case 3015: Orion.ToggleScript('AggroMobs'); break;
+        case 3016: Orion.ToggleScript('AutoHonorMob'); break;
+        case 1080: Orion.ToggleScript('AutoCurseWeapon'); break;
+
+        case 1009: ToggleChampScript('SoloFollowAndAttack', 'SOLO'); break;
+        case 2009: ToggleChampScript('SeguieMena', 'CHAMP'); break;
+        case 2199: ToggleChampScript('AutoArcheryAttack', 'SOLOArchery'); break;
+        case 2299: ToggleChampScript('SoloFollowAndAttackSS', 'SOLOSNS'); break;
+
+        case 2001: ToggleChampScript('Abyssal', 'Abyssalrail'); break;
+        case 2002: ToggleChampScript('Primeval', 'Primevalrail'); break;
+        case 2003: ToggleChampScript('Khaldun', 'Kaldhunrail'); break;
+        case 2004: ToggleChampScript('Neira', 'Neirarail'); break;
+        case 2005: ToggleChampScript('Barra', 'Barrarail'); break;
+        case 2006: ToggleChampScript('Semidar', 'Semidarail'); break;
+        case 2007: ToggleChampScript('Rikktor', 'Rikktorrail'); break;
+        case 2008: ToggleChampScript('Formiche', 'Formicherail'); break;
+        case 2051: ToggleChampScript('Mephitis', 'Mephitisrail'); break;
+        case 2052: ToggleChampScript('Oaks', 'Oaksrail'); break;
+        case 2099: ToggleChampScript('EventoVoid', 'EventoVoidrail'); break;
+        case 2062: ToggleChampScript('Marble', 'Marblerail'); break;
+        case 2063: ToggleChampScript('Damwin', 'Damwinrail'); break;
+        case 2100: ToggleChampScript('SOLOGENERAL', 'SOLOGENERAL'); break;
+
+        case 3001: Orion.ToggleScript('SuperInsura'); break;
+        case 3002: Orion.ToggleScript('Durability_Watcher'); break;
+        case 3003: Orion.ToggleScript('autoMount'); break;
+        case 3005: Orion.ToggleScript('AutoLogoutOnDeath'); break;
+        case 3006: Orion.ToggleScript('GoldRunnerChase95'); break;
+        case 3007: Orion.ToggleScript('SbloccaSeFermo'); break;
+        case 3008: Orion.ToggleScript('doomBoneCutter'); break;
+        case 3009: Orion.ToggleScript('Nipo'); break;
+        case 4321: Orion.ToggleScript('AutoVampiricEmbrace'); break;
+        case 5110: Orion.ToggleScript('hideCorpse'); break;
+        case 5111: Orion.ToggleScript('ClickEverythingAround1Tile'); break;
+        case 5112: Orion.ToggleScript('AutoHide'); break;
+
+        case 3011: ToggleDressWeapon('Dress_DemonAxe'); break;
+        case 3012: ToggleDressWeapon('Dress_DemonBladed'); break;
+        case 3021: SelectOrResetWeapon('demon_axe'); break;
+        case 3022: SelectOrResetWeapon('demon_bladed'); break;
+        case 3025: ToggleDressWeapon('Dress_DemonArea'); break;
+        case 3026: ToggleDressWeapon('Dress_Dragon'); break;
+        case 3027: ToggleDressWeapon('Dress_DragonArea'); break;
+        case 3028: ToggleDressWeapon('Dress_Reptile'); break;
+        case 3029: ToggleDressWeapon('Dress_Fey'); break;
+        case 3030: ToggleDressWeapon('Dress_Ogre'); break;
+        case 3031: ToggleDressWeapon('Dress_Repond'); break;
+        case 3032: ToggleDressWeapon('Dress_Undead'); break;
+        case 3033: ToggleDressWeapon('Dress_GenericArea'); break;
+        case 3034: ToggleDressWeapon('Dress_Boss'); break;
+        case 3035: SelectOrResetWeapon('demon_area'); break;
+        case 3036: SelectOrResetWeapon('dragon'); break;
+        case 3037: SelectOrResetWeapon('dragon_area'); break;
+        case 3038: SelectOrResetWeapon('reptile'); break;
+        case 3039: SelectOrResetWeapon('fey'); break;
+        case 3040: SelectOrResetWeapon('ogre'); break;
+        case 3041: SelectOrResetWeapon('repond'); break;
+        case 3042: SelectOrResetWeapon('undead'); break;
+        case 3043: SelectOrResetWeapon('generic_area'); break;
+        case 3044: SelectOrResetWeapon('boss'); break;
+        case 3045: ToggleDressWeapon('Dress_Evento'); break;
+        case 3046: SelectOrResetWeapon('evento'); break;
+
+        case 3047: ToggleDressWeapon('Dress_BladedDragon'); break;
+        case 3048: SelectOrResetWeapon('bladed_dragon'); break;
+        case 3049: ToggleDressWeapon('Dress_BladedFey'); break;
+        case 3050: SelectOrResetWeapon('bladed_fey'); break;
+        case 3051: ToggleDressWeapon('Dress_BladedRepond'); break;
+        case 3052: SelectOrResetWeapon('bladed_repond'); break;
+        case 3053: ToggleDressWeapon('Dress_BladedSatellite'); break;
+        case 3054: SelectOrResetWeapon('bladed_satellite'); break;
+        case 3055: ToggleDressWeapon('Dress_BladedUndead'); break;
+        case 3056: SelectOrResetWeapon('bladed_undead'); break;
+        case 3057: ToggleDressWeapon('Dress_BladedSearing'); break;
+        case 3058: SelectOrResetWeapon('bladed_searing'); break;
+        case 3075: ToggleDressWeapon('Dress_BladedSpider'); break;
+        case 3076: SelectOrResetWeapon('bladed_spider'); break;
+        case 3080: ToggleDressWeapon('Dress_Spider'); break;
+        case 3090: SelectOrResetWeapon('spider'); break;
+
+        case 3111: ToggleDressWeapon('Dress_DoomDarknightCreeper'); break;
+        case 3112: SelectOrResetWeapon('doom_darknight_creeper'); break;
+        case 3113: ToggleDressWeapon('Dress_DoomFleshrenderer'); break;
+        case 3114: SelectOrResetWeapon('doom_fleshrenderer'); break;
+        case 3115: ToggleDressWeapon('Dress_DoomImpaler'); break;
+        case 3116: SelectOrResetWeapon('doom_impaler'); break;
+        case 3117: ToggleDressWeapon('Dress_DoomShadowKnight'); break;
+        case 3118: SelectOrResetWeapon('doom_shadow_knight'); break;
+        case 3119: ToggleDressWeapon('Dress_DoomAbyssmalHorror'); break;
+        case 3120: SelectOrResetWeapon('doom_abyssmal_horror'); break;
+        case 3121: ToggleDressWeapon('Dress_DoomDarkFather'); break;
+        case 3122: SelectOrResetWeapon('doom_dark_father'); break;
+
+        case 3131: ToggleDressTalisman('Dress_TalismanUndead'); break;
+        case 3132: SelectOrResetTalisman('talisman_undead'); break;
+        case 3133: ToggleDressTalisman('Dress_TalismanDemon'); break;
+        case 3134: SelectOrResetTalisman('talisman_demon'); break;
+        case 3135: ToggleDressTalisman('Dress_TalismanFey'); break;
+        case 3136: SelectOrResetTalisman('talisman_fey'); break;
+        case 3137: ToggleDressTalisman('Dress_TalismanDivinum'); break;
+        case 3138: SelectOrResetTalisman('talisman_divinum'); break;
+
+        case 4018: ToggleDoomGauntlet(); break;
+        case 4019: Orion.Print(65, '>> Vai a Stanza 1'); AutoDoomGauntlet(1); GUI(); break;
+        case 4020: Orion.Print(65, '>> Vai a Stanza 2'); AutoDoomGauntlet(2); GUI(); break;
+        case 4021: Orion.Print(65, '>> Vai a Stanza 3'); AutoDoomGauntlet(3); GUI(); break;
+        case 4022: Orion.Print(65, '>> Vai a Stanza 4'); AutoDoomGauntlet(4); GUI(); break;
+        case 4023: Orion.Print(65, '>> Vai a Stanza 5'); AutoDoomGauntlet(5); GUI(); break;
+        case 4024: Orion.Print(65, '>> Modalità Dark Father Singolo (R6)'); AutoDoomGauntlet(6, true); break;
+
+        case 5031: SelezionaOggettoDaAssicurare(); break;
+        case 5032: AggiungiAutoloot(); break;
+        case 5033: AddToRepairBench(); break;
+        case 5034: RepairGear(); break;
+
+        case 5100: SelectOrResetKhaldunWeapon(); break;
+        case 5104: SelectOrResetRunebook('runebook_casa', 'Runebook CASA'); break;
+        case 5105: RecallRunebook('runebook_casa', 'CASA'); break;
+        case 5106: SelectOrResetRunebook('runebook_luna', 'Runebook LUNA BANCA'); break;
+        case 5107: RecallRunebook('runebook_luna', 'LUNA BANCA'); break;
+
+        case 5113: ShowKarmaFama(); break;
+        case 5114: SaveCompagnoneDress(); GUI(); break;
+        case 5115: DressCompagnone(); SetActiveEquipDress('generico'); GUI(); break;
+        case 5116: SaveLuckDress(); GUI(); break;
+        case 5117: DressLuck(); SetActiveEquipDress('luck'); GUI(); break;
+
+        case 1020: SetKnifeForBoneCutter(); break;
+        case 1021: UseBagOfSending(); break;
+        case 1022: MountPetManager(); break;
+        case 1023: SetOggettoDaCercare(); break;
+
+        case 2010: Orion.Exec('SpegniTutto'); break;
+        case 3062: HonorSelf(); break;
+        case 5432: Orion.Exec('AddEnemyToEventList'); break;
+        case 54321: Orion.Exec('ClearEventList'); break;
+        case 7001: Orion.Exec('RailRecorderGUI'); break;
+        case 7030: PositionManagerGUI(); break;
+        case 7031: CheckObjectColorNumber(); break;
+        case 7040: DoomMenuGUI(); break;
+        case 7041: TalismanMenuGUI(); break;
+        case 7042: FarmMenuGUI(); break;
+
+        case 3017:
+            if (Shared.GetVar('cerca_attivo')) Shared.RemoveVar('cerca_attivo');
+            else Orion.Exec('CercaOggettoTerra');
+            GUI();
+            break;
+
+        case 5001:
+            if (Orion.ScriptRunning('GeneralHighlight')) {
+                Orion.Terminate('GeneralHighlight');
+                Orion.CharPrint(Player.Serial(), 33, 'Highlight Generali disattivato');
+            } else {
+                Orion.Exec('GeneralHighlight');
+                Orion.CharPrint(Player.Serial(), 65, 'Highlight Generali attivato');
+            }
+            GUI();
+            break;
+
+        case 1015: GUISampire(); return;
+        case 1016: GUIChampSelector(); return;
+        case 1017: GUISelector(); return;
+        case 1018: GUIMisc(); return;
+        case 1019: GUIDress(); return;
+    }
+
+    Orion.Wait(100);
+    if (buttonID !== 4012) GUI();
+}
+
+// =====================================================
+// STATUS GUI / CHECKBOX
+// =====================================================
+
+function GetColorStatus(scriptName) {
+    const visualScripts = [
+        'Dress_DemonAxe','Dress_DemonBladed','Dress_DemonArea','Dress_Dragon','Dress_DragonArea',
+        'Dress_Reptile','Dress_Fey','Dress_Ogre','Dress_Repond','Dress_Undead','Dress_GenericArea','Dress_Boss',
+        'Dress_Evento','Dress_BladedDragon','Dress_BladedFey','Dress_BladedSpider','Dress_Spider',
+        'Dress_BladedRepond','Dress_BladedSatellite','Dress_BladedUndead','Dress_BladedSearing',
+        'Dress_DoomDarknightCreeper','Dress_DoomFleshrenderer','Dress_DoomImpaler','Dress_DoomShadowKnight',
+        'Dress_DoomAbyssmalHorror','Dress_DoomDarkFather',
+        'Dress_TalismanUndead','Dress_TalismanDemon','Dress_TalismanFey','Dress_TalismanDivinum'
+    ];
+
+    if (visualScripts.indexOf(scriptName) !== -1) {
+        var activeWeapon = Shared.GetVar('active_weapon_script');
+        var activeTalisman = Shared.GetVar('active_talisman_script');
+        return activeWeapon === scriptName || activeTalisman === scriptName ? 70 : 33;
+    }
+
+    if (scriptName === 'CercaOggettoTerra') return Shared.GetVar('cerca_attivo') ? 70 : 33;
+    return Orion.ScriptRunning(scriptName) ? 70 : 33;
+}
+
+function GetCheckboxStatus(scriptName) {
+    const visualScripts = [
+        'Dress_DemonAxe','Dress_DemonBladed','Dress_DemonArea','Dress_Dragon','Dress_DragonArea',
+        'Dress_Reptile','Dress_Fey','Dress_Ogre','Dress_BladedSpider','Dress_Spider',
+        'Dress_Repond','Dress_Undead','Dress_GenericArea','Dress_Boss','Dress_Evento',
+        'Dress_BladedDragon','Dress_BladedFey','Dress_BladedRepond','Dress_BladedSatellite',
+        'Dress_BladedUndead','Dress_BladedSearing',
+        'Dress_DoomDarknightCreeper','Dress_DoomFleshrenderer','Dress_DoomImpaler','Dress_DoomShadowKnight',
+        'Dress_DoomAbyssmalHorror','Dress_DoomDarkFather',
+        'Dress_TalismanUndead','Dress_TalismanDemon','Dress_TalismanFey','Dress_TalismanDivinum'
+    ];
+
+    var activeWeapon = Shared.GetVar('active_weapon_script');
+    var activeTalisman = Shared.GetVar('active_talisman_script');
+
+    if (visualScripts.indexOf(scriptName) !== -1) return activeWeapon === scriptName || activeTalisman === scriptName ? 0x2602 : 0x2603;
+    if (scriptName === 'CercaOggettoTerra') return Shared.GetVar('cerca_attivo') ? 0x2602 : 0x2603;
+
+    return Orion.ScriptRunning(scriptName) ? 0x2602 : 0x2603;
+}
+
+function GetEquipDressColor(dressName) { return Shared.GetVar('active_equip_dress') === dressName ? 70 : 33; }
+function GetEquipDressCheckbox(dressName) { return Shared.GetVar('active_equip_dress') === dressName ? 0x2602 : 0x2603; }
+function SetActiveEquipDress(dressName) { Shared.AddVar('active_equip_dress', dressName); }
+
+// =====================================================
+// TALISMANI
+// =====================================================
+
+function SelectOrResetTalisman(varName) {
+    if (Orion.FindObject(varName)) {
+        Orion.RemoveObject(varName);
+        Shared.RemoveVar(varName + '_name');
+        Orion.CharPrint(Player.Serial(), 33, 'Talismano ' + varName + ' resettato!');
+    } else {
+        Orion.CharPrint(Player.Serial(), 55, 'Seleziona il talismano per ' + varName);
+
+        if (Orion.WaitForAddObject(varName, 15000)) {
+            var item = Orion.FindObject(varName);
+            if (item) {
+                Shared.AddVar(varName + '_name', item.Name());
+                Orion.CharPrint(Player.Serial(), 65, 'Talismano salvato: ' + item.Name());
+            }
+        }
+    }
+
+    GUI();
+}
+
+function EquipTalismanQuick(varName) {
+    var talisman = Orion.FindObject(varName);
+
+    if (!talisman) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun talismano selezionato!');
+        return false;
+    }
+
+    Orion.CancelTarget();
+    Orion.Equip(talisman.Serial());
+    Orion.Wait(650);
+
+    var equippedTalisman = Orion.ObjAtLayer('Talisman');
+
+    if (equippedTalisman && equippedTalisman.Serial() === talisman.Serial()) return true;
+
+    Orion.CharPrint(Player.Serial(), 33, 'Equip talismano non confermato!');
+    return false;
+}
+
+function ToggleDressTalisman(scriptName) {
+    const allTalismans = ['Dress_TalismanUndead','Dress_TalismanDemon','Dress_TalismanFey','Dress_TalismanDivinum'];
+    const talismanObjectMap = {
+        'Dress_TalismanUndead': 'talisman_undead',
+        'Dress_TalismanDemon': 'talisman_demon',
+        'Dress_TalismanFey': 'talisman_fey',
+        'Dress_TalismanDivinum': 'talisman_divinum'
+    };
+
+    Shared.RemoveVar('active_talisman_script');
+
+    if (allTalismans.indexOf(scriptName) !== -1) {
+        var objVar = talismanObjectMap[scriptName];
+
+        if (EquipTalismanQuick(objVar)) {
+            Shared.AddVar('active_talisman_script', scriptName);
+            Orion.CharPrint(Player.Serial(), 55, '*Talismano: ' + scriptName.replace('Dress_Talisman', '').trim() + '*');
+        }
+    }
+
+    GUI();
+}
+
+// =====================================================
+// GUI DISPATCH
+// =====================================================
+
+function GUI() {
+    var selector = Shared.GetVar('selector');
+
+    if (selector == 0) GUISelector();
+    if (selector == 1) GUIChampSelector();
+    if (selector == 2) GUISampire();
+    if (selector == 3) GUIMisc();
+    if (selector == 4) GUIDress();
+}
+
+function GUIRefresh() {
+    Orion.Wait(1000);
+    GUI();
+}
+
+// =====================================================
+// CHAMP TOGGLE
+// =====================================================
+
+function ToggleChampScript(scriptName, execFunction) {
+    const allChampScripts = [
+        'Abyssal','Primeval','Khaldun','Neira','Barra','Semidar','Rikktor','EventoVoid',
+        'Formiche','SeguieMena','SoloFollowAndAttack','AutoArcheryAttack','SoloFollowAndAttackSS','SOLOSNS',
+        'Abyssalrail','Primevalrail','Kaldhunrail','Neirarail','Barrarail','Mephitis','Mephitisrail',
+        'Semidarail','Rikktorrail','Formicherail','EventoVoidrail','CHAMP','SOLO','SOLOArchery',
+        'Marble','Damwin','Marblerail','Damwinrail','SOLOGENERAL'
+    ];
+
+    if (Orion.ScriptRunning(scriptName)) {
+        Orion.Terminate(scriptName);
+        GUI();
+        return;
+    }
+
+    for (var i = 0; i < allChampScripts.length; i++) {
+        if (Orion.ScriptRunning(allChampScripts[i])) Orion.Terminate(allChampScripts[i]);
+    }
+
+    Orion.Exec(execFunction);
+
+    var timeout = Orion.Now() + 3000;
+    while (!Orion.ScriptRunning(scriptName) && Orion.Now() < timeout) Orion.Wait(100);
+
+    GUI();
+}
+
+// =====================================================
+// WEAPON DRESS
+// =====================================================
+
+function GetSavedWeaponName(varName) {
+    var obj = Orion.FindObject(varName);
+    if (obj) return obj.Name();
+    return Shared.GetVar(varName + '_name') || 'non selezionata';
+}
+
+function SelectOrResetWeapon(varName) {
+    if (Orion.FindObject(varName)) {
+        Orion.RemoveObject(varName);
+        Shared.RemoveVar(varName + '_name');
+        Orion.CharPrint(Player.Serial(), 33, 'Arma ' + varName + ' resettata!');
+    } else {
+        Orion.CharPrint(Player.Serial(), 55, 'Seleziona l\'arma per ' + varName);
+
+        if (Orion.WaitForAddObject(varName, 15000)) {
+            var item = Orion.FindObject(varName);
+            if (item) {
+                Shared.AddVar(varName + '_name', item.Name());
+                Orion.CharPrint(Player.Serial(), 65, 'Arma salvata: ' + item.Name());
+            }
+        }
+    }
+
+    GUI();
+}
+
+function EquipWeaponQuick(varName) {
+    var weapon = Orion.FindObject(varName);
+
+    if (!weapon) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessuna arma selezionata!');
+        return;
+    }
+
+    Orion.Cast('Create Food');
+    Orion.Wait(100);
+    Orion.CancelTarget();
+    Orion.Equip(weapon.Serial());
+}
+
+function ToggleDressWeapon(scriptName) {
+    const allWeapons = [
+        'Dress_DemonAxe','Dress_DemonBladed','Dress_DemonArea','Dress_Dragon','Dress_DragonArea',
+        'Dress_Reptile','Dress_Fey','Dress_Ogre','Dress_Repond','Dress_Undead','Dress_GenericArea','Dress_Boss',
+        'Dress_Evento','Dress_BladedDragon','Dress_BladedFey','Dress_BladedSpider','Dress_Spider',
+        'Dress_BladedRepond','Dress_BladedSatellite','Dress_BladedUndead','Dress_BladedSearing',
+        'Dress_DoomDarknightCreeper','Dress_DoomFleshrenderer','Dress_DoomImpaler','Dress_DoomShadowKnight',
+        'Dress_DoomAbyssmalHorror','Dress_DoomDarkFather'
+    ];
+
+    const weaponObjectMap = {
+    'Dress_DemonAxe': 'demon_axe',
+    'Dress_DemonBladed': 'demon_bladed',
+    'Dress_DemonArea': 'demon_area',
+    'Dress_Dragon': 'dragon',
+    'Dress_DragonArea': 'dragon_area',
+    'Dress_Reptile': 'reptile',
+    'Dress_Fey': 'fey',
+    'Dress_Ogre': 'ogre',
+    'Dress_Repond': 'repond',
+    'Dress_Undead': 'undead',
+    'Dress_GenericArea': 'generic_area',
+    'Dress_Boss': 'boss',
+    'Dress_Evento': 'evento',
+    'Dress_BladedDragon': 'bladed_dragon',
+    'Dress_BladedFey': 'bladed_fey',
+    'Dress_BladedRepond': 'bladed_repond',
+    'Dress_BladedSatellite': 'bladed_satellite',
+    'Dress_BladedUndead': 'bladed_undead',
+    'Dress_BladedSpider': 'bladed_spider',
+    'Dress_Spider': 'spider',
+    'Dress_BladedSearing': 'bladed_searing',
+    'Dress_DoomDarknightCreeper': 'doom_darknight_creeper',
+    'Dress_DoomFleshrenderer': 'doom_fleshrenderer',
+    'Dress_DoomImpaler': 'doom_impaler',
+    'Dress_DoomShadowKnight': 'doom_shadow_knight',
+    'Dress_DoomAbyssmalHorror': 'doom_abyssmal_horror',
+    'Dress_DoomDarkFather': 'doom_dark_father'
+};
+
+    for (var i = 0; i < allWeapons.length; i++) Orion.Terminate(allWeapons[i]);
+
+    Shared.RemoveVar('active_weapon_script');
+
+    if (allWeapons.indexOf(scriptName) !== -1) {
+        Shared.AddVar('active_weapon_script', scriptName);
+
+        var objVar = weaponObjectMap[scriptName];
+        EquipWeaponQuick(objVar);
+
+        if (scriptName === 'Dress_BladedSearing') {
+            var searingWeapon = Orion.FindObject(objVar);
+
+            if (searingWeapon) {
+                Orion.Wait(100);
+                Orion.RequestContextMenu(searingWeapon.Serial());
+                Orion.WaitContextMenuID(searingWeapon.Serial(), 0);
+                Orion.CharPrint(Player.Serial(), 65, '*Lava Infused accesa*');
+            } else {
+                Orion.CharPrint(Player.Serial(), 33, 'Arma Lava Infused non trovata!');
+            }
+        }
+
+        Orion.CharPrint(Player.Serial(), 55, '*Equip: ' + scriptName.replace('Dress_', '').replace(/([A-Z])/g, ' $1').trim() + '*');
+    }
+
+    GUI();
+}
+
+// =====================================================
+// DRESS GENERICO / LUCK
+// =====================================================
+
+function SaveCompagnoneDress() { Orion.SetDress('compagnone'); Orion.CharPrint(Player.Serial(), 65, '*Dress COMPAGNONE salvato!*'); Orion.Print(65, 'Dress list salvata/aggiornata: compagnone'); }
+function DressCompagnone() { Orion.Dress('compagnone'); Orion.CharPrint(Player.Serial(), 65, '*Dress COMPAGNONE equipaggiato!*'); Orion.Print(65, 'Dress list equipaggiata: compagnone'); }
+function SaveLuckDress() { Orion.SetDress('luck'); Orion.CharPrint(Player.Serial(), 65, '*Dress LUCK salvato!*'); Orion.Print(65, 'Dress list salvata/aggiornata: luck'); }
+function DressLuck() { Orion.Dress('luck'); Orion.CharPrint(Player.Serial(), 65, '*Dress LUCK equipaggiato!*'); Orion.Print(65, 'Dress list equipaggiata: luck'); }
+
+// =====================================================
+// RAIL RECORDER
+// =====================================================
+
+function RailRecorderGUI() {
+    if (Shared.GetVar('rail_placeholder') == null) Shared.AddVar('rail_placeholder', 'Enter Rail File Name');
+
+    Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(RAIL_RECORDER_GUMP_ID);
+    g.Clear(); g.SetCallback('RailRecorderOnClick');
+
+    var width = 8, height = 5, offsetX = 350, offsetY = 200;
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    var prompt = offsetY + 50;
+
+    g.AddText(offsetX + 25, offsetY + 10, 89, 'Rail Recorder');
+    g.AddResizepic(offsetX + 25, prompt, '0x0BB8', 200, 20);
+    g.AddTextEntry(1005, offsetX + 25, prompt, '0x0052', '', 190, 20);
+    g.SetTextEntryPlaceholderText(Shared.GetVar('rail_placeholder'));
+
+    g.AddButton(1000, offsetX + 230, prompt, '0x481', '0x482', '0x483', '');
+    g.AddTooltip('Set Rail File Name');
+
+    g.AddButton(2000, offsetX + 250, offsetY + 12, '0xA94', '0xA94', '0xA95', '');
+    g.AddTooltip('Close Rail Recorder');
+
+    prompt += 30;
+    AddBigButton(g, 1099, offsetX + 85, prompt, '', '0x796', 'Add Coords', 'Aggiunge coordinate attuali', 22);
+
+    prompt += 30;
+    g.AddText(offsetX + 25, prompt + 10, 72, 'Status: ');
+    g.AddText(offsetX + 75, prompt + 10, 55, Orion.GetGlobal('rail_gui_status'));
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function RailRecorderOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 1000:
+            Shared.AddVar('rail_dir', '/' + CustomGumpResponse.Text(1005) + '.txt');
+            Shared.AddVar('rail_placeholder', CustomGumpResponse.Text(1005));
+            RailRecorderUpdateStatus(Shared.GetVar('rail_dir') + ' selected.');
+            break;
+
+        case 1099:
+            RailRecorderAddCoords();
+            break;
+
+        case 2000:
+            var g = Orion.CreateCustomGump(RAIL_RECORDER_GUMP_ID);
+            Shared.AddVar('rail_placeholder', 'Enter Rail File Name');
+            g.Close();
+            break;
+    }
+}
+
+function RailRecorderUpdateStatus(msg) {
+    if (Orion.GetGlobal('rail_gui_status') == msg) return;
+    Orion.SetGlobal('rail_gui_status', msg);
+    RailRecorderGUI();
+}
+
+function RailRecorderAddCoords() {
+    var dir = Shared.GetVar('rail_dir');
+
+    if (!dir || dir == '') {
+        RailRecorderUpdateStatus('Prima seleziona un nome file.');
+        return;
+    }
+
+    Orion.ClearJournal();
+
+    var filePath = Orion.CurrentScriptDirPath() + dir;
+    var file = Orion.NewFile();
+
+    file.Open(filePath, true);
+    Orion.Wait(50);
+    file.Append(filePath);
+    file.Write(Player.X() + ',' + Player.Y() + ',');
+    file.Close();
+
+    RailRecorderUpdateStatus(Player.X() + ',' + Player.Y() + ', added.');
+}
+
+// =====================================================
+// ADD TO REPAIR BENCH
+// =====================================================
+
+function AddToRepairBench() {
+    Orion.CharPrint(Player.Serial(), 65, 'Seleziona item da aggiungere alla Repair Bench');
+
+    if (!Orion.WaitForAddObject('repairbench_pending_item', 15000)) {
+        Orion.CharPrint(Player.Serial(), 33, 'Target annullato.');
+        return;
+    }
+
+    var item = Orion.FindObject('repairbench_pending_item');
+
+    if (!item) {
+        Orion.CharPrint(Player.Serial(), 33, 'Item non trovato.');
+        return;
+    }
+
+    Shared.AddVar('repairbench_pending_graphic', item.Graphic());
+    Shared.AddVar('repairbench_pending_name', item.Name());
+
+    RepairBenchToolSelectorGUI();
+}
+
+function RepairBenchToolSelectorGUI() {
+    var g = Orion.CreateCustomGump(REPAIR_TOOL_GUMP_ID);
+    g.Clear();
+    g.SetCallback('RepairBenchToolOnClick');
+
+    var offsetX = 350;
+    var offsetY = 280;
+    var width = 8;
+    var height = 5;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    if (typeof AddGuiTitle === 'function') {
+        AddGuiTitle(g, offsetX, offsetY, width, 'SELECT REPAIR TOOL');
+    } else {
+        g.AddText(offsetX + 55, offsetY + 15, 89, 'SELECT REPAIR TOOL');
+    }
+
+    AddBigButton(g, 8001, offsetX + 55, offsetY + 55, '', '0x796', 'Blacksmith', 'Usa Blacksmith', 22);
+    AddBigButton(g, 8002, offsetX + 55, offsetY + 85, '', '0x796', 'Tailor', 'Usa Tailor', 22);
+    AddBigButton(g, 8003, offsetX + 55, offsetY + 115, '', '0x796', 'Tinker', 'Usa Tinker', 22);
+
+    g.AddButton(8000, offsetX + 250, offsetY + 12, '0xA94', '0xA94', '0xA95', '');
+    g.AddTooltip('Close');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function RepairBenchToolOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 8001:
+            SaveRepairBenchItem('blacksmith');
+            break;
+
+        case 8002:
+            SaveRepairBenchItem('tailor');
+            break;
+
+        case 8003:
+            SaveRepairBenchItem('tinker');
+            break;
+
+        case 8000:
+            var g = Orion.CreateCustomGump(REPAIR_TOOL_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+function SaveRepairBenchItem(toolType) {
+    var graphic = Shared.GetVar('repairbench_pending_graphic');
+    var itemName = Shared.GetVar('repairbench_pending_name');
+
+    if (!graphic || !itemName) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun item in memoria.');
+        return;
+    }
+
+    graphic = NormalizeRepairGraphic(graphic);
+    itemName = CleanRepairString(itemName);
+    toolType = CleanRepairString(toolType);
+
+    var alreadyExists = RepairGraphicAlreadyExists(graphic);
+    var filePath = Orion.CurrentScriptDirPath() + '/repair bench.oajs';
+
+    var line =
+        "\n// Added by Compagnone Repair Bench" +
+        (alreadyExists ? " - OVERRIDE GRAPHIC ESISTENTE" : "") + "\n" +
+        "if (typeof customRepairArr === \"undefined\") var customRepairArr = [];\n" +
+        "customRepairArr.push(" +
+            QuoteRepairString(graphic) + "," +
+            QuoteRepairString(itemName) + "," +
+            QuoteRepairString(toolType) +
+        ");\n";
+
+    var file = Orion.NewFile();
+
+    file.Open(filePath, true);
+    Orion.Wait(50);
+    file.Append(filePath);
+    file.Write(line);
+    file.Close();
+
+    if (typeof itemArr !== 'undefined') {
+        itemArr.push(graphic, itemName, toolType);
+    }
+
+    RememberRepairGraphic(graphic);
+
+    Orion.CharPrint(
+        Player.Serial(),
+        alreadyExists ? 33 : 65,
+        alreadyExists ? 'Graphic gia presente: usero ultimo inserito.' : 'Nuovo graphic aggiunto alla Repair Bench.'
+    );
+
+    Orion.CharPrint(Player.Serial(), 65, 'Aggiunto: ' + itemName + ' / ' + toolType);
+
+    Shared.RemoveVar('repairbench_pending_graphic');
+    Shared.RemoveVar('repairbench_pending_name');
+
+    var g = Orion.CreateCustomGump(REPAIR_TOOL_GUMP_ID);
+    g.Close();
+
+    GUI();
+}
+
+function RepairGraphicAlreadyExists(graphic) {
+    var g = NormalizeRepairGraphic(graphic).toLowerCase();
+
+    if (typeof itemArr !== 'undefined' && itemArr.length) {
+        for (var i = 0; i < itemArr.length; i += 3) {
+            if (String(itemArr[i]).toLowerCase() === g) {
+                return true;
+            }
+        }
+    }
+
+    var saved = Shared.GetVar('repairbench_added_graphics');
+    return !!(saved && String(saved).toLowerCase().indexOf('|' + g + '|') >= 0);
+}
+
+function RememberRepairGraphic(graphic) {
+    var g = NormalizeRepairGraphic(graphic).toLowerCase();
+    var saved = Shared.GetVar('repairbench_added_graphics') || '|';
+
+    if (String(saved).indexOf('|' + g + '|') < 0) {
+        saved += g + '|';
+        Shared.AddVar('repairbench_added_graphics', saved);
+    }
+}
+
+function NormalizeRepairGraphic(graphic) {
+    var g = String(graphic);
+
+    if (g.indexOf('0x') !== 0 && g.indexOf('0X') !== 0) {
+        g = '0x' + g;
+    }
+
+    return g.toUpperCase().replace('0X', '0x');
+}
+
+function CleanRepairString(str) {
+    return String(str)
+        .replace(/\r/g, '')
+        .replace(/\n/g, ' ')
+        .replace(/\t/g, ' ')
+        .replace(/\s+/g, ' ');
+}
+
+function QuoteRepairString(str) {
+    return '"' + String(str)
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\r/g, '')
+        .replace(/\n/g, ' ')
+        + '"';
+}
+
+// =====================================================
+// POSITION MANAGER
+// =====================================================
+
+function InitGuiPositions() {
+    if (Shared.GetVar('positions_loaded_from_file') !== true) {
+        LoadGuiPositionsFromFile();
+        Shared.AddVar('positions_loaded_from_file', true);
+    }
+
+    if (Shared.GetVar('compagnone_gui_x') == null) Shared.AddVar('compagnone_gui_x', DEFAULT_COMPAGNONE_X);
+    if (Shared.GetVar('compagnone_gui_y') == null) Shared.AddVar('compagnone_gui_y', DEFAULT_COMPAGNONE_Y);
+    if (Shared.GetVar('durability_gui_x') == null) Shared.AddVar('durability_gui_x', DEFAULT_DURABILITY_X);
+    if (Shared.GetVar('durability_gui_y') == null) Shared.AddVar('durability_gui_y', DEFAULT_DURABILITY_Y);
+}
+
+function GetCompagnoneGuiX() { InitGuiPositions(); return Number(Shared.GetVar('compagnone_gui_x')); }
+function GetCompagnoneGuiY() { InitGuiPositions(); return Number(Shared.GetVar('compagnone_gui_y')); }
+function GetDurabilityGuiX() { InitGuiPositions(); return Number(Shared.GetVar('durability_gui_x')); }
+function GetDurabilityGuiY() { InitGuiPositions(); return Number(Shared.GetVar('durability_gui_y')); }
+function SaveCompagnoneGuiPos(x, y) {
+    Shared.AddVar('compagnone_gui_x', x);
+    Shared.AddVar('compagnone_gui_y', y);
+    SaveGuiPositionsToFile();
+    Orion.Print(65, 'Posizione Compagnone salvata: X=' + x + ' Y=' + y);
+}
+
+function InitPositionManagerVars() {
+    if (Shared.GetVar('position_manager_x') == null) Shared.AddVar('position_manager_x', DEFAULT_POSITION_MANAGER_X);
+    if (Shared.GetVar('position_manager_y') == null) Shared.AddVar('position_manager_y', DEFAULT_POSITION_MANAGER_Y);
+    if (Shared.GetVar('position_step') == null) Shared.AddVar('position_step', DEFAULT_POSITION_STEP);
+}
+
+function GetPositionManagerX() {
+    InitPositionManagerVars();
+    return Number(Shared.GetVar('position_manager_x'));
+}
+
+function GetPositionManagerY() {
+    InitPositionManagerVars();
+    return Number(Shared.GetVar('position_manager_y'));
+}
+
+function GetPositionStep() {
+    InitPositionManagerVars();
+    return Number(Shared.GetVar('position_step'));
+}
+
+function SetPositionStep(step) {
+    Shared.AddVar('position_step', step);
+    PositionManagerGUI();
+}
+
+function GetStepColor(step) {
+    return GetPositionStep() === step ? HUE_LABEL_ON : HUE_LABEL_OFF;
+}
+
+function SaveDurabilityGuiPos(x, y) {
+    Shared.AddVar('durability_gui_x', x);
+    Shared.AddVar('durability_gui_y', y);
+    SaveGuiPositionsToFile();
+    Orion.Print(65, 'Posizione Durability salvata: X=' + x + ' Y=' + y);
+}
+
+function MoveCompagnoneGui(dx, dy) {
+    Shared.AddVar('compagnone_gui_x', GetCompagnoneGuiX() + dx);
+    Shared.AddVar('compagnone_gui_y', GetCompagnoneGuiY() + dy);
+
+    GUI();
+
+    Orion.Wait(50);
+    PositionManagerGUI();
+}
+
+function MoveDurabilityGui(dx, dy) {
+    var x = GetDurabilityGuiX() + dx;
+    var y = GetDurabilityGuiY() + dy;
+
+    Shared.AddVar('durability_gui_x', x);
+    Shared.AddVar('durability_gui_y', y);
+
+    Orion.MoveGump('custom', x, y, 'any', DURABILITY_GUMP_ID);
+
+    Orion.Wait(50);
+    PositionManagerGUI();
+}
+
+function ResetCompagnoneGuiPos() {
+    Shared.AddVar('compagnone_gui_x', DEFAULT_COMPAGNONE_X);
+    Shared.AddVar('compagnone_gui_y', DEFAULT_COMPAGNONE_Y);
+    SaveGuiPositionsToFile();
+    GUI();
+    PositionManagerGUI();
+}
+
+function ResetDurabilityGuiPos() {
+    Shared.AddVar('durability_gui_x', DEFAULT_DURABILITY_X);
+    Shared.AddVar('durability_gui_y', DEFAULT_DURABILITY_Y);
+    SaveGuiPositionsToFile();
+    Orion.MoveGump('custom', DEFAULT_DURABILITY_X, DEFAULT_DURABILITY_Y, 'any', DURABILITY_GUMP_ID);
+    PositionManagerGUI();
+}
+
+// =====================================================
+// POSITION PERSISTENCE
+// =====================================================
+
+var COMPAGNONE_POSITIONS_FILE = '/OA/compagnone_positions.oajs';
+
+function LoadGuiPositionsFromFile() {
+    // Queste variabili arrivano da //#include compagnone_positions.oajs
+    if (typeof SAVED_COMPAGNONE_GUI_X !== 'undefined') {
+        Shared.AddVar('compagnone_gui_x', SAVED_COMPAGNONE_GUI_X);
+    }
+
+    if (typeof SAVED_COMPAGNONE_GUI_Y !== 'undefined') {
+        Shared.AddVar('compagnone_gui_y', SAVED_COMPAGNONE_GUI_Y);
+    }
+
+    if (typeof SAVED_DURABILITY_GUI_X !== 'undefined') {
+        Shared.AddVar('durability_gui_x', SAVED_DURABILITY_GUI_X);
+    }
+
+    if (typeof SAVED_DURABILITY_GUI_Y !== 'undefined') {
+        Shared.AddVar('durability_gui_y', SAVED_DURABILITY_GUI_Y);
+    }
+}
+
+var COMPAGNONE_POSITIONS_FILE = 'OA/compagnone_positions.oajs';
+
+function SaveGuiPositionsToFile() {
+    var filePath = COMPAGNONE_POSITIONS_FILE;
+    var file = Orion.NewFile();
+
+    var content =
+        "var SAVED_COMPAGNONE_GUI_X = " + GetCompagnoneGuiX() + ";\n" +
+        "var SAVED_COMPAGNONE_GUI_Y = " + GetCompagnoneGuiY() + ";\n" +
+        "var SAVED_DURABILITY_GUI_X = " + GetDurabilityGuiX() + ";\n" +
+        "var SAVED_DURABILITY_GUI_Y = " + GetDurabilityGuiY() + ";\n";
+
+    file.Open(filePath, true);
+    Orion.Wait(50);
+    file.Write(content);
+    file.Close();
+
+    Orion.Print(65, '[2] Posizioni GUI salvate su file:');
+    Orion.Print(65, filePath);
+}
+
+function PositionManagerGUI() {
+    InitGuiPositions();
+    InitPositionManagerVars();
+
+    var g = Orion.CreateCustomGump(POSITION_MANAGER_GUMP_ID);
+    g.Clear();
+    g.SetCallback('PositionManagerOnClick');
+
+    var offsetX = GetPositionManagerX();
+    var offsetY = GetPositionManagerY();
+
+    var width = 8;
+    var height = 8;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    g.AddText(offsetX + 65, offsetY + 12, HUE_TITLE, 'POSITION MANAGER');
+
+    g.AddText(offsetX + 35, offsetY + 45, HUE_LABEL_ON, 'STEP');
+    g.AddButton(7311, offsetX + 80,  offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(1));
+    g.AddText(offsetX + 100, offsetY + 42, GetStepColor(1), '1');
+
+    g.AddButton(7315, offsetX + 125, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(5));
+    g.AddText(offsetX + 145, offsetY + 42, GetStepColor(5), '5');
+
+    g.AddButton(7320, offsetX + 170, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(20));
+    g.AddText(offsetX + 190, offsetY + 42, GetStepColor(20), '20');
+
+    g.AddButton(7350, offsetX + 220, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(50));
+    g.AddText(offsetX + 240, offsetY + 42, GetStepColor(50), '50');
+
+    g.AddText(offsetX + 35, offsetY + 80, HUE_LABEL_ON, 'COMPAGNONE');
+    g.AddText(offsetX + 35, offsetY + 100, HUE_STATUS_TEXT, 'X=' + GetCompagnoneGuiX() + ' Y=' + GetCompagnoneGuiY());
+
+    g.AddButton(7101, offsetX + 45,  offsetY + 130, 0x15E3, 0x15E3, 0x15E3, '');
+    g.AddTooltip('Compagnone sinistra');
+
+    g.AddButton(7102, offsetX + 75,  offsetY + 130, 0x15E1, 0x15E1, 0x15E1, '');
+    g.AddTooltip('Compagnone destra');
+
+    g.AddButton(7103, offsetX + 105, offsetY + 130, 0x15E0, 0x15E0, 0x15E0, '');
+    g.AddTooltip('Compagnone su');
+
+    g.AddButton(7104, offsetX + 135, offsetY + 130, 0x15E2, 0x15E2, 0x15E2, '');
+    g.AddTooltip('Compagnone giu');
+
+    AddSmallSetButton(g, 7105, offsetX + 185, offsetY + 133, '65', 'Salva posizione Compagnone');
+    g.AddText(offsetX + 205, offsetY + 130, 65, 'SAVE');
+
+    g.AddText(offsetX + 35, offsetY + 165, HUE_LABEL_ON, 'DURABILITY');
+    g.AddText(offsetX + 35, offsetY + 185, HUE_STATUS_TEXT, 'X=' + GetDurabilityGuiX() + ' Y=' + GetDurabilityGuiY());
+
+    g.AddButton(7201, offsetX + 45,  offsetY + 215, 0x15E3, 0x15E3, 0x15E3, '');
+    g.AddTooltip('Durability sinistra');
+
+    g.AddButton(7202, offsetX + 75,  offsetY + 215, 0x15E1, 0x15E1, 0x15E1, '');
+    g.AddTooltip('Durability destra');
+
+    g.AddButton(7203, offsetX + 105, offsetY + 215, 0x15E0, 0x15E0, 0x15E0, '');
+    g.AddTooltip('Durability su');
+
+    g.AddButton(7204, offsetX + 135, offsetY + 215, 0x15E2, 0x15E2, 0x15E2, '');
+    g.AddTooltip('Durability giu');
+
+    AddSmallSetButton(g, 7205, offsetX + 185, offsetY + 218, '65', 'Salva posizione Durability');
+    g.AddText(offsetX + 205, offsetY + 215, 65, 'SAVE');
+
+    AddSmallSetButton(g, 7301, offsetX + 35, offsetY + 250, '33', 'Reset Compagnone');
+    g.AddText(offsetX + 55, offsetY + 247, 33, 'Reset GUI');
+
+    AddSmallSetButton(g, 7302, offsetX + 145, offsetY + 250, '33', 'Reset Durability');
+    g.AddText(offsetX + 165, offsetY + 247, 33, 'Reset Dura');
+
+    g.AddButton(7300, offsetX + 250, offsetY + 12, 0xA94, 0xA94, 0xA95, '');
+    g.AddTooltip('Chiudi');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function PositionManagerOnClick() {
+    var id = CustomGumpResponse.ReturnCode();
+    var step = GetPositionStep();
+
+    switch (id) {
+        case 7311: SetPositionStep(1); break;
+        case 7315: SetPositionStep(5); break;
+        case 7320: SetPositionStep(20); break;
+        case 7350: SetPositionStep(50); break;
+
+        case 7101: MoveCompagnoneGui(-step, 0); break;
+        case 7102: MoveCompagnoneGui(step, 0); break;
+        case 7103: MoveCompagnoneGui(0, -step); break;
+        case 7104: MoveCompagnoneGui(0, step); break;
+        case 7105: SaveCompagnoneGuiPos(GetCompagnoneGuiX(), GetCompagnoneGuiY()); PositionManagerGUI(); break;
+
+        case 7201: MoveDurabilityGui(-step, 0); break;
+        case 7202: MoveDurabilityGui(step, 0); break;
+        case 7203: MoveDurabilityGui(0, -step); break;
+        case 7204: MoveDurabilityGui(0, step); break;
+        case 7205: SaveDurabilityGuiPos(GetDurabilityGuiX(), GetDurabilityGuiY()); PositionManagerGUI(); break;
+
+        case 7301: ResetCompagnoneGuiPos(); break;
+        case 7302: ResetDurabilityGuiPos(); break;
+
+        case 7300:
+            var g = Orion.CreateCustomGump(POSITION_MANAGER_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+// =====================================================
+// FARM MENU
+// =====================================================
+
+function FarmMenuOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 7501: ToggleFarmScript('StartDragonFarmer', 'FARM OSSA CAMPANA'); FarmMenuGUI(); break;
+        case 7502: ToggleFarmScript('StartBoneScavenger', 'FARM OSSA DOOM'); FarmMenuGUI(); break;
+        case 7503: ToggleFarmScript('StartSkullDoomFarmer', 'FARM SKULL DOOM'); FarmMenuGUI(); break;
+        case 7504: ToggleFarmScript('StartFunghiFarmer', 'FARM FUNGHI'); FarmMenuGUI(); break;
+
+        case 7511: SelectOrResetFarmRunebook('farm_runebook_ossa_campana', 'Runebook Ossa Campana'); FarmMenuGUI(); break;
+        case 7512: SelectOrResetFarmRunebook('farm_runebook_ossa_doom', 'Runebook Ossa Doom'); FarmMenuGUI(); break;
+        case 7513: SelectOrResetFarmRunebook('farm_runebook_skull_doom', 'Runebook Skull Doom'); FarmMenuGUI(); break;
+        case 7514: SelectOrResetFarmRunebook('farm_runebook_funghi', 'Runebook Funghi'); FarmMenuGUI(); break;
+
+        case 7521: FarmMenuGUI(); break;
+        case 7522: FarmMenuGUI(); break;
+        case 7523: FarmMenuGUI(); break;
+        case 7524: FarmMenuGUI(); break;
+
+        case 7599:
+            var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+function ToggleFarmScript(scriptName, label) {
+    if (Orion.ScriptRunning(scriptName)) {
+        Orion.Terminate(scriptName);
+        Orion.WarMode(false);
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+
+        var timeoutStop = Orion.Now() + 1000;
+        while (Orion.ScriptRunning(scriptName) && Orion.Now() < timeoutStop) {
+            Orion.Wait(50);
+        }
+
+        Orion.CharPrint(Player.Serial(), 33, label + ' STOPPATO');
+    } else {
+        Orion.Exec(scriptName, 'true');
+
+        var timeoutStart = Orion.Now() + 1000;
+        while (!Orion.ScriptRunning(scriptName) && Orion.Now() < timeoutStart) {
+            Orion.Wait(50);
+        }
+
+        Orion.CharPrint(Player.Serial(), 65, label + ' AVVIATO');
+    }
+}
+
+
+function FarmMenuGUI() {
+    var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+    g.Clear();
+    g.SetCallback('FarmMenuOnClick');
+
+    var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
+    var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 180 : 320;
+
+    var width = 9, height = 7;
+    var setX = offsetX + 25, btnX = offsetX + 55, textX = offsetX + 95, infoX = offsetX + 260, rowY = offsetY + 55;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    g.AddText(offsetX + 115, offsetY + 12, 53, '*FARM MENU*');
+
+    AddSmallSetButton(g, 7511, setX, rowY + 8, '75', 'Seleziona o resetta Runebook Ossa Campana');
+    AddFarmCheckRow(g, 7501, btnX, textX, rowY, 'StartDragonFarmer', 'FARM OSSA CAMPANA', 'Avvia/stoppa farm ossa campana drago');
+    g.AddButton(7521, infoX, rowY + 4, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM OSSA CAMPANA: usa il runebook dedicato. Runa 1 = banca per depositare le ossa. Runa 7 = zona campana drago. Quando lo zaino e pieno torna in banca, deposita, poi recalla di nuovo alla campana.');
+
+    AddSmallSetButton(g, 7512, setX, rowY + 43, '75', 'Seleziona o resetta Runebook Ossa Doom');
+    AddFarmCheckRow(g, 7502, btnX, textX, rowY + 35, 'StartBoneScavenger', 'FARM OSSA DOOM', 'Avvia/stoppa farm ossa Doom');
+    g.AddButton(7522, infoX, rowY + 39, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM OSSA DOOM: usa il runebook dedicato. Runa 1 = banca per depositare le ossa. Runa 2 = strega Doom, da li riprende la rail. Quando lo zaino e pieno torna in banca, deposita, poi recalla alla strega.');
+
+    AddSmallSetButton(g, 7513, setX, rowY + 78, '75', 'Seleziona o resetta Runebook Skull Doom');
+    AddFarmCheckRow(g, 7503, btnX, textX, rowY + 70, 'StartSkullDoomFarmer', 'FARM SKULL DOOM', 'Avvia/stoppa farm skull Doom');
+    g.AddButton(7523, infoX, rowY + 74, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM SKULL DOOM: usa il runebook Skull Doom. Runa 1 = banca. Runa 2 = Victoria / strega Doom. Prende ossa, consegna quest, uccide Bone Demon, prende Golden Skull e lo deposita in banca.');
+
+    AddSmallSetButton(g, 7514, setX, rowY + 113, '75', 'Seleziona o resetta Runebook Funghi');
+    AddFarmCheckRow(g, 7504, btnX, textX, rowY + 105, 'StartFunghiFarmer', 'FARM FUNGHI', 'Avvia/stoppa farm funghi');
+    g.AddButton(7524, infoX, rowY + 109, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM FUNGHI: usa il runebook Funghi. Runa 1 = banca. Rune 3-6 = zone Solen. Recaller, segue mini rail, uccide Solen, loota funghi 0x26B7 e deposita in banca quando arriva al limite.');
+
+    g.AddButton(7599, offsetX + 285, offsetY + 12, 0xA94, 0xA94, 0xA95, '32');
+    g.AddTooltip('Chiudi Farm Menu');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function AddFarmCheckRow(g, id, xBtn, xText, y, scriptName, label, tooltip) {
+    var active = Orion.ScriptRunning(scriptName);
+
+    g.AddButton(
+        id,
+        xBtn,
+        y,
+        active ? 0x2602 : 0x2603,
+        active ? 0x2602 : 0x2603,
+        active ? 0x2602 : 0x2603,
+        ''
+    );
+
+    g.AddTooltip(tooltip || label);
+    g.AddText(xText, y + 5, active ? 70 : 33, label);
+}
+
+
+// =====================================================
+// TALISMANI MENU
+// =====================================================
+
+function TalismanMenuGUI() {
+    var g = Orion.CreateCustomGump(TALISMAN_MENU_GUMP_ID);
+    g.Clear(); g.SetCallback('TalismanMenuOnClick');
+
+    var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
+    var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 120 : 320;
+    var width = 6, height = 6;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    g.AddText(offsetX + 65, offsetY + 12, 53, '*TALISMANI*');
+
+    var setX = offsetX + 40, btnX = offsetX + 60, txtX = offsetX + 100, rowY = offsetY + 55;
+
+    AddDressWeaponRow(g, 3131, 3132, setX, btnX, txtX, rowY, 'Dress_TalismanUndead', 'Undead'); rowY += 30;
+    AddDressWeaponRow(g, 3133, 3134, setX, btnX, txtX, rowY, 'Dress_TalismanDemon', 'Demon'); rowY += 30;
+    AddDressWeaponRow(g, 3135, 3136, setX, btnX, txtX, rowY, 'Dress_TalismanFey', 'Fey'); rowY += 30;
+    AddDressWeaponRow(g, 3137, 3138, setX, btnX, txtX, rowY, 'Dress_TalismanDivinum', 'Divinum');
+
+    g.AddButton(7199, offsetX + 180, offsetY + 12, 0xA94, 0xA94, 0xA95, '');
+    g.AddTooltip('Chiudi Talismani');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function TalismanMenuOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 3131: ToggleDressTalisman('Dress_TalismanUndead'); TalismanMenuGUI(); break;
+        case 3132: SelectOrResetTalisman('talisman_undead'); TalismanMenuGUI(); break;
+        case 3133: ToggleDressTalisman('Dress_TalismanDemon'); TalismanMenuGUI(); break;
+        case 3134: SelectOrResetTalisman('talisman_demon'); TalismanMenuGUI(); break;
+        case 3135: ToggleDressTalisman('Dress_TalismanFey'); TalismanMenuGUI(); break;
+        case 3136: SelectOrResetTalisman('talisman_fey'); TalismanMenuGUI(); break;
+        case 3137: ToggleDressTalisman('Dress_TalismanDivinum'); TalismanMenuGUI(); break;
+        case 3138: SelectOrResetTalisman('talisman_divinum'); TalismanMenuGUI(); break;
+
+        case 7199:
+            var g = Orion.CreateCustomGump(TALISMAN_MENU_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+// =====================================================
+// DOOM MENU
+// =====================================================
+
+function DoomMenuGUI() {
+    var g = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
+    g.Clear(); g.SetCallback('DoomMenuOnClick');
+
+    var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
+    var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 60 : 260;
+    var width = 11, height = 10;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    g.AddText(offsetX + 150, offsetY + 12, 31, '*DOOM MENU*');
+    AddBigButton(g, 7400, offsetX + 140, offsetY + 40, '3', 31, 'START DOOM', 'Avvia Doom classico', 15);
+
+    var doomTooltip = '';
+    doomTooltip += 'il bottone START DOOM avvia il giro completo dal centro. ';
+    doomTooltip += 'I bottoni delle singole stanze partono fuori dalla stanza scelta nel caso muori e devi riniziare da una stanza specifica. ';
+    doomTooltip += 'Impostare arma con primary bleeding per ShadowKnight per rivelarlo. ';
+    doomTooltip += 'Durante DF usa arma Generica Area se spawnano mob. ';
+    doomTooltip += 'Quando resta solo DF rimette arma DarkFather. DISABILITARE da paperdoll Auto avoid Obstacles per la rail di doom.';
+
+g.AddButton(7410, offsetX + 260, offsetY + 48, 0x15E6, 0x15E6, 0x15E6, '1153');
+g.AddTooltip(doomTooltip);
+
+    g.AddText(offsetX + 45, offsetY + 85, 31, '  *STANZE*');
+    g.AddText(offsetX + 225, offsetY + 85, 31, '    *ARMI*');
+
+    var leftBtn = offsetX + 35;
+    var rightSet = offsetX + 205, rightBtn = offsetX + 225, rightText = offsetX + 260;
+    var ly = offsetY + 120, ry = offsetY + 120;
+    AddBigButton(g, 7401, leftBtn, ly, '11', 1153, 'DarknightCreeper', 'Vai a Darknight Creeper', 5); ly += 32;
+    AddBigButton(g, 7402, leftBtn, ly, '55', 1153, 'Fleshrenderer', 'Vai a Fleshrenderer', 18); ly += 32;
+    AddBigButton(g, 7403, leftBtn, ly, '33', 1153, 'Impaler', 'Vai a Impaler', 22); ly += 32;
+    AddBigButton(g, 7404, leftBtn, ly, '11', 1153, 'ShadowKnight', 'Vai a Shadow Knight', 18); ly += 32;
+    AddBigButton(g, 7405, leftBtn, ly, '33', 1153, 'AbyssmalHorror', 'Vai ad Abyssmal Horror', 10); ly += 32;
+    AddBigButton(g, 7406, leftBtn, ly, '33', 1153, 'DarkFather', 'Dark Father singolo', 22);
+
+    AddDressWeaponRow(g, 3111, 3112, rightSet, rightBtn, rightText, ry, 'Dress_DoomDarknightCreeper', 'Darknight', '11'); ry += 32;
+    AddDressWeaponRow(g, 3113, 3114, rightSet, rightBtn, rightText, ry, 'Dress_DoomFleshrenderer', 'Fleshrenderer', '55'); ry += 32;
+    AddDressWeaponRow(g, 3115, 3116, rightSet, rightBtn, rightText, ry, 'Dress_DoomImpaler', 'Impaler', '33'); ry += 32;
+    AddDressWeaponRow(g, 3117, 3118, rightSet, rightBtn, rightText, ry, 'Dress_DoomShadowKnight', 'ShadowKnight', '11'); ry += 32;
+    AddDressWeaponRow(g, 3119, 3120, rightSet, rightBtn, rightText, ry, 'Dress_DoomAbyssmalHorror', 'Abyssmal', '33'); ry += 32;
+    AddDressWeaponRow(g, 3121, 3122, rightSet, rightBtn, rightText, ry, 'Dress_DoomDarkFather', 'DarkFather', '33');
+
+    g.AddButton(7499, offsetX + 355, offsetY + 12, 0xA94, 0xA94, 0xA95, '32');
+    g.AddTooltip('Chiudi Doom Menu');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function DoomMenuOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 7400: ToggleDoomGauntlet(); DoomMenuGUI(); break;
+
+        case 7410:
+            DoomMenuGUI();
+            break;
+
+        case 7401: Orion.Print(65, '>> Vai a Darknight Creeper'); AutoDoomGauntlet(1); DoomMenuGUI(); break;
+        case 7402: Orion.Print(65, '>> Vai a Fleshrenderer'); AutoDoomGauntlet(2); DoomMenuGUI(); break;
+        case 7403: Orion.Print(65, '>> Vai a Impaler'); AutoDoomGauntlet(3); DoomMenuGUI(); break;
+        case 7404: Orion.Print(65, '>> Vai a Shadow Knight'); AutoDoomGauntlet(4); DoomMenuGUI(); break;
+        case 7405: Orion.Print(65, '>> Vai ad Abyssmal Horror'); AutoDoomGauntlet(5); DoomMenuGUI(); break;
+        case 7406: Orion.Print(65, '>> Dark Father singolo'); AutoDoomGauntlet(6, true); DoomMenuGUI(); break;
+
+        case 3111: ToggleDressWeapon('Dress_DoomDarknightCreeper'); DoomMenuGUI(); break;
+        case 3113: ToggleDressWeapon('Dress_DoomFleshrenderer'); DoomMenuGUI(); break;
+        case 3115: ToggleDressWeapon('Dress_DoomImpaler'); DoomMenuGUI(); break;
+        case 3117: ToggleDressWeapon('Dress_DoomShadowKnight'); DoomMenuGUI(); break;
+        case 3119: ToggleDressWeapon('Dress_DoomAbyssmalHorror'); DoomMenuGUI(); break;
+        case 3121: ToggleDressWeapon('Dress_DoomDarkFather'); DoomMenuGUI(); break;
+
+        case 3112: SelectOrResetWeapon('doom_darknight_creeper'); DoomMenuGUI(); break;
+        case 3114: SelectOrResetWeapon('doom_fleshrenderer'); DoomMenuGUI(); break;
+        case 3116: SelectOrResetWeapon('doom_impaler'); DoomMenuGUI(); break;
+        case 3118: SelectOrResetWeapon('doom_shadow_knight'); DoomMenuGUI(); break;
+        case 3120: SelectOrResetWeapon('doom_abyssmal_horror'); DoomMenuGUI(); break;
+        case 3122: SelectOrResetWeapon('doom_dark_father'); DoomMenuGUI(); break;
+
+        case 7499:
+            var g = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+
+// =====================================================
+// SYSTEM STOP / RESTART
+// =====================================================
+
+function SpegniTutto() {
+    Orion.SetGlobal('StopAllScripts', 'true');
+    Shared.RemoveVar('cerca_attivo');
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    var farmGump = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+    farmGump.Close();
+
+    var doomGump = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
+    doomGump.Close();
+
+    Orion.Wait(300);
+    Orion.Exec('PostStopHandler');
+    Orion.Terminate('all');
+}
+
+function PostStopHandler() {
+    Orion.Wait(200);
+    Orion.WarMode(false);
+
+    Orion.Exec('autoMount', 'true');
+    Orion.Exec('Durability_Watcher', 'true');
+    Orion.Exec('SuperInsura', 'true');
+    Orion.Exec('AutoReEquip', 'true');
+    Orion.Exec('AutoVampiricEmbrace', 'true');
+
+    Orion.Print('0x55', '<< Tutti gli script fermati correttamente >>');
+    Orion.Print('0x55', '<< Scripts di Autostart RIAVVIATI! >>');
+
+    Orion.Wait(100);
+    GUIMisc();
+}
+
+// =====================================================
+// PROFILE STARTER
+// =====================================================
+
+function StartProfile(profileName, railScript, attackScript, isSS, isArchery) {
+    railScript = railScript || null;
+    attackScript = attackScript || null;
+    isSS = isSS || false;
+    isArchery = isArchery || false;
+
+    Orion.SetGlobal('StopAllScripts', 'false');
+
+    Orion.Exec('CheckCurseAndPoison', 'true');
+    Orion.Exec('CheckAndDispelRevenant', 'true');
+    Orion.Exec('AutoBushidoAbilities', 'true');
+    Orion.Exec('autoMount', 'true');
+    Orion.Exec('Durability_Watcher', 'true');
+    Orion.Exec('SuperInsura', 'true');
+    Orion.Exec('AutoConsecrate', 'true');
+    Orion.Exec('AutoCurseWeapon', 'true');
+    Orion.Exec('AutoDivine', 'true');
+    Orion.Exec('AutoLogoutOnDeath', 'true');
+
+    Orion.Terminate('UseSpecialAbilities');
+    Orion.Terminate('UseSpecialAbilitiesSS');
+    Orion.Terminate('UseArcheryPrimaryOnly');
+
+    if (isSS) Orion.Exec('UseSpecialAbilitiesSS');
+    else if (isArchery) Orion.Exec('UseArcheryPrimaryOnly');
+    else Orion.Exec('UseSpecialAbilities');
+
+    if (railScript) Orion.Exec(railScript, 'true');
+    if (attackScript) Orion.Exec(attackScript, 'true');
+
+    Orion.Print('0x55', '<< ' + profileName + ' full loaded >>');
+}
+
+// =====================================================
+// PROFILE SHORTCUTS
+// =====================================================
+
+function SOLO() {
+    try { Orion.IgnoreReset(); } catch(e) {}
+    ignoredMobs = {};
+    Orion.SetGlobal('LastEnemySerial', '');
+    StartProfile('Sampire SOLO', null, 'SoloFollowAndAttack');
+}
+
+function SOLOSNS() { StartProfile('Sampire SOLO SNS', null, 'SoloFollowAndAttackSS', true); }
+function SOLOArchery() { StartProfile('Sampire ARCHERY', null, 'AutoArcheryAttack', false, true); }
+function CHAMP() { StartProfile('Champ', 'SeguieMena', 'autoRemoveBloodOath'); }
+
+function Abyssalrail() { StartProfile('Abyssal', 'Abyssal'); }
+function Primevalrail() { StartProfile('Primeval', 'Primeval'); }
+function Rikktorrail() { StartProfile('Rikktor', 'Rikktor'); }
+function EventoVoidrail() { StartProfile('EventoVoid', 'EventoVoid'); }
+function Mephitisrail() { StartProfile('Mephitis', 'Mephitis'); }
+function Oaksrail() { StartProfile('Oaks', 'Oaks'); }
+function Semidarail() { StartProfile('Semidar', 'Semidar'); }
+function Barrarail() { StartProfile('Barracoons', 'Barra'); }
+function Neirarail() { StartProfile('Neira', 'Neira'); }
+function Kaldhunrail() { StartProfile('Khaldun', 'Khaldun'); }
+function Formicherail() { StartProfile('Formiche', 'Formiche'); }
+function Marblerail() { StartProfile('Marble', 'Marble'); }
+function Damwinrail() { StartProfile('Damwin', 'Damwin'); }
+
+// =====================================================
+// ENEMY FILTER / TARGET FINDER
+// =====================================================
+
+function isIgnoredSummon(mob) {
+    if (!mob) return false;
+
+    var graphic = mob.Graphic ? mob.Graphic().toString().toLowerCase() : '';
+    var name = mob.Name ? (mob.Name() || '').toLowerCase() : '';
+    var props = mob.Properties ? (mob.Properties() || '').toLowerCase() : '';
+
+    if (graphic === '0x00a4') return true; // Energy Vortex
+    if (graphic === '0x023e') return true; // Blade Spirits
+    if (name.indexOf('revenant') !== -1 || props.indexOf('revenant') !== -1) return true;
+    if (graphic === '0x0018' && props.indexOf('summoned') !== -1) return true;
+
+    return false;
+}
+
+function FindNearestEnemy() {
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
+
+    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|near', 17, 'gray|criminal|red|enemy|orange');
+
+    var validEnemies = enemies.filter(function(mob) {
+        if (ignoredMobs[mob.Serial()]) return false;
+
+        if (isIgnoredSummon(mob)) {
+            Orion.Ignore(mob.Serial());
+            return false;
+        }
+
+        return true;
+    });
+
+    if (validEnemies.length > 0) {
+        validEnemies.sort(function(a, b) { return a.Distance() - b.Distance(); });
+        return validEnemies[0];
+    }
+
+    return null;
+}
+
+// =====================================================
+// REMOVE CURSE
+// =====================================================
+
+function RemoveCurseSelf() {
+    Orion.Cast('209');
+    if (Orion.WaitForTarget(1000)) Orion.TargetObject('self');
+}
+
+function CheckCurseAndPoison() {
+    var lastRemoveCurse = 0;
+    var removeCurseCooldown = 180;
+
+    function HasCurseDebuff() {
+        return Orion.BuffExists('Curse') || Orion.BuffExists('Corpse Skin');
+    }
+
+    function ClearTargetHard() {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+    }
+
+    function IsLagPlayer() {
+        return Player.Serial().toString().toLowerCase() === '0x0002c7ab';
+    }
+
+    function CastRemoveCurseSelfFast() {
+        ClearTargetHard();
+        Orion.ClearJournal();
+
+        if (IsLagPlayer()) {
+            Orion.Cast('209', 'self');
+            Orion.Wait(200);
+        } else {
+            Orion.Cast('209');
+
+            if (Orion.WaitForTarget(3000)) {
+                Orion.TargetObject('self');
+                Orion.Wait(400);
+            } else {
+                ClearTargetHard();
+                Orion.Wait(80);
+            }
+        }
+
+        ClearTargetHard();
+    }
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        /*
+            Blood Oath resta prioritario.
+            Se è attivo, lascia lavorare HandleBloodOath().
+        */
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        /*
+            Questo script NON ferma il combat.
+            Però evita di sprecare Remove Curse mentre sei ferito,
+            come nella tua versione originale.
+        */
+        if (Player.Hits() < Player.MaxHits()) {
+            Orion.Wait(50);
+            continue;
+        }
+
+        if (HasCurseDebuff()) {
+            var now = Orion.Now();
+
+            if ((now - lastRemoveCurse) >= removeCurseCooldown) {
+                lastRemoveCurse = now;
+
+                CastRemoveCurseSelfFast();
+
+                /*
+                    Se fizzla o non parte il target, non aspetta 1 secondo:
+                    riprova quasi subito.
+                */
+                if (
+                    Orion.InJournal('fizzles') ||
+                    Orion.InJournal('You are frozen') ||
+                    Orion.InJournal('You cannot move') ||
+                    Orion.InJournal('You must wait') ||
+                    Orion.InJournal('not yet recovered')
+                ) {
+                    Orion.Wait(80);
+                } else {
+                    Orion.Wait(80);
+                }
+
+                continue;
+            }
+
+            Orion.Wait(40);
+            continue;
+        }
+
+        ClearTargetHard();
+        Orion.Wait(100);
+    }
+}
+
+// =====================================================
+// SPECIAL ABILITIES
+// =====================================================
+
+function UseSpecialAbilities() {
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        
+        if (IsBloodOathLocked()) {
+    HandleBloodOath();
+    Orion.Wait(50);
+    continue;
+}
+
+        var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
+        var nearbyEnemies = enemiesAround.filter(function(enemy) {
+            var obj = Orion.FindObject(enemy);
+            return obj && obj.Distance() <= 2;
+        });
+
+        var leftWeapon = Orion.ObjAtLayer('LeftHand');
+        var rightWeapon = Orion.ObjAtLayer('RightHand');
+
+        var isBladedStaff = leftWeapon && (
+            leftWeapon.Graphic() === 0x26BD ||
+            (leftWeapon.Name() && (
+                leftWeapon.Name().toLowerCase().indexOf('bladed staff') !== -1 ||
+                leftWeapon.Name().toLowerCase().indexOf('lava infused') !== -1
+            ))
+        );
+
+        var isHammerPick = rightWeapon && (
+            rightWeapon.Graphic() === 0x143D ||
+            (rightWeapon.Name() && (
+                rightWeapon.Name().toLowerCase().indexOf('divine sanctifier') !== -1 ||
+                rightWeapon.Name().toLowerCase().indexOf('hammer pick') !== -1
+            ))
+        );
+
+        var isSpecialWeapon = isBladedStaff || isHammerPick;
+
+        if (Player.Mana() >= 17) {
+            if (isSpecialWeapon || nearbyEnemies.length === 1) {
+                if (!Orion.AbilityStatus('Primary')) {
+                    Orion.UseAbility('Primary');
+                    Orion.Wait(200);
+                }
+            } else if (nearbyEnemies.length > 1) {
+                if (!Orion.AbilityStatus('Secondary')) {
+                    Orion.UseAbility('Secondary');
+                    Orion.Wait(200);
+                }
+            }
+        } else if (Player.Mana() < 13) {
+            Orion.Cast('Lightning Strike', 'self');
+            Orion.Wait(200);
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function UseSpecialAbilitiesSS() {
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        
+        if (IsBloodOathLocked()) {
+    HandleBloodOath();
+    Orion.Wait(50);
+    continue;
+}
+
+        var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
+        var nearbyEnemies = enemiesAround.filter(function(enemy) {
+            var obj = Orion.FindObject(enemy);
+            return obj && obj.Distance() <= 2;
+        });
+
+        var oneVsOne = nearbyEnemies.length === 1;
+        var feintActive = Orion.BuffExists('Feint') || Orion.BuffExists('Faint');
+
+        if (Player.Mana() >= 17) {
+            if (oneVsOne) {
+                if (feintActive) {
+                    if (!Orion.AbilityStatus('Secondary')) {
+                        Orion.UseAbility('Secondary');
+                        Orion.Wait(200);
+                    }
+                } else {
+                    if (!Orion.AbilityStatus('Primary')) {
+                        Orion.UseAbility('Primary');
+                        Orion.Wait(200);
+                    }
+                }
+            } else if (nearbyEnemies.length > 1) {
+                if (!Orion.AbilityStatus('Primary')) {
+                    Orion.UseAbility('Primary');
+                    Orion.Wait(200);
+                }
+            }
+        } else if (Player.Mana() < 13) {
+            Orion.Cast('Lightning Strike', 'self');
+            Orion.Wait(200);
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function UseArcheryPrimaryOnly() {
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        
+                if (IsBloodOathLocked()) {
+    HandleBloodOath();
+    Orion.Wait(50);
+    continue;
+}
+
+        if (Player.Mana() >= 17 && !Orion.AbilityStatus('Primary')) {
+            Orion.UseAbility('Primary');
+            Orion.Wait(200);
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+// =====================================================
+// RUNEBOOK
+// =====================================================
+
+function SelectOrResetRunebook(varName, label) {
+    if (Orion.FindObject(varName)) {
+        Orion.RemoveObject(varName);
+        Shared.RemoveVar(varName + '_name');
+        Orion.CharPrint(Player.Serial(), 33, label + ' resettato!');
+        GUI();
+        return;
+    }
+
+    Orion.CharPrint(Player.Serial(), 55, 'Seleziona ' + label);
+
+    if (Orion.WaitForAddObject(varName, 15000)) {
+        var item = Orion.FindObject(varName);
+
+        if (item) {
+            Shared.AddVar(varName + '_name', item.Name());
+            Orion.CharPrint(Player.Serial(), 65, label + ' salvato: ' + item.Name());
+        }
+    } else {
+        Orion.CharPrint(Player.Serial(), 33, 'Tempo scaduto: nessuna selezione.');
+    }
+
+    GUI();
+}
+
+function RecallRunebook(varName, label) {
+    var book = Orion.FindObject(varName);
+
+    if (!book) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun runebook salvato per ' + label);
+        return;
+    }
+
+    Orion.CancelTarget();
+    Orion.Cast('Sacred Journey');
+
+    if (Orion.WaitForTarget(1500)) {
+        Orion.TargetObject(book.Serial());
+        Orion.CharPrint(Player.Serial(), 65, 'Sacred Journey -> ' + label);
+    } else {
+        Orion.CharPrint(Player.Serial(), 33, 'Target non disponibile per Sacred Journey.');
+    }
+}
+
+function RecallCasa() { RecallRunebook('runebook_casa', 'CASA'); }
+function RecallLunaBanca() { RecallRunebook('runebook_luna', 'LUNA BANCA'); }
+
+// =====================================================
+// BUSHIDO
+// =====================================================
+
+function AutoBushidoAbilities() {
+    var lastEvasionTime = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var attackerSerial = Orion.ClientLastAttack();
+        var attacker = Orion.FindObject(attackerSerial);
+
+        if (!attacker || attacker.Distance() > 10 || attacker.Hits() <= 0) {
+            Orion.Wait(200);
+            continue;
+        }
+
+        var hpPercent = (Player.Hits() / Player.MaxHits()) * 100;
+        var now = Orion.Now();
+
+        if (hpPercent < 25 && !Orion.BuffExists('Confidence')) {
+            Orion.Cast('Confidence');
+            Orion.Wait(200);
+        } else if (hpPercent < 50 && !Orion.BuffExists('Evasion') && (now - lastEvasionTime > 20000)) {
+            Orion.Cast('Evasion');
+            lastEvasionTime = now;
+            Orion.Wait(200);
+        } else if (!Orion.BuffExists('Counter Attack') && !Orion.BuffExists('Confidence') && !Orion.BuffExists('Evasion')) {
+            Orion.Cast('Counter Attack');
+            Orion.Wait(200);
+        }
+
+        Orion.Wait(100);
+    }
+}
+
+// =====================================================
+// SUPER INSURA
+// =====================================================
+
+function ResetSuperInsuraIgnore() {
+    Orion.SetGlobal('SuperInsura_IgnoreSerials', '');
+    Orion.Print(65, 'Ignore SuperInsura resettato.');
+}
+
+function SuperInsura() {
+    const contextMenu = Player.Serial();
+
+    // === CONFIG ===
+    var ignoreList = [
+        '0xA3E8'
+    ];
+
+    var maxAttemptsBeforeIgnore = 1;
+
+    // === UTILS: normalizzazione seriale in chiave comparabile ===
+    function toKey(x) {
+        var s = '' + x;
+        s = s.toLowerCase();
+
+        if (s.length >= 2 && s.substr(0, 2) === '0x') {
+            var body = s.substr(2);
+
+            while (body.length > 1 && body.charAt(0) === '0') {
+                body = body.substr(1);
+            }
+
+            return '0x' + body;
+        }
+
+        var isDec = true;
+
+        for (var i = 0; i < s.length; i++) {
+            var c = s.charAt(i);
+
+            if (c < '0' || c > '9') {
+                isDec = false;
+                break;
+            }
+        }
+
+        if (isDec && s.length > 0) {
+            var n = parseInt(s, 10);
+
+            if (n >= 0 && !isNaN(n)) {
+                var hex = n.toString(16);
+                return '0x' + hex;
+            }
+        }
+
+        var isHex = true;
+
+        for (var j = 0; j < s.length; j++) {
+            var d = s.charAt(j);
+
+            if (!((d >= '0' && d <= '9') || (d >= 'a' && d <= 'f'))) {
+                isHex = false;
+                break;
+            }
+        }
+
+        if (isHex && s.length > 0) {
+            var b = s;
+
+            while (b.length > 1 && b.charAt(0) === '0') {
+                b = b.substr(1);
+            }
+
+            return '0x' + b;
+        }
+
+        return s;
+    }
+
+    function loadPersistentIgnoreList() {
+        var saved = Orion.GetGlobal('SuperInsura_IgnoreSerials');
+        var set = {};
+
+        if (!saved || saved === '') {
+            return set;
+        }
+
+        var parts = saved.split('|');
+
+        for (var i = 0; i < parts.length; i++) {
+            if (parts[i] && parts[i] !== '') {
+                set[parts[i]] = true;
+            }
+        }
+
+        return set;
+    }
+
+    function savePersistentIgnoreList(ignoreSet) {
+        var arr = [];
+
+        for (var key in ignoreSet) {
+            if (ignoreSet[key]) {
+                arr.push(key);
+            }
+        }
+
+        Orion.SetGlobal('SuperInsura_IgnoreSerials', arr.join('|'));
+    }
+
+    function addToIgnore(ignoreSet, key) {
+        ignoreSet[key] = true;
+        savePersistentIgnoreList(ignoreSet);
+    }
+
+    // crea set ignorati caricando anche quelli salvati
+    var ignoreSet = loadPersistentIgnoreList();
+
+    for (var k = 0; k < ignoreList.length; k++) {
+        ignoreSet[toKey(ignoreList[k])] = true;
+    }
+
+    savePersistentIgnoreList(ignoreSet);
+
+    var attemptCount = {};
+
+    while (Player.Dead() == false) {
+        var backpackContents = Orion.FindList('insura', backpack);
+
+        for (var i = 0; i < backpackContents.length; i++) {
+            var itemSerial = backpackContents[i];
+            var key = toKey(itemSerial);
+
+            // 1) ignora se in ignoreSet
+            if (ignoreSet[key]) {
+                continue;
+            }
+
+            var itemInfo = Orion.FindObject(itemSerial);
+
+            if (!itemInfo) {
+                continue;
+            }
+
+            var props = itemInfo.Properties() || '';
+
+            // 2) salta Blessed/Cursed
+            if (Orion.Contains(props, 'Blessed') || Orion.Contains(props, 'Cursed')) {
+                continue;
+            }
+
+            // 3) se già insured, salta
+            if (Orion.Contains(props, 'Insured|Assicurato')) {
+                attemptCount[key] = 0;
+                continue;
+            }
+
+            // 4) prova ad assicurare
+            Orion.ClearJournal();
+
+            Orion.RequestContextMenu(contextMenu);
+            Orion.WaitContextMenuID(contextMenu, 3);
+            Orion.WaitTargetObject(itemSerial);
+
+            Orion.Wait(600);
+            Orion.CancelTarget();
+
+            // 5) se il server dice "You cannot insure that", salva il seriale in ignore
+            if (Orion.InJournal('You cannot insure that')) {
+                addToIgnore(ignoreSet, key);
+
+                Orion.CharPrint(itemSerial, 33, '*NON ASSICURABILE*');
+                Orion.CharPrint(Player.Serial(), 33, '*Aggiunto a ignore SuperInsura*');
+                Orion.Print(33, 'SuperInsura ignore persistente: ' + key);
+
+                continue;
+            }
+
+            // ricontrolla le proprietà
+            var checkInfo = Orion.FindObject(itemSerial);
+            var checkProps = checkInfo ? (checkInfo.Properties() || '') : '';
+            var insuredNow = Orion.Contains(checkProps, 'Insured|Assicurato');
+
+            if (insuredNow) {
+                attemptCount[key] = 0;
+                Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
+            } else {
+                var prev = attemptCount[key] ? attemptCount[key] : 0;
+                var curr = prev + 1;
+
+                attemptCount[key] = curr;
+
+                if (curr >= maxAttemptsBeforeIgnore) {
+                    addToIgnore(ignoreSet, key);
+                }
+            }
+        }
+
+        Orion.Wait(600);
+    }
+}
+
+// =====================================================
+// DURABILITY WATCHER
+// =====================================================
+
+function AddDurabilityTitle(g, offsetX, offsetY, width) {
+    var guiWidth = width * 35;
+    var text = "DURABILITY WATCHER";
+
+    var textWidth = text.length * 7;
+    var centeredX = offsetX + Math.floor((guiWidth - textWidth) / 2) - 4;
+
+    g.AddText(centeredX, offsetY + 15, HUE_TITLE, text, 0);
+    g.AddLine(offsetX + 35, offsetY + 42, offsetX + guiWidth - 35, offsetY + 42, 'white', 1);
+}
+
+function Durability_Watcher() {
+    var delay = 100;
+
+    while (true) {
+        if (!Player.Dead()) {
+            var d = 60;
+            var y = 90;
+
+            for (var i = 1; i < 24; i++) {
+                var itemd = Orion.ObjAtLayer(i);
+
+                if (itemd && Orion.Contains(itemd.Properties(), 'Durability')) {
+                    y += 14;
+                    Orion.Wait(10);
+                }
+
+                Orion.Wait(10);
+            }
+
+            var offsetX = GetDurabilityGuiX ? GetDurabilityGuiX() : -55;
+            var offsetY = GetDurabilityGuiY ? GetDurabilityGuiY() : -55;
+
+            var gump = Orion.CreateCustomGump(DURABILITY_GUMP_ID);
+            gump.Clear();
+
+            var width = 10;
+            var height = Math.max(4, Math.ceil((y - 15) / 35));
+
+            DrawPanel(gump, offsetX, offsetY, width, height);
+            AddDurabilityTitle(gump, offsetX, offsetY, width);
+
+            for (var j = 1; j < 24; j++) {
+                var item = Orion.ObjAtLayer(j);
+
+                if (item && Orion.Contains(item.Properties(), 'Durability')) {
+                    var props = item.Properties();
+                    var matches = /Durability\s+(\d+)\s\/\s(\d+)/.exec(props);
+
+                    if (matches && matches.length > 2) {
+                        var durability = Number(matches[1]);
+                        var maxDurability = Number(matches[2]);
+                        var percent = durability / maxDurability * 100;
+
+                        var textColor;
+
+if (durability < 50) {
+    textColor = 33;              // rosso
+} else if (durability < 150) {
+    textColor = 53;              // giallo
+} else {
+    textColor = HUE_STATUS_TEXT; // stile normale
+}
+
+                        gump.AddText(offsetX + 15, offsetY + d, textColor, item.Name());
+                        gump.AddText(offsetX + 255, offsetY + d, textColor, matches[1] + '/' + matches[2]);
+
+                        d += 15;
+                    }
+                }
+            }
+
+            gump.Update();
+        }
+
+        Orion.Wait(delay * 100);
+    }
+}
+
+// =====================================================
+// AGGRO / HONOR
+// =====================================================
+
+function AggroMobs() {
+    var range = 11;
+    var highlightColor = '1964';
+    var ignoredMobTypes = ['an energy vortex', 'a rising colossus'];
+    var aggroedMobs = {};
+
+    while (true) {
+        var mobs = Orion.FindTypeEx('any', 'any', 'ground', 'mobile|live|ignorefriends|inlos', range, 'gray|red|orange');
+
+        for (var i = 0; i < mobs.length; i++) {
+            var mob = mobs[i];
+            var mobSerial = mob.Serial();
+
+            if (ignoredMobTypes.indexOf(mob.Name()) !== -1 || aggroedMobs[mobSerial]) continue;
+
+            Orion.AddHighlightCharacter(mobSerial, highlightColor, true);
+            Orion.Attack(mobSerial);
+            aggroedMobs[mobSerial] = true;
+        }
+
+        for (var serial in aggroedMobs) {
+            if (!Orion.ObjectExists(serial)) delete aggroedMobs[serial];
+        }
+
+        Orion.Wait(600);
+    }
+}
+
+function HonorTarget(target) {
+    if (!target) return false;
+
+    var serial = null;
+
+    if (typeof target === 'string' || typeof target === 'number') {
+        serial = target;
+    } else if (target.Serial && typeof target.Serial === 'function') {
+        serial = target.Serial();
+    }
+
+    if (!serial) {
+        Orion.Print(33, 'HonorTarget: target non valido');
+        return false;
+    }
+
+    if (String(serial).toLowerCase() === String(Player.Serial()).toLowerCase()) {
+        Orion.Print(33, 'HonorTarget BLOCCATO: stava tentando di honorare SELF');
+        Orion.CharPrint(Player.Serial(), 33, '*HONOR SELF BLOCCATO*');
+        return false;
+    }
+
+    var obj = Orion.FindObject(serial);
+
+    if (!obj || !Orion.ObjectExists(serial)) {
+        Orion.Print(33, 'HonorTarget: oggetto non trovato');
+        return false;
+    }
+
+    if (obj.Dead && obj.Dead()) {
+        Orion.Print(33, 'HonorTarget: target morto');
+        return false;
+    }
+
+    if (obj.Distance && obj.Distance() > 12) {
+        Orion.Print(33, 'HonorTarget: target troppo lontano');
+        return false;
+    }
+
+    Orion.ClearJournal();
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.Wait(50);
+
+    Orion.WaitTargetObject(serial);
+    Orion.InvokeVirtue('Honor');
+    Orion.Wait(300);
+
+    if (Orion.InJournal('You started Honorable Combat')) {
+        Orion.CharPrint(serial, 65, '*HONORATO*');
+        return true;
+    }
+
+    if (Orion.InJournal('You cannot honor this monster because it is too damaged')) {
+        Orion.CharPrint(serial, 44, '*GIA DANNEGGIATO*');
+        return false;
+    }
+
+    if (Orion.InJournal('You embrace your honor')) {
+        Orion.CharPrint(Player.Serial(), 33, '*ERRORE: HAI HONORATO TE STESSO*');
+        Orion.Print(33, 'HonorTarget: self honor rilevato, target=' + serial);
+        return false;
+    }
+
+    return false;
+}
+
+function HonorSelf() {
+    Orion.ClearJournal();
+    Orion.CancelTarget();
+    Orion.InvokeVirtue('Honor');
+
+    if (Orion.WaitForTarget(2000)) {
+        Orion.TargetObject(Player.Serial());
+        Orion.Wait(400);
+
+        if (Orion.InJournal('You embrace your honor')) Orion.CharPrint(Player.Serial(), 65, 'HONORATO');
+        else if (Orion.InJournal('You must wait')) Orion.CharPrint(Player.Serial(), 33, 'ASPETTA PER HONOR');
+        else if (Orion.InJournal('You no longer embrace your honor')) Orion.CharPrint(Player.Serial(), 33, 'HONOR FINITO');
+    }
+}
+
+// =====================================================
+// DOOM BONE CUTTER
+// =====================================================
+
+function doomBoneCutter() {
+    var boneTypes = '0x0ECA|0x0ECB|0x0ECC|0x0ECD|0x0ECE|0x0ECF|0x0ED0|0x0ED1|0x0ED2';
+    var CUT_RANGE = 2;
+    var CUT_DELAY = 45;
+    var RETRY_DELAY = 55;
+
+    Orion.Print(65, 'doomBoneCutter TURBO avviato');
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(40);
+            continue;
+        }
+
+        var knifeObj = Orion.FindObject('bone_knife');
+
+        if (!knifeObj || !Orion.ObjectExists(knifeObj.Serial())) {
+            Orion.CharPrint(Player.Serial(), 33, 'Coltello BoneCutter non trovato!');
+            Orion.Wait(500);
+            continue;
+        }
+
+        var knifeSerial = knifeObj.Serial();
+        var bones = Orion.FindTypeEx(boneTypes, 'any', 'ground', 'item|near', CUT_RANGE);
+
+        if (!bones || !bones.length) {
+            Orion.Wait(40);
+            continue;
+        }
+
+        for (var i = 0; i < bones.length; i++) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+            if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+                HandleBloodOath();
+                break;
+            }
+
+            var bone = bones[i];
+            if (!bone || !Orion.ObjectExists(bone.Serial())) continue;
+            if (bone.Distance() > CUT_RANGE) continue;
+
+            if (IsPlayerRemainsBone(bone)) {
+                Orion.Ignore(bone.Serial());
+                Orion.Print(33, 'BoneCutter: ignoro remains: ' + bone.Serial());
+                continue;
+            }
+
+            CutBoneTurbo(knifeSerial, bone.Serial(), CUT_DELAY, RETRY_DELAY);
+        }
+
+        Orion.Wait(25);
+    }
+}
+
+function IsPlayerRemainsBone(obj) {
+    if (!obj) return false;
+
+    var name = '';
+    var props = '';
+
+    try {
+        name = obj.Name ? (obj.Name() || '').toLowerCase() : '';
+    } catch (e1) {
+        name = '';
+    }
+
+    try {
+        props = obj.Properties ? (obj.Properties() || '').toLowerCase() : '';
+    } catch (e2) {
+        props = '';
+    }
+
+    if (name.indexOf('the remains of') !== -1) return true;
+    if (props.indexOf('the remains of') !== -1) return true;
+
+    return false;
+}
+
+function CutBoneTurbo(knifeSerial, boneSerial, cutDelay, retryDelay) {
+    if (!Orion.ObjectExists(boneSerial)) return false;
+
+    var boneObj = Orion.FindObject(boneSerial);
+    if (!boneObj || boneObj.Distance() > 2) return false;
+
+    if (IsPlayerRemainsBone(boneObj)) {
+        Orion.Ignore(boneSerial);
+        return false;
+    }
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    Orion.UseObject(knifeSerial);
+
+    if (Orion.WaitForTarget(2000)) {
+        Orion.TargetObject(boneSerial);
+        Orion.Wait(cutDelay);
+
+        if (!Orion.ObjectExists(boneSerial)) return true;
+    } else {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        Orion.Wait(retryDelay);
+        return false;
+    }
+
+    if (Orion.ObjectExists(boneSerial)) {
+        boneObj = Orion.FindObject(boneSerial);
+
+        if (IsPlayerRemainsBone(boneObj)) {
+            Orion.Ignore(boneSerial);
+            return false;
+        }
+
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+
+        Orion.UseObject(knifeSerial);
+
+        if (Orion.WaitForTarget(2000)) {
+            Orion.TargetObject(boneSerial);
+            Orion.Wait(cutDelay);
+        }
+    }
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    return !Orion.ObjectExists(boneSerial);
+}
+
+// =====================================================
+// REVENANT / LOGOUT / NIPO
+// =====================================================
+
+function CheckAndDispelRevenant() {
+    while (!Player.Dead()) {
+        var mobs = Orion.FindType('0x0190', '-1', 'ground', 'live|ignoreself', 12, 'red');
+
+        for (var i = 0; i < mobs.length; i++) {
+            var mob = Orion.FindObject(mobs[i]);
+            if (!mob) continue;
+
+            if (Orion.Contains(mob.Properties(), 'A Revenant')) {
+                Orion.CharPrint(mob.Serial(), 33, 'Dispel Evil in corso!');
+
+                while (Orion.ObjectExists(mob.Serial())) {
+                    if (Player.Mana() >= 10) {
+                        Orion.Cast('Dispel Evil');
+                        Orion.Wait(500);
+                    }
+                }
+
+                if (!Orion.ObjectExists(mobs[i])) Orion.CharPrint(mobs[i], 55, 'Revenant rimosso!');
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function Nipo() {
+    while (true) {
+        var x = Player.X(), y = Player.Y(), z = Player.Z(), dir = Player.Direction();
+
+        if (dir === 0) y += 1;
+        else if (dir === 1 || dir === 2) { x -= 1; y += 1; }
+        else if (dir === 3 || dir === 4) y -= 1;
+        else if (dir === 5 || dir === 6) { x += 1; y -= 1; }
+        else if (dir === 7) y += 1;
+
+        Orion.Print(Orion.MoveItemType('0x0EEF', 'any', 'backpack', 0, 'ground', x, y, z) ? 'Oggetto 0x0EEF droppato dietro di te.' : 'Nessun 0x0EEF trovato.');
+        Orion.Wait(500);
+        Orion.Print(Orion.MoveItemType('0x11EA', 'any', 'backpack', 0, 'ground', x, y, z) ? 'Oggetto 0x11EA droppato dietro di te.' : 'Nessun 0x11EA trovato.');
+        Orion.Wait(1000);
+    }
+}
+
+function AutoLogoutOnDeath() {
+    Orion.Print('Script AutoLogoutOnDeath avviato...');
+
+    while (true) {
+        Orion.Wait(1000);
+        if (Player.Dead()) {
+            Orion.LogOut();
+            break;
+        }
+    }
+}
+
+// =====================================================
+// TARGET / COMBAT BASE
+// =====================================================
+
+function AttackNearestEnemy() {
+    var maxWaitCycles = 20, waitCount = 0;
+
+    Orion.IgnoreReset();
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
+
+    while (!Player.Dead() && waitCount < maxWaitCycles) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return false;
+        if (HandleBloodOath()) continue;
+
+        Orion.WarMode(true);
+
+        var target = FindNearestEnemy();
+
+        if (!target) {
+            waitCount++;
+            Orion.Wait(10);
+            continue;
+        }
+
+        var currentSerial = target.Serial();
+
+        if (ignoredMobs[currentSerial] || isIgnoredSummon(target)) {
+            ignoredMobs[currentSerial] = true;
+            Orion.Ignore(currentSerial);
+            waitCount++;
+            Orion.Wait(100);
+            continue;
+        }
+
+        Orion.ShowStatusbar(currentSerial, 1150, 1200);
+        Orion.AddHighlightCharacter(currentSerial, 0x081C, true);
+        Orion.CharPrint(currentSerial, 20, '*target*');
+
+        var lastX = Player.X(), lastY = Player.Y(), lastZ = Player.Z();
+        var stayCounter = 0, walkAttempts = 0;
+
+        while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') {
+                Orion.CloseStatusbar(currentSerial);
+                return false;
+            }
+
+            if (HandleBloodOath()) break;
+
+            var newTarget = FindNearestEnemy();
+
+            if (newTarget) {
+                var newSerial = newTarget.Serial();
+
+                if (ignoredMobs[newSerial] || isIgnoredSummon(newTarget)) {
+                    ignoredMobs[newSerial] = true;
+                    Orion.Ignore(newSerial);
+                } else if (newSerial !== currentSerial) {
+                    Orion.CloseStatusbar(currentSerial);
+                    target = newTarget;
+                    currentSerial = newSerial;
+
+                    Orion.ShowStatusbar(currentSerial, 1150, 1200);
+                    Orion.AddHighlightCharacter(currentSerial, 0x081C, true);
+                    Orion.CharPrint(currentSerial, 20, '*target*');
+
+                    lastX = Player.X(); lastY = Player.Y(); lastZ = Player.Z();
+                    stayCounter = 0; walkAttempts = 0;
+                }
+            }
+
+            var targetObject = Orion.FindObject(currentSerial);
+            if (!targetObject || targetObject.Dead()) break;
+
+            if (ignoredMobs[currentSerial] || isIgnoredSummon(targetObject)) {
+                ignoredMobs[currentSerial] = true;
+                Orion.Ignore(currentSerial);
+                break;
+            }
+
+            if (targetObject.Distance() > 1) {
+                Orion.WalkTo(targetObject.X(), targetObject.Y(), targetObject.Z(), 1, 255, 1, 2, 5000);
+                Orion.Wait(200);
+                walkAttempts++;
+            } else {
+                walkAttempts = 0;
+            }
+
+            if (walkAttempts >= 5) {
+                ignoredMobs[currentSerial] = true;
+                Orion.Ignore(currentSerial);
+                Orion.CharPrint(Player.Serial(), 33, '*Ignorato: irraggiungibile* ' + targetObject.Name());
+                Orion.CloseStatusbar(currentSerial);
+                return false;
+            }
+
+            if (targetObject.Distance() <= 11) Orion.Attack(currentSerial);
+
+            if (Player.X() === lastX && Player.Y() === lastY && Player.Z() === lastZ) stayCounter++;
+            else {
+                lastX = Player.X(); lastY = Player.Y(); lastZ = Player.Z();
+                stayCounter = 0;
+            }
+
+            if (stayCounter >= 12000) {
+                ignoredMobs[currentSerial] = true;
+                Orion.Ignore(currentSerial);
+                Orion.CharPrint(Player.Serial(), 33, '*Ignorato* ' + targetObject.Name());
+                Orion.CloseStatusbar(currentSerial);
+                return false;
+            }
+
+            Orion.Wait(10);
+        }
+
+        Orion.CloseStatusbar(currentSerial);
+        return true;
+    }
+
+    return false;
+}
+
+function SeguieMena() {
+    while (!Player.Dead()) {
+        var target = FindNearestEnemy();
+
+        if (target) {
+            if (!AttackNearestEnemy()) Orion.CharPrint(Player.Serial(), 33, 'Target ignorato, cercando altro...');
+        } else {
+            Orion.Wait(300);
+        }
+    }
+}
+
+function RunRailCombat(railCoordinates, walkTimeout, customTargetFn, customAttackFn, acidCheck) {
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (currentIndex >= railCoordinates.length) currentIndex = 0;
+
+        var coord = railCoordinates[currentIndex];
+
+        if (acidCheck === true) {
+            var acidPuddles = Orion.FindType('0x122A', '-1', 'ground', null, 2);
+            var avoidTile = acidPuddles.some(function(p) {
+                var obj = Orion.FindObject(p);
+                return obj && Math.abs(obj.X() - coord[0]) <= 1 && Math.abs(obj.Y() - coord[1]) <= 1;
+            });
+
+            if (avoidTile) {
+                Orion.CharPrint(Player.Serial(), 33, 'Acido rilevato, salto tile!');
+                currentIndex++;
+                Orion.Wait(10);
+                continue;
+            }
+        }
+
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, walkTimeout);
+
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            var target = customTargetFn ? customTargetFn() : FindNearestEnemy();
+            var success = customAttackFn ? customAttackFn(target) : (target && AttackNearestEnemy());
+
+            if (target && success) startTime = Orion.Now();
+            else Orion.Wait(50);
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+// =====================================================
+// CHAMP RAILS
+// =====================================================
+
+function Formiche() {
+    RunRailCombat([
+        [6089,1349],[6089,1339],[6093,1330],[6086,1320],[6093,1311],[6091,1322],[6095,1334],[6101,1343],
+        [6111,1347],[6117,1342],[6116,1334],[6112,1327],[6117,1324],[6117,1333],[6119,1340],[6119,1353],
+        [6123,1360],[6118,1367],[6117,1375],[6112,1377],[6106,1372],[6108,1365],[6105,1358],[6100,1356],
+        [6093,1362],[6084,1368],[6077,1371],[6073,1367],[6074,1361],[6075,1360],[6067,1356],[6059,1358],
+        [6046,1361],[6044,1373],[6052,1381],[6047,1374],[6047,1364],[6049,1349],[6051,1339],[6056,1332],
+        [6065,1331],[6066,1322],[6071,1323],[6062,1335],[6054,1342],[6059,1354],[6071,1347],[6080,1353],
+        [6089,1348]
+    ], 10000, null, null, true);
+}
+
+function Abyssal() {
+    RunRailCombat([
+        [6993,733],[6986,726],[6975,726],[6965,716],[6954,715],[6943,718],[6940,729],[6940,741],
+        [6945,749],[6948,760],[6954,770],[6959,778],[6964,787],[6973,787],[6979,778],[6972,768],
+        [6965,758],[6961,748],[6969,738],[6975,728],[6968,717],[6966,707],[6961,700],[6964,692],
+        [6973,697],[6981,693],[6989,696],[6998,694],[7000,700],[7006,704],[7016,696],[7026,702],
+        [7027,713],[7023,722],[7030,732],[7034,742],[7031,753],[7027,763],[7019,772],[7009,781],
+        [7000,776],[7007,765],[7008,757],[6999,753],[6995,746],[6997,734]
+    ], 2000);
+}
+
+function Barra() {
+    RunRailCombat([
+        [5558,822],[5544,822],[5532,827],[5527,837],[5519,845],[5518,854],[5526,862],[5538,858],
+        [5544,864],[5553,866],[5564,862],[5572,866],[5582,865],[5600,873],[5589,870],[5588,852],
+        [5592,844],[5586,835],[5604,823],[5605,810],[5606,800],[5606,787],[5600,781],[5591,789],
+        [5578,792],[5568,787],[5558,785],[5547,788],[5538,783],[5531,790],[5530,803],[5522,810],
+        [5511,806],[5521,827],[5527,808],[5536,794],[5550,798],[5567,798],[5584,793],[5589,801],
+        [5589,819],[5574,823],[5558,822]
+    ], 2000);
+}
+
+function Khaldun() {
+    RunRailCombat([
+        [5469,1459],[5462,1459],[5460,1449],[5452,1443],[5451,1442],[5457,1452],[5452,1460],[5442,1460],
+        [5437,1452],[5430,1451],[5434,1458],[5434,1467],[5429,1474],[5425,1482],[5427,1492],[5434,1484],
+        [5443,1489],[5445,1499],[5449,1496],[5458,1497],[5462,1490],[5467,1482],[5475,1472],[5482,1461],
+        [5484,1452],[5484,1441],[5479,1428],[5486,1427],[5498,1427],[5499,1420],[5494,1426],[5487,1432],
+        [5484,1445],[5479,1453],[5467,1461]
+    ], 10000);
+}
+
+function Neira() {
+    RunRailCombat([
+        [5178,708],[5178,719],[5183,728],[5183,700],[5194,699],[5189,692],[5174,700],[5171,692],
+        [5171,682],[5165,675],[5156,679],[5155,693],[5154,699],[5155,682],[5150,675],[5144,675],
+        [5140,669],[5140,661],[5140,682],[5139,690],[5130,690],[5132,703],[5132,711],[5133,722],
+        [5142,723],[5150,718],[5154,725],[5155,736],[5151,743],[5155,731],[5151,723],[5135,723],
+        [5130,712],[5136,700],[5141,696],[5139,685],[5149,676],[5162,676],[5172,669],[5176,659],
+        [5189,659],[5203,663],[5206,670],[5215,675],[5221,682],[5228,687],[5226,706],[5218,715],
+        [5221,726],[5216,734],[5216,744],[5220,753],[5226,736],[5221,727],[5221,712],[5227,705],
+        [5227,696],[5227,687],[5219,679],[5210,670],[5204,666],[5199,658],[5189,658],[5185,658],
+        [5175,661],[5172,677],[5172,688],[5175,701],[5178,707]
+    ], 10000);
+}
+
+function Semidar() {
+    RunRailCombat([
+        [5813,1350],[5805,1346],[5805,1336],[5814,1331],[5827,1331],[5839,1332],[5846,1343],[5853,1348],
+        [5863,1341],[5859,1334],[5859,1345],[5850,1347],[5845,1339],[5843,1329],[5850,1317],[5849,1310],
+        [5843,1304],[5839,1293],[5829,1297],[5826,1309],[5818,1310],[5812,1309],[5803,1307],[5789,1306],
+        [5776,1306],[5791,1308],[5803,1313],[5800,1323],[5788,1325],[5776,1327],[5774,1337],[5773,1346],
+        [5785,1348],[5788,1340],[5776,1348],[5775,1361],[5788,1371],[5793,1379],[5789,1392],[5797,1397],
+        [5806,1403],[5819,1401],[5820,1390],[5818,1380],[5802,1379],[5808,1379],[5820,1374],[5825,1365],
+        [5838,1365],[5843,1399],[5850,1389],[5861,1394],[5850,1365],[5837,1365],[5826,1365],[5819,1359],
+        [5812,1350]
+    ], 10000);
+}
+
+function Rikktor() {
+    RunRailCombat([
+        [5259,835],[5255,826],[5247,815],[5235,812],[5225,805],[5217,798],[5214,808],[5212,820],
+        [5213,827],[5219,841],[5226,846],[5237,842],[5242,850],[5244,860],[5242,867],[5240,877],
+        [5234,886],[5245,888],[5254,883],[5254,871],[5261,861],[5265,855],[5278,851],[5290,854],
+        [5301,857],[5309,851],[5305,841],[5306,831],[5306,821],[5302,812],[5293,816],[5283,814],
+        [5286,802],[5291,794],[5297,787],[5308,789],[5313,799],[5315,811],[5300,816],[5287,822],
+        [5276,833],[5265,828],[5257,820],[5257,804],[5260,791],[5261,782],[5250,780],[5242,785],
+        [5231,796],[5228,807],[5235,817],[5252,824],[5257,832]
+    ], 10000);
+}
+
+function Primeval() {
+    RunRailCombat([
+        [6998,1004],[7011,1005],[7021,993],[7008,986],[7003,985],[7000,974],[7006,964],[7010,975],
+        [7011,965],[7010,954],[7001,949],[6992,949],[6985,959],[6988,964],[6983,976],[6989,971],
+        [6995,966],[7000,978],[6996,984],[6983,984],[6973,982],[6969,970],[6962,961],[6967,949],
+        [6982,935],[6993,931],[7006,931],[7017,940],[7028,948],[7034,957],[7037,963],[7036,974],
+        [7047,975],[7048,987],[7054,997],[7044,1007],[7036,1019],[7027,1024],[7024,1034],[7035,1035],
+        [7048,1030],[7060,1033],[7062,1045],[7050,1050],[7038,1050],[7028,1049],[7017,1044],[7010,1034],
+        [7011,1022],[7017,1012],[7011,1005],[6999,1008],[6984,1003],[6972,1001],[6963,1008],[6971,1017],
+        [6982,1018],[6989,1027],[6982,1037],[6972,1048],[6959,1052],[6948,1049],[6945,1038],[6948,1026],
+        [6956,1014],[6965,1002],[6958,991],[6951,987],[6964,986],[6977,989],[6988,999],[7001,1003]
+    ], 10000);
+}
+
+function Marble() {
+    RunRailCombat([
+        [5266,3170],[5258,3170],[5270,3170],[5279,3166],[5279,3165],[5272,3155],[5262,3147],[5259,3154],
+        [5273,3155],[5276,3167],[5280,3177],[5272,3184],[5257,3185],[5244,3180],[5235,3183],[5239,3195],
+        [5249,3195],[5261,3195],[5274,3195],[5285,3195],[5296,3187],[5299,3176],[5297,3167],[5296,3158],
+        [5288,3149],[5278,3143],[5270,3136],[5258,3133],[5250,3140],[5245,3132],[5241,3143],[5238,3155],
+        [5230,3167],[5232,3178],[5243,3180],[5252,3185],[5266,3185],[5277,3179],[5270,3169]
+    ], 10000);
+}
+
+function Damwin() {
+    RunRailCombat([
+        [5279,3368],[5278,3363],[5278,3353],[5271,3349],[5263,3345],[5254,3351],[5247,3363],[5254,3373],
+        [5267,3386],[5278,3399],[5291,3400],[5299,3395],[5305,3384],[5309,3375],[5304,3372],[5296,3375],
+        [5286,3370],[5282,3356],[5267,3355],[5269,3367],[5277,3367]
+    ], 10000);
+}
+
+// =====================================================
+// MEPHITIS / OAKS SPECIAL
+// =====================================================
+
+function Mephitis() {
+    RunRailCombat([
+        [5188,1608],[5167,1616],[5154,1616],[5145,1608],[5145,1595],[5140,1586],[5136,1596],[5136,1608],
+        [5136,1619],[5141,1629],[5146,1640],[5153,1629],[5163,1634],[5168,1644],[5179,1644],[5190,1644],
+        [5196,1637],[5204,1631],[5213,1629],[5224,1635],[5216,1628],[5213,1620],[5217,1609],[5224,1602],
+        [5236,1602],[5232,1589],[5224,1588],[5219,1582],[5212,1578],[5208,1567],[5218,1564],[5208,1568],
+        [5216,1582],[5219,1606],[5212,1617],[5206,1629],[5190,1640],[5177,1642],[5164,1637],[5156,1628],
+        [5142,1628],[5135,1619],[5136,1604],[5136,1591],[5143,1589],[5146,1614],[5161,1616],[5174,1616],
+        [5187,1616]
+    ], 10000, FindNearestEnemyMephitis, AttackNearestEnemyMephitis);
+}
+
+function FindNearestEnemyMephitis() {
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
+
+    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|near', 6, 'gray|criminal|red|enemy|orange');
+    if (!enemies || !enemies.length) return null;
+
+    var valid = [];
+
+    for (var j = 0; j < enemies.length; j++) {
+        var mob = enemies[j];
+
+        if (!mob || !mob.Serial || !mob.Serial()) continue;
+        if (ignoredMobs[mob.Serial()]) continue;
+
+        if (isIgnoredSummon(mob)) {
+            Orion.Ignore(mob.Serial());
+            continue;
+        }
+
+        if (mob.Hits && mob.Hits() <= 0) continue;
+        valid.push(mob);
+    }
+
+    if (!valid.length) return null;
+
+    valid.sort(function(a, b) { return a.Distance() - b.Distance(); });
+    return valid[0];
+}
+
+function AttackNearestEnemyMephitis(target) {
+    if (Orion.GetGlobal('StopAllScripts') === 'true' || !target) return false;
+
+    var t = target;
+
+    if (typeof t === 'string' || typeof t === 'number') t = Orion.FindObject(target);
+    if (!t || !t.Serial || !t.Serial()) return false;
+
+    if (isIgnoredSummon(t)) {
+        Orion.Ignore(t.Serial());
+        return false;
+    }
+
+    if (ignoredMobs[t.Serial()] || !Orion.ObjectExists(t.Serial()) || (t.Hits && t.Hits() <= 0)) return false;
+
+    Orion.ShowStatusbar(t.Serial(), 1150, 1200);
+    Orion.AddHighlightCharacter(t.Serial(), 0x081C, true);
+    Orion.CharPrint(t.Serial(), 20, '*target*');
+
+    var walkAttempts = 0;
+
+    while (!Player.Dead() && Orion.ObjectExists(t.Serial())) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') break;
+
+        var refreshed = Orion.FindObject(t.Serial());
+        if (!refreshed) break;
+
+        if (isIgnoredSummon(refreshed)) {
+            Orion.Ignore(refreshed.Serial());
+            break;
+        }
+
+        if (refreshed.Distance() > 1) {
+            Orion.WalkTo(refreshed.X(), refreshed.Y(), refreshed.Z(), 1, 255, 1, 2, 5000);
+            Orion.Wait(120);
+            walkAttempts++;
+        } else {
+            walkAttempts = 0;
+        }
+
+        if (walkAttempts >= 5) {
+            ignoredMobs[refreshed.Serial()] = true;
+            Orion.Ignore(refreshed.Serial());
+            Orion.CharPrint(Player.Serial(), 33, '*Ignorato: irraggiungibile* ' + (refreshed.Name ? refreshed.Name() : ''));
+            break;
+        }
+
+        if (refreshed.Distance() <= 12) Orion.Attack(refreshed.Serial());
+        Orion.Wait(80);
+    }
+
+    Orion.CloseStatusbar(t.Serial());
+    return true;
+}
+
+function FindNearestEnemy_OAKS() {
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
+
+    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|near', 4, 'gray|criminal|red|enemy|orange|blue');
+    if (!enemies.length) return null;
+
+    enemies.sort(function(a, b) { return a.Distance() - b.Distance(); });
+    return enemies[0];
+}
+
+function AttackNearestEnemy_OAKS() {
+    var target = FindNearestEnemy_OAKS();
+    if (!target) return false;
+
+    Orion.ShowStatusbar(target.Serial(), 1150, 1200);
+
+    while (!Player.Dead() && Orion.ObjectExists(target.Serial())) {
+        if (target.Distance() > 4) {
+            Orion.CloseStatusbar(target.Serial());
+            return false;
+        }
+
+        Orion.Attack(target.Serial());
+        Orion.Wait(120);
+    }
+
+    Orion.CloseStatusbar(target.Serial());
+    return true;
+}
+
+function Oaks() {
+    RunRailCombat([
+        [5554,3757],[5545,3754],[5535,3751],[5525,3751],[5517,3764],[5519,3772],[5517,3783],[5526,3786],
+        [5530,3780],[5536,3780],[5544,3783],[5554,3791],[5562,3800],[5568,3804],[5547,3775],[5546,3774],
+        [5556,3784],[5566,3787],[5573,3792],[5575,3798],[5580,3788],[5592,3783],[5598,3779],[5617,3778],
+        [5605,3742],[5597,3740],[5589,3733],[5585,3727],[5589,3718],[5580,3707],[5565,3707],[5553,3714],
+        [5548,3722],[5554,3727],[5565,3728],[5545,3731],[5536,3730],[5526,3738],[5525,3748],[5535,3751],
+        [5546,3754],[5559,3757]
+    ], 2000, FindNearestEnemy_OAKS, AttackNearestEnemy_OAKS);
+}
+
+// =====================================================
+// GOLD / WEIGHT / BAG
+// =====================================================
+
+function RaccogliSoldi() {
+    var goldID = '0x0EED', distanza = 3;
+
+    while (!Player.Dead()) {
+        var items = Orion.FindType(goldID, '-1', 'ground', 'near', distanza);
+
+        for (var i = 0; i < items.length; i++) {
+            var item = Orion.FindObject(items[i]);
+
+            if (item && item.Distance() <= distanza) {
+                Orion.MoveItem(item.Serial(), item.Amount, 'backpack');
+                Orion.Wait(300);
+            }
+        }
+
+        Orion.Wait(300);
+    }
+}
+
+function GoldRunnerChase95() {
+    var GOLD_ID = '0x0EED', BAG_ID = '0x0E76', RAGGIO_PICKUP = 2, RAGGIO_SCAN = 12;
+    var lastGoldSerial = null;
+
+    Orion.Print('GOLDIGGERS avviato');
+
+    var bagList = Orion.FindType(BAG_ID, '-1', 'backpack');
+    var bagSerial = bagList.length ? bagList[0] : null;
+
+    if (!bagSerial) Orion.CharPrint(Player.Serial(), 33, 'Bag of Sending non trovata!');
+
+    while (!Player.Dead()) {
+        if (bagSerial && Player.Weight() >= Math.floor(Player.MaxWeight() * 0.95)) {
+            Orion.UseObject(bagSerial);
+
+            if (Orion.WaitForTarget(3000)) {
+                var goldInBackpack = Orion.FindType(GOLD_ID, '-1', 'backpack');
+
+                if (goldInBackpack.length) Orion.TargetObject(goldInBackpack[0]);
+                else if (lastGoldSerial) Orion.TargetObject(lastGoldSerial);
+                else {
+                    var vicino = Orion.FindType(GOLD_ID, '-1', 'ground', 'near', 1);
+                    if (vicino.length) Orion.TargetObject(vicino[0]);
+                }
+
+                Orion.CharPrint(Player.Serial(), 65, 'Oro inviato in banca.');
+            } else {
+                Orion.CharPrint(Player.Serial(), 33, 'Nessun target dalla Bag of Sending.');
+            }
+
+            Orion.Wait(400);
+        }
+
+        var piles = Orion.FindType(GOLD_ID, '-1', 'ground', 'near', RAGGIO_SCAN);
+
+        if (!piles.length) {
+            Orion.Wait(200);
+            continue;
+        }
+
+        var nearest = null, dist = 999;
+
+        for (var i = 0; i < piles.length; i++) {
+            var it = Orion.FindObject(piles[i]);
+
+            if (it && it.Distance() < dist) {
+                dist = it.Distance();
+                nearest = it;
+            }
+        }
+
+        if (!nearest) {
+            Orion.Wait(150);
+            continue;
+        }
+
+        if (nearest.Distance() > RAGGIO_PICKUP) {
+            Orion.WalkTo(nearest.X(), nearest.Y(), nearest.Z(), 1, 255, 1, 2, 5000);
+            Orion.Wait(400);
+        } else {
+            lastGoldSerial = nearest.Serial();
+            Orion.MoveItem(nearest.Serial(), nearest.Amount, 'backpack');
+            Orion.Wait(600);
+        }
+
+        Orion.Wait(150);
+    }
+
+    Orion.CharPrint(Player.Serial(), 55, 'GoldRunner terminato.');
+}
+
+function UseBagOfSending() {
+    var bag = Orion.FindType('0x0E76', '-1', 'backpack');
+
+    if (!bag.length) {
+        Orion.CharPrint(Player.Serial(), 33, 'Bag of Sending non trovata nello zaino!');
+        return;
+    }
+
+    Orion.PauseScript('RaccogliSoldi');
+    Orion.CharPrint(Player.Serial(), 55, 'Golddigger messo in pausa');
+
+    var gold = Orion.FindType('0x0EED', '-1', 'backpack');
+
+    if (!gold.length) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun oro trovato nello zaino!');
+        Orion.ResumeScript('RaccogliSoldi');
+        return;
+    }
+
+    Orion.UseObject(bag[0]);
+
+    if (Orion.WaitForTarget(3000)) {
+        Orion.TargetObject(gold[0]);
+        Orion.CharPrint(Player.Serial(), 65, 'Oro spedito in banca');
+    } else {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun target ricevuto da Bag of Sending');
+    }
+
+    Orion.Wait(800);
+    Orion.ResumeScript('RaccogliSoldi');
+    Orion.CharPrint(Player.Serial(), 65, 'Golddigger riattivato');
+}
+
+// =====================================================
+// KHALDUN / MOUNT / BONE CUTTER / OBJECT LISTS
+// =====================================================
+
+function SelectOrResetKhaldunWeapon() {
+    var varName = 'kaldun';
+
+    if (Orion.FindObject(varName)) {
+        Orion.RemoveObject(varName);
+        Shared.RemoveVar(varName + '_name');
+        Orion.CharPrint(Player.Serial(), 33, 'Arma KALDHUN resettata!');
+    } else {
+        Orion.CharPrint(Player.Serial(), 55, 'Seleziona arma KALDHUN');
+
+        if (Orion.WaitForAddObject(varName, 15000)) {
+            var item = Orion.FindObject(varName);
+
+            if (item) {
+                Shared.AddVar(varName + '_name', item.Name());
+                Orion.CharPrint(Player.Serial(), 65, 'Arma KALDHUN salvata: ' + item.Name());
+            }
+        } else {
+            Orion.CharPrint(Player.Serial(), 33, 'Tempo scaduto: nessuna arma selezionata.');
+        }
+    }
+
+    GUI();
+}
+
+function MountPetManager() {
+    Orion.CharPrint(Player.Serial(), 55, 'Seleziona un pet da salvare');
+
+    if (Orion.WaitForAddObject('mount_temp', 25000)) {
+        var pet = Orion.FindObject('mount_temp');
+
+        if (pet) {
+            Orion.AddFindList('savedMounts', pet.Graphic(), pet.Color(), pet.Name() || 'Pet');
+            Orion.CharPrint(Player.Serial(), 65, 'Pet aggiunto alla lista: ' + (pet.Name() || 'Pet'));
+        }
+    }
+
+    GUI();
+}
+
+function autoMount() {
+    while (!Player.Dead()) {
+        var isMounted = Orion.ObjAtLayer('myMount') !== null;
+
+        if (!isMounted && Orion.BuffExists('dismount')) {
+            Orion.Say('All follow Me');
+            Orion.Wait(1500);
+            continue;
+        }
+
+        var pets = Orion.FindList('savedMounts', 'ground', null, 18);
+
+        for (var i = 0; i < pets.length; i++) {
+            var pet = Orion.FindObject(pets[i]);
+            if (!pet || pet.Hits() <= 0) continue;
+
+            Orion.GetStatus(pet.Serial());
+            Orion.Wait(100);
+
+            if (pet.Poisoned() && Player.Mana() >= 10) {
+                Orion.Cast('Cleanse by Fire');
+
+                if (Orion.WaitForTarget(1500)) {
+                    Orion.TargetObject(pet.Serial());
+                    Orion.Wait(300);
+                }
+            }
+
+            if (pet.YellowHits() && Player.Mana() >= 20) {
+                Orion.Cast('Remove Curse');
+
+                if (Orion.WaitForTarget(1500)) {
+                    Orion.TargetObject(pet.Serial());
+                    Orion.Wait(400);
+                }
+            }
+
+            Orion.WarMode(false);
+            Orion.UseObject(pet.Serial());
+            Orion.Wait(50);
+
+            if (Orion.ObjAtLayer('myMount') !== null) break;
+        }
+
+        Orion.Wait(50);
+    }
+}
+
+function SetKnifeForBoneCutter() {
+    var knife = Orion.FindObject('bone_knife');
+    var savedKnifeName = Shared.GetVar('bone_knife_name');
+
+    if (knife || savedKnifeName) {
+        Orion.RemoveObject('bone_knife');
+        Shared.RemoveVar('bone_knife_name');
+        Orion.CharPrint(Player.Serial(), 33, 'Coltello BoneCutter resettato!');
+    } else {
+        Orion.CharPrint(Player.Serial(), 55, 'Seleziona il coltello per il BoneCutter!');
+
+        if (Orion.WaitForAddObject('bone_knife', 25000)) {
+            var selected = Orion.FindObject('bone_knife');
+
+            if (selected) {
+                Orion.GetStatus(selected.Serial());
+                Shared.AddVar('bone_knife_name', selected.Name());
+            }
+        }
+    }
+
+    GUI();
+}
+
+function GetKnifeName() {
+    var knife = Orion.FindObject('bone_knife');
+
+    if (knife) {
+        Orion.GetStatus(knife.Serial());
+
+        var name = knife.Name();
+        if (name && name.length > 0) Shared.AddVar('bone_knife_name', name);
+
+        return name && name.length > 0 ? name : '[caricamento...]';
+    }
+
+    var savedName = Shared.GetVar('bone_knife_name');
+    return savedName ? savedName : 'non selezionato';
+}
+
+function SetOggettoDaCercare() {
+    Orion.CharPrint(Player.Serial(), 55, 'Seleziona un oggetto da aggiungere alla lista');
+
+    if (Orion.WaitForAddObject('oggetto_terra', 25000)) {
+        var obj = Orion.FindObject('oggetto_terra');
+
+        if (obj) {
+            var graphic = '0x' + parseInt(obj.Graphic()).toString(16).toUpperCase();
+            var color = '0x' + parseInt(obj.Color()).toString(16).toUpperCase();
+            var name = obj.Name() || 'Oggetto sconosciuto';
+
+            Orion.AddFindList('oggettiaterra', graphic, color, name);
+            Orion.CharPrint(Player.Serial(), 65, 'Aggiunto: ' + graphic + ' : ' + color + ' -> ' + name);
+        }
+    }
+
+    GUI();
+}
+
+function GetCercaOggettoName() {
+    var obj = Orion.FindObject('oggetto_terra');
+
+    if (obj) {
+        Orion.GetStatus(obj.Serial());
+
+        var name = obj.Name();
+
+        if (name && name.length > 0) Shared.AddVar('oggetto_terra_name', name);
+        return name && name.length > 0 ? name : '[caricamento...]';
+    }
+
+    var manualID = Shared.GetVar('graphic_id_manuale');
+    if (manualID) return manualID;
+
+    var saved = Shared.GetVar('oggetto_terra_name');
+    return saved ? saved : 'non selezionato';
+}
+
+function SelezionaOggettoDaAssicurare() {
+    Orion.CharPrint(Player.Serial(), 55, "Seleziona l'oggetto da assicurare");
+
+    if (Orion.WaitForAddObject('oggetto_da_insurare', 25000)) {
+        var obj = Orion.FindObject('oggetto_da_insurare');
+
+        if (obj) {
+            var graphic = '0x' + parseInt(obj.Graphic()).toString(16).toUpperCase();
+            var color = '0x' + parseInt(obj.Color()).toString(16).toUpperCase();
+            var name = obj.Name() || 'Oggetto';
+
+            Orion.AddFindList('insura', graphic, color, name);
+            Orion.CharPrint(Player.Serial(), 65, 'Aggiunto a lista insura: ' + name + ' (' + graphic + ')');
+            Orion.PlayWav('C:\\Orion Launcher\\OA\\beep.wav');
+        }
+    }
+
+    GUI();
+}
+
+function AggiungiAutoloot() {
+    Orion.CharPrint(Player.Serial(), 55, "Seleziona l'oggetto da autolootare");
+
+    if (Orion.WaitForAddObject('oggetto_da_autolootare', 25000)) {
+        var obj = Orion.FindObject('oggetto_da_autolootare');
+
+        if (obj) {
+            var graphic = '0x' + parseInt(obj.Graphic()).toString(16).toUpperCase();
+            var color = '0x' + parseInt(obj.Color()).toString(16).toUpperCase();
+            var name = obj.Name() || 'Oggetto';
+
+            Orion.AddFindList('generico', graphic, color, name);
+            Orion.CharPrint(Player.Serial(), 65, 'Aggiunto a lista autoloot: ' + name + ' (' + graphic + ')');
+        }
+    }
+
+    GUI();
+}
+
+// =====================================================
+// MOVEMENT / UTILITY
+// =====================================================
+
+function SbloccaSeFermo() {
+    var lastX = Player.X(), lastY = Player.Y(), lastZ = Player.Z();
+    var stayCounter = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (Player.X() === lastX && Player.Y() === lastY && Player.Z() === lastZ) stayCounter++;
+        else {
+            lastX = Player.X(); lastY = Player.Y(); lastZ = Player.Z();
+            stayCounter = 0;
+        }
+
+        if (stayCounter >= 55) {
+            stayCounter = 0;
+            Orion.CharPrint(Player.Serial(), 33, '*SBORRATO*');
+
+            var path = [5,5,5,6,6,6,2,2,2,7,7,7];
+
+            for (var i = 0; i < path.length; i++) {
+                Orion.Step(path[i], true);
+                Orion.Wait(Orion.ObjAtLayer('Mount') !== null ? 115 : 215);
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function AutoHide() {
+    while (true) {
+        Orion.UseSkill('Hiding');
+        Orion.Wait(1000);
+
+        if (Player.Hidden()) return;
+
+        Orion.Print('Non nascosto, riprovo tra 9 secondi...');
+        Orion.Wait(10000);
+    }
+}
+
+function ClickEverythingAround1Tile() {
+    while (true) {
+        var objects = Orion.FindTypeEx('any', 'any', 'ground', 'any', 1);
+
+        for (var i = 0; i < objects.length; i++) {
+            var obj = objects[i];
+
+            if (obj && obj.Serial() !== Player.Serial()) {
+                Orion.Print('Clicking object: ' + obj.Name() + ' at ' + obj.X() + ',' + obj.Y());
+                Orion.UseObject(obj.Serial());
+                Orion.Wait(100);
+            }
+        }
+
+        Orion.Wait(100);
+    }
+}
+
+function hideCorpse() {
+    while (!Player.Dead()) {
+        var corpi = Orion.FindType('0x2006', '0xFFFF', 'ground');
+
+        for (var i = 0; i < corpi.length; i++) {
+            var corpo = Orion.FindObject(corpi[i]);
+            if (corpo && corpo.Distance() <= 18) Orion.Hide(corpo.Serial());
+        }
+
+        Orion.Wait(100);
+    }
+}
+
+function CercaOggettoTerra() {
+    Orion.Print('0x60', 'Cercatore oggetti AVVIATO');
+    Shared.AddVar('cerca_attivo', true);
+
+    while (!Player.Dead() && Shared.GetVar('cerca_attivo')) {
+        var items = Orion.FindList('oggettiaterra', 'ground', null, 24);
+
+        for (var i = 0; i < items.length; i++) {
+            var obj = Orion.FindObject(items[i]);
+
+            if (obj) {
+                Orion.CharPrint(obj.Serial(), 65, '*TROVATO*');
+                Orion.PlayWav('C:\\beep.wav');
+                Orion.Wait(200);
+                Orion.CharPrint(obj.Serial(), 65, '*TROVATO*');
+                Orion.Wait(200);
+                Orion.CharPrint(obj.Serial(), 65, '*TROVATO*');
+            }
+        }
+
+        Orion.Wait(500);
+    }
+
+    Orion.Print('0x20', 'Cercatore oggetti STOPPATO');
+    Shared.RemoveVar('cerca_attivo');
+    GUI();
+}
+
+function WalkToRailWithCombat(x, y) {
+    while (!Player.Dead() && Orion.GetDistance(x, y) > 2) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var target = FindNearestEnemy();
+
+        if (target) AttackNearestEnemy();
+        else Orion.WalkTo(x, y, Player.Z(), 1, 255, 1, 1, 400);
+
+        Orion.Wait(50);
+    }
+}
+
+// =====================================================
+// HONOR / SOLO
+// =====================================================
+
+var lastEOOTarget = '';
+var failedHonorTargets = {};
+
+function SoloFollowAndAttack() {
+    var honoredTarget = null;
+    var GIVE_UP_DISTANCE = 10;
+
+    ignoredMobs = {};
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (HandleBloodOath()) continue;
+
+        Orion.WarMode(true);
+
+        var enemy = GetClosestEnemySolo();
+
+        if (!enemy) {
+            lastEOOTarget = '';
+            Orion.Wait(100);
+            continue;
+        }
+
+        var currentSerial = enemy.Serial();
+
+        if (!honoredTarget || honoredTarget.Serial() !== currentSerial) honoredTarget = TryHonorEnemy(enemy) ? enemy : null;
+
+        while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
+            enemy = Orion.FindObject(currentSerial);
+
+            if (!enemy || enemy.Dead()) break;
+            if (HandleBloodOath()) break;
+
+            var noto = enemy.Notoriety();
+
+            if ((noto === 3 || noto === 6) && lastEOOTarget !== currentSerial && Player.Mana() >= 14) {
+                if (Orion.BuffExists('Enemy of One')) {
+                    Orion.Cast('Enemy of One');
+
+                    var offTimeout = 0;
+                    while (Orion.BuffExists('Enemy of One') && offTimeout < 10) {
+                        Orion.Wait(150);
+                        offTimeout++;
+                    }
+
+                    Orion.Wait(50);
+                }
+
+                Orion.Cast('Enemy of One');
+
+                var onTimeout = 0;
+                while (!Orion.BuffExists('Enemy of One') && onTimeout < 10) {
+                    Orion.Wait(100);
+                    onTimeout++;
+                }
+
+                if (Orion.BuffExists('Enemy of One')) lastEOOTarget = currentSerial;
+            }
+
+            if (ignoredMobs[currentSerial] || isIgnoredSummon(enemy)) {
+                Orion.Ignore(currentSerial);
+                ignoredMobs[currentSerial] = true;
+                break;
+            }
+
+            if (enemy.Distance() > GIVE_UP_DISTANCE) break;
+            if (enemy.Distance() > 1) Orion.WalkTo(enemy.X(), enemy.Y(), enemy.Z(), 1, 255, 1, 2, 5000);
+            if (enemy.Distance() <= 12) Orion.Attack(currentSerial);
+
+            Orion.Wait(100);
+        }
+
+        honoredTarget = null;
+        Orion.CancelTarget();
+    }
+}
+
+function SoloFollowAndAttackSS() {
+    var honoredTarget = null;
+    var GIVE_UP_DISTANCE = 10;
+
+    ignoredMobs = {};
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (HandleBloodOath()) continue;
+
+        Orion.WarMode(true);
+
+        var enemy = GetClosestEnemySolo();
+
+        if (!enemy) {
+            Orion.Wait(100);
+            continue;
+        }
+
+        var currentSerial = enemy.Serial();
+
+        if (ignoredMobs[currentSerial] || isIgnoredSummon(enemy)) {
+            Orion.Ignore(currentSerial);
+            ignoredMobs[currentSerial] = true;
+            honoredTarget = null;
+            Orion.Wait(100);
+            continue;
+        }
+
+        if (!honoredTarget || honoredTarget.Serial() !== currentSerial) honoredTarget = TryHonorEnemy(enemy) ? enemy : null;
+
+        while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
+            if (HandleBloodOath()) break;
+
+            enemy = Orion.FindObject(currentSerial);
+            if (!enemy || enemy.Dead()) break;
+
+            if (ignoredMobs[currentSerial] || isIgnoredSummon(enemy)) {
+                Orion.Ignore(currentSerial);
+                ignoredMobs[currentSerial] = true;
+                break;
+            }
+
+            if (enemy.Distance() > GIVE_UP_DISTANCE) break;
+
+            if (enemy.Distance() > 1) {
+                Orion.WalkTo(enemy.X(), enemy.Y(), enemy.Z(), 1, 255, 1, 2, 5000);
+                Orion.Wait(100);
+            }
+
+            if (enemy.Distance() <= 12) Orion.Attack(currentSerial);
+            Orion.Wait(100);
+        }
+
+        honoredTarget = null;
+        Orion.CancelTarget();
+    }
+}
+
+function GetClosestEnemySolo() {
+    Orion.IgnoreReset();
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
+
+    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|mobile', 10, 'gray|criminal|red|orange|enemy');
+    var filtered = [];
+
+    for (var j = 0; j < enemies.length; j++) {
+        var o = enemies[j];
+        if (!o) continue;
+        if (ignoredMobs[o.Serial()]) continue;
+
+        if (isIgnoredSummon(o)) {
+            Orion.Ignore(o.Serial());
+            ignoredMobs[o.Serial()] = true;
+            continue;
+        }
+
+        filtered.push(o);
+    }
+
+    if (!filtered.length) return null;
+
+    filtered.sort(function(a, b) { return a.Distance() - b.Distance(); });
+    return filtered[0];
+}
+
+// =====================================================
+// HONOR UNIFICATO E SICURO
+// =====================================================
+
+var failedHonorTargets = {};
+var lastHonorAttemptTime = 0;
+var HONOR_COOLDOWN_MS = 700;
+
+function HonorEnemy(target) {
+    if (!target) return false;
+
+    var serial = null;
+    var obj = null;
+
+    if (typeof target === 'string' || typeof target === 'number') {
+        serial = String(target);
+        obj = Orion.FindObject(serial);
+    } else if (target.Serial && typeof target.Serial === 'function') {
+        serial = String(target.Serial());
+        obj = target;
+    }
+
+    if (!serial || !obj) return false;
+
+    var playerSerial = String(Player.Serial()).toLowerCase();
+    var targetSerial = String(serial).toLowerCase();
+
+    if (targetSerial === playerSerial || serial === 'self') {
+        Orion.CharPrint(Player.Serial(), 33, '*HONOR SELF BLOCCATO*');
+        Orion.Print(33, 'HonorEnemy: tentativo di honor su self bloccato.');
+        return false;
+    }
+
+    if (failedHonorTargets[targetSerial]) return false;
+
+    if (!Orion.ObjectExists(serial)) return false;
+    if (obj.Dead && obj.Dead()) return false;
+    if (obj.Hits && obj.Hits() <= 0) return false;
+    if (obj.Distance && obj.Distance() > 12) return false;
+
+    if (Orion.Now() - lastHonorAttemptTime < HONOR_COOLDOWN_MS) return false;
+    lastHonorAttemptTime = Orion.Now();
+
+    Orion.ClearJournal();
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.Wait(80);
+
+    Orion.Ignore('self');
+
+    Orion.InvokeVirtue('Honor');
+
+    if (!Orion.WaitForTarget(1200)) {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        return false;
+    }
+
+    var checkObj = Orion.FindObject(serial);
+
+    if (!checkObj || !Orion.ObjectExists(serial)) {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        return false;
+    }
+
+    if (String(serial).toLowerCase() === String(Player.Serial()).toLowerCase()) {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        Orion.CharPrint(Player.Serial(), 33, '*HONOR SELF BLOCCATO*');
+        return false;
+    }
+
+    Orion.TargetObject(serial);
+    Orion.Wait(450);
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    if (Orion.InJournal('You started Honorable Combat')) {
+        Orion.CharPrint(serial, 65, '*HONORATO*');
+        return true;
+    }
+
+    if (Orion.InJournal('You cannot honor this monster because it is too damaged')) {
+        failedHonorTargets[targetSerial] = true;
+        Orion.CharPrint(serial, 44, '*GIA DANNEGGIATO*');
+        return false;
+    }
+
+    if (Orion.InJournal('You must wait') || Orion.InJournal('not yet recovered')) {
+        return false;
+    }
+
+    if (Orion.InJournal('You embrace your honor')) {
+        Orion.CharPrint(Player.Serial(), 33, '*ERRORE: HONOR SELF RILEVATO*');
+        Orion.Print(33, 'HonorEnemy: il server ha restituito honor self. Target previsto: ' + serial);
+        failedHonorTargets[targetSerial] = true;
+        return false;
+    }
+
+    return false;
+}
+
+function TryHonorEnemy(enemy) {
+    return HonorEnemy(enemy);
+}
+
+function TryHonorEnemy2(enemy) {
+    return HonorEnemy(enemy);
+}
+
+function HonorTarget(target) {
+    return HonorEnemy(target);
+}
+
+function AutoHonorMob() {
+    var currentHonored = null;
+    var lastHonorTime = 0;
+    var COOLDOWN_MS = 700;
+
+    function nearestEnemy() {
+        var list = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 12, 'gray|criminal|red|enemy|orange');
+        if (!list || !list.length) return null;
+
+        var objs = [];
+
+        for (var i = 0; i < list.length; i++) {
+            var o = Orion.FindObject(list[i]);
+            if (!o) continue;
+            if (o.Serial && String(o.Serial()).toLowerCase() === String(Player.Serial()).toLowerCase()) continue;
+            if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(o)) continue;
+
+            objs.push(o);
+        }
+
+        if (!objs.length) return null;
+
+        objs.sort(function(a, b) { return a.Distance() - b.Distance(); });
+        return objs[0];
+    }
+
+    function hardClearTargets() {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+    }
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (currentHonored) {
+            var obj = Orion.FindObject(currentHonored);
+
+            if (!obj || !Orion.ObjectExists(currentHonored) || obj.Dead && obj.Dead() || obj.Hits && obj.Hits() <= 0) {
+                currentHonored = null;
+                hardClearTargets();
+                Orion.ClearJournal();
+                Orion.Wait(300);
+            } else {
+                Orion.Wait(200);
+                continue;
+            }
+        }
+
+        if (Orion.Now() - lastHonorTime < COOLDOWN_MS) {
+            Orion.Wait(100);
+            continue;
+        }
+
+        var enemy = nearestEnemy();
+
+        if (enemy && !currentHonored) {
+            if (HonorEnemy(enemy)) {
+                currentHonored = enemy.Serial();
+            }
+
+            lastHonorTime = Orion.Now();
+        }
+
+        Orion.Wait(150);
+    }
+}
+
+// =====================================================
+// BUFF / HEAL / CHIVALRY
+// =====================================================
+
+function AutoConsecrate() {
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var target = Orion.FindObject(Orion.ClientLastAttack());
+
+        if (target && target.Hits() > 0 && target.Distance() <= 15 && !Orion.BuffExists('Consecrate Weapon')) {
+            Orion.Cast('Consecrate Weapon');
+            Orion.Wait(600);
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function AutoDivine() {
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var target = Orion.FindObject(Orion.ClientLastAttack());
+
+        if (target && target.Hits() > 0 && target.Distance() <= 15) {
+            var sogliaStam = Player.MaxStam() * 0.8;
+
+            if (!Orion.BuffExists('Divine Fury') || Player.Stam() < sogliaStam) {
+                Orion.Cast('Divine Fury');
+                Orion.Wait(600);
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+function AutoCurseWeapon() {
+    while (!Player.Dead()) {
+        if (Player.Hits() < 65 && !Orion.BuffExists('Curse Weapon') && Player.Mana() >= 5) {
+            Orion.Cast('Curse Weapon');
+            Orion.Wait(600);
+        }
+
+        Orion.Wait(100);
+    }
+}
+
+function EnsureCurseWeaponActive(enemyObj) {
+    var CURSE_HP_THRESHOLD = 35, MIN_MANA_FOR_CURSE = 5, MAX_CURSE_SPAM_MS = 2500;
+    var hpPercent = (Player.Hits() / Player.MaxHits()) * 100;
+
+    if (hpPercent > CURSE_HP_THRESHOLD || Orion.BuffExists('Curse Weapon') || Player.Mana() < MIN_MANA_FOR_CURSE) return;
+
+    var enemy = enemyObj;
+
+    if (!enemy || typeof enemy.Serial !== 'function') enemy = Orion.FindObject(enemyObj);
+    if (!enemy || enemy.Hits() <= 0 || enemy.Distance() > 12) return;
+
+    var start = Orion.Now();
+
+    while (!Player.Dead()) {
+        hpPercent = (Player.Hits() / Player.MaxHits()) * 100;
+
+        if (hpPercent > CURSE_HP_THRESHOLD) break;
+        if (Orion.BuffExists('Curse Weapon')) break;
+        if (Player.Mana() < MIN_MANA_FOR_CURSE) break;
+        if (Orion.Now() - start > MAX_CURSE_SPAM_MS) break;
+
+        Orion.Cast('Curse Weapon');
+        Orion.Wait(220);
+    }
+}
+
+function AutoVampiricEmbrace() {
+    Orion.Print('AutoVampiricEmbrace avviato');
+
+    var REAG_NOX_CRYSTAL = '0x0F8E', REAG_PIG_IRON = '0x0F8A', REAG_BAT_WING = '0x0F78';
+    var COMBAT_GRACE_MS = 8000, lastCombatTs = 0;
+
+    function hasAllReagents() {
+        return Orion.Count(REAG_NOX_CRYSTAL, -1, 'backpack') > 0 &&
+               Orion.Count(REAG_PIG_IRON, -1, 'backpack') > 0 &&
+               Orion.Count(REAG_BAT_WING, -1, 'backpack') > 0;
+    }
+
+    function inCombatNow() {
+        var atkSerial = Orion.ClientLastAttack();
+        var atk = atkSerial ? Orion.FindObject(atkSerial) : null;
+
+        if (atk && atk.Hits() > 0 && atk.Distance() <= 12) {
+            lastCombatTs = Orion.Now();
+            return true;
+        }
+
+        return (Orion.Now() - lastCombatTs) < COMBAT_GRACE_MS;
+    }
+
+    while (true) {
+        Orion.Wait(500);
+
+        if (Player.Dead() || Player.Hidden()) continue;
+        if (Orion.BuffExists('0x75C4')) continue;
+        if (!hasAllReagents()) continue;
+        if (Player.Hits() !== Player.MaxHits()) continue;
+        if (inCombatNow()) continue;
+
+        Orion.CancelTarget();
+        Orion.Cast('113');
+        Orion.Wait(2000);
+    }
+}
+
+function OneShotHealChivalry() {
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    if (Orion.BuffExists('Mortal Strike')) {
+        Orion.Cast('209');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        return;
+    }
+
+    if (Orion.BuffExists('Poison')) {
+        Orion.Cast('Cleanse by Fire');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        return;
+    }
+
+    if (Player.Hits() < Player.MaxHits()) {
+        Orion.Cast('Close Wounds');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        if (!Orion.BuffExists('Confidence')) {
+            Orion.Wait(50);
+            Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
+            Orion.Cast('Confidence');
+            Orion.Wait(200);
+        }
+
+        return;
+    }
+
+    if (!Orion.BuffExists('Confidence')) {
+        Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
+        Orion.Cast('Confidence');
+        Orion.Wait(200);
+        return;
+    }
+
+    Orion.CharPrint(Player.Serial(), 25, '*Sti Bbon*');
+}
+
+function OneShotHealChivalryfc2() {
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    if (Orion.BuffExists('Mortal Strike')) {
+        Orion.Cast('209');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        return;
+    }
+
+    if (Orion.BuffExists('Poison')) {
+        Orion.Cast('Cleanse by Fire');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        return;
+    }
+
+    if (Player.Hits() < Player.MaxHits()) {
+        Orion.Cast('Close Wounds');
+
+        if (Orion.WaitForTarget(1000)) {
+            Orion.TargetObject('self');
+            Orion.Wait(200);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+        }
+
+        if (!Orion.BuffExists('Confidence')) {
+            Orion.Wait(50);
+            Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
+            Orion.Cast('Confidence');
+            Orion.Wait(200);
+        }
+
+        return;
+    }
+
+    if (!Orion.BuffExists('Confidence')) {
+        Orion.CharPrint(Player.Serial(), 55, 'Confidence...');
+        Orion.Cast('Confidence');
+        Orion.Wait(200);
+        return;
+    }
+
+    Orion.CharPrint(Player.Serial(), 25, '*Sti Bbon*');
+}
+
+function autoRemoveBloodOath() {
+    while (true) {
+        if (Orion.BuffExists('Blood Oath')) {
+            Orion.Cast('209');
+            if (Orion.WaitForTarget(1000)) Orion.TargetObject('self');
+            Orion.Wait(150);
+        }
+    }
+}
+
+// =====================================================
+// ARCHERY / PVP SELECT
+// =====================================================
+
+function AutoArcheryAttack() {
+    if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+    if (HandleBloodOath()) return;
+
+    var enemy = Orion.FindObject('myTarget');
+
+    if (!enemy || enemy.Hits() <= 0 || enemy.Distance() > 10) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun target valido selezionato');
+        return;
+    }
+
+    var currentSerial = enemy.Serial();
+
+    if (ignoredMobs[currentSerial] || isIgnoredSummon(enemy)) {
+        ignoredMobs[currentSerial] = true;
+        Orion.Ignore(currentSerial);
+        Orion.CharPrint(Player.Serial(), 33, 'Target ignorato: summon/revenant');
+        return;
+    }
+
+    Orion.WarMode(true);
+    TryHonorEnemy(enemy);
+
+    if (HandleBloodOath()) return;
+
+    Orion.Attack(currentSerial);
+    Orion.CharPrint(currentSerial, 44, '*ATTACCO*: ' + enemy.Name());
+}
+
+function NextEnemyArcher() {
+    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|mobile', 12, 'gray|criminal|red|enemy|orange');
+    var validEnemies = enemies.filter(function(mob) { return Orion.ObjectExists(mob.Serial()); });
+
+    if (!validEnemies.length) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun nemico trovato');
+        Orion.ClearHighlightCharacters(true);
+        Orion.SetGlobal('LastEnemySerial', '');
+        return;
+    }
+
+    validEnemies.sort(function(a, b) { return a.Distance() - b.Distance(); });
+
+    var lastSerial = Orion.GetGlobal('LastEnemySerial');
+    var idx = -1;
+
+    if (lastSerial) {
+        for (var i = 0; i < validEnemies.length; i++) {
+            if (validEnemies[i].Serial() == lastSerial) {
+                idx = i;
+                break;
+            }
+        }
+    }
+
+    var target = validEnemies[(idx === -1) ? 0 : (idx + 1) % validEnemies.length];
+
+    Orion.ClearHighlightCharacters(true);
+    Orion.AddObject('myTarget', target.Serial());
+    Orion.ShowStatusbar(target.Serial(), 1200, 1200);
+    Orion.AddHighlightCharacter(target.Serial(), 0x0480, true);
+
+    if (lastSerial && Orion.ObjectExists(lastSerial)) Orion.CharPrint(lastSerial, 0, ' ');
+
+    Orion.CharPrint(target.Serial(), 35, '*NEMICO*: ' + target.Name());
+    Orion.SetGlobal('LastEnemySerial', target.Serial());
+}
+
+function AttackSelectedEnemy() {
+    var targetSerial = Orion.GetGlobal('LastEnemySerial');
+
+    if (!targetSerial || !Orion.ObjectExists(targetSerial)) {
+        Orion.CharPrint(Player.Serial(), 65, 'Nessun nemico selezionato o non valido!');
+        return;
+    }
+
+    Orion.Attack(targetSerial);
+    Orion.CharPrint(targetSerial, 44, 'Attacco: ' + Orion.RequestName(targetSerial));
+}
+
+function SelectEnemy() {
+    Orion.ClearJournal();
+
+    var enemySerial = FindNearestEnemy_PvP();
+
+    if (!enemySerial) {
+        Orion.Print('65', 'Nessun nemico visibile');
+        return;
+    }
+
+    var enemy = Orion.FindObject(enemySerial);
+    if (!enemy) return;
+
+    var noto = enemy.Notoriety();
+    var color = 906;
+
+    if (noto == 1) color = 2119;
+    else if (noto == 3) color = 906;
+    else if (noto == 6) color = 33;
+
+    Orion.ClearHighlightCharacters();
+    Orion.AddHighlightCharacter(enemySerial, 50);
+    Orion.CharPrint(enemySerial, color, '* ' + enemy.Name().toUpperCase() + ' (' + enemy.Hits('%') + '% HP)');
+
+    Orion.SetGlobal('global_enemy', enemySerial);
+    Orion.ClientLastTarget(enemySerial);
+    Orion.TargetSystemSerial(enemySerial);
+    Orion.Print(color, 'Target: ' + enemy.Name());
+}
+
+function AttackEnemy() {
+    var serial = Orion.GetGlobal('global_enemy');
+
+    if (!serial || serial === '0x000' || !Orion.FindObject(serial)) {
+        Orion.Print('35', 'Nessun target selezionato');
+        return;
+    }
+
+    Orion.Attack(serial);
+    Orion.CharPrint(serial, '33', 'ATTACCO!');
+}
+
+function FindNearestEnemy_PvP() {
+    var resetTime = 800;
+    var now = Orion.Now();
+    var last = Orion.GetGlobal('FindNearestEnemy_PvP_LastTime');
+
+    if (now - last > resetTime) Orion.IgnoreReset();
+
+    Orion.Ignore('self');
+
+    var types = '0x0190|0x0191|0x025D|0x025E|0x029A|0x029B|0x02EC|0x0317|0x031F';
+    var enemies = Orion.FindType(types, '-1', 'ground', 'near|mobile|live|ignorefriends', 18, 'enemy|criminal|gray|orange|red');
+
+    if (!enemies.length) {
+        Orion.IgnoreReset();
+        Orion.SetGlobal('global_enemy', '0x000');
+        return '';
+    }
+
+    Orion.SetGlobal('FindNearestEnemy_PvP_LastTime', Orion.Now());
+    Orion.Ignore(enemies[0]);
+    return enemies[0];
+}
+
+// =====================================================
+// FRIEND TARGET / HEAL
+// =====================================================
+
+function NextFriendTarget() {
+    var friends = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignoreenemies|live|inlos|mobile', 12, 'friend|green|blue');
+    var validFriends = friends.filter(function(mob) { return Orion.ObjectExists(mob.Serial()); });
+
+    if (!validFriends.length) {
+        Orion.CharPrint(Player.Serial(), 65, 'Nessun amico trovato!');
+        Orion.ClearHighlightCharacters(true);
+        Orion.SetGlobal('LastFriendSerial', '');
+        Orion.SetGlobal('FriendIndex', -1);
+        return;
+    }
+
+    var friendIndex = parseInt(Orion.GetGlobal('FriendIndex'), 10);
+
+    if (isNaN(friendIndex) || friendIndex >= validFriends.length - 1) friendIndex = 0;
+    else friendIndex += 1;
+
+    var target = validFriends[friendIndex];
+
+    Orion.ClearHighlightCharacters(true);
+    Orion.AddObject('myFriend', target.Serial());
+    Orion.ShowStatusbar(target.Serial(), 1000, 200);
+    Orion.AddHighlightCharacter(target.Serial(), 0x0044, true);
+
+    var lastSerial = Orion.GetGlobal('LastFriendSerial');
+    if (lastSerial && Orion.ObjectExists(lastSerial)) Orion.CharPrint(lastSerial, 0, ' ');
+
+    Orion.CharPrint(target.Serial(), 70, '*AMICO*: ' + target.Name());
+    Orion.SetGlobal('LastFriendSerial', target.Serial());
+    Orion.SetGlobal('FriendIndex', friendIndex);
+}
+
+function HealSelectedFriendChivalry() {
+    var friendSerial = Orion.GetGlobal('LastFriendSerial');
+
+    if (!friendSerial || !Orion.ObjectExists(friendSerial)) {
+        Orion.CharPrint(Player.Serial(), 65, 'Seleziona prima un amico!');
+        return;
+    }
+
+    var friend = Orion.FindObject(friendSerial);
+
+    if (!friend || friend.Hits() === friend.MaxHits()) {
+        Orion.CharPrint(friendSerial, 65, friend.Name() + ' è già full vita!');
+        return;
+    }
+
+    Orion.CharPrint(friendSerial, 55, 'Curando: ' + friend.Name());
+    Orion.Cast('Close Wounds', friendSerial);
+    Orion.Wait(600);
+}
+
+// =====================================================
+// GENERALI
+// =====================================================
+
+function GeneralHighlight() {
+    Orion.Print('Avvio monitor per Generali');
+
+    var targetRoles = ['the general'];
+
+    while (!Player.Dead()) {
+        var found = Orion.FindTypeEx('0x0190|0x0191', '-1', 'ground', 'live|mobile|ignorefriends|ignoreself|inlos', 18, 'gray|red|orange|criminal|enemy');
+
+        for (var i = 0; i < found.length; i++) {
+            var mob = found[i];
+            if (!mob || !mob.Serial()) continue;
+
+            var propsRaw = Orion.GetProperties(mob.Serial());
+            if (!propsRaw || typeof propsRaw !== 'string') continue;
+
+            var propsLower = propsRaw.replace(/[\n\r]/g, ' ').toLowerCase();
+
+            for (var r = 0; r < targetRoles.length; r++) {
+                if (propsLower.indexOf(targetRoles[r]) !== -1) {
+                    Orion.AddHighlightCharacter(mob.Serial(), 0x0480, true);
+                    Orion.CharPrint(mob.Serial(), 65, '*GENERALE*');
+                    break;
+                }
+            }
+        }
+
+        Orion.Wait(500);
+    }
+}
+
+function SOLOGENERAL() {
+    Orion.SetGlobal('StopAllScripts', 'false');
+    StartGeneralProfile();
+
+    if (!Orion.ScriptRunning('GeneralHighlight')) Orion.Exec('GeneralHighlight');
+
+    KillGenerali();
+}
+
+function StartGeneralProfile() {
+    if (!Orion.ScriptRunning('CheckAndDispelRevenant')) Orion.Exec('CheckAndDispelRevenant');
+    if (!Orion.ScriptRunning('AutoBushidoAbilities')) Orion.Exec('AutoBushidoAbilities');
+    if (!Orion.ScriptRunning('autoMount')) Orion.Exec('autoMount');
+    if (!Orion.ScriptRunning('Durability_Watcher')) Orion.Exec('Durability_Watcher');
+    if (!Orion.ScriptRunning('SuperInsura')) Orion.Exec('SuperInsura');
+    if (!Orion.ScriptRunning('AutoConsecrate')) Orion.Exec('AutoConsecrate');
+    if (!Orion.ScriptRunning('AutoDivine')) Orion.Exec('AutoDivine');
+    if (!Orion.ScriptRunning('AutoLogoutOnDeath')) Orion.Exec('AutoLogoutOnDeath');
+    if (!Orion.ScriptRunning('UseSpecialAbilities')) Orion.Exec('UseSpecialAbilities');
+}
+
+function FindGenerali() {
+    var found = Orion.FindTypeEx('0x0190|0x0191', '-1', 'ground', 'live|mobile|ignorefriends|ignoreself|inlos', 18, 'gray|red|orange|criminal|enemy');
+    var results = [];
+
+    for (var i = 0; i < found.length; i++) {
+        var mob = found[i];
+
+        if (!mob || !mob.Serial()) continue;
+        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[mob.Serial()]) continue;
+        if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(mob)) continue;
+
+        var props = Orion.GetProperties(mob.Serial());
+        if (!props || typeof props !== 'string') continue;
+
+        if (props.replace(/[\n\r]/g, ' ').toLowerCase().indexOf('the general') !== -1) results.push(mob);
+    }
+
+    return results;
+}
+
+function KillGenerali() {
+    Orion.Print('Ricerca e attacco dei GENERALI...');
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+        if (HandleBloodOath()) continue;
+
+        var generali = FindGenerali();
+
+        if (!generali || !generali.length) {
+            Orion.Wait(500);
+            continue;
+        }
+
+        for (var i = 0; i < generali.length; i++) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+            if (HandleBloodOath()) break;
+
+            var mob = generali[i];
+
+            if (!mob || !Orion.ObjectExists(mob.Serial())) continue;
+
+            var currentSerial = mob.Serial();
+
+            if (ignoredMobs[currentSerial] || isIgnoredSummon(mob)) {
+                ignoredMobs[currentSerial] = true;
+                Orion.Ignore(currentSerial);
+                continue;
+            }
+
+            Orion.AddHighlightCharacter(currentSerial, 0x0480, true);
+            TryHonorEnemy(mob);
+
+            while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
+                if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+                if (HandleBloodOath()) break;
+
+                var refreshed = Orion.FindObject(currentSerial);
+                if (!refreshed || refreshed.Dead()) break;
+
+                if (ignoredMobs[currentSerial] || isIgnoredSummon(refreshed)) {
+                    ignoredMobs[currentSerial] = true;
+                    Orion.Ignore(currentSerial);
+                    break;
+                }
+
+                if (refreshed.Distance() > 1) {
+                    Orion.WalkTo(refreshed.X(), refreshed.Y(), refreshed.Z(), 1, 255, 1, 2, 5000);
+                    Orion.Wait(100);
+                }
+
+                if (refreshed.Distance() <= 12) Orion.Attack(currentSerial);
+
+                Orion.Wait(100);
+            }
+
+            Orion.CancelTarget();
+        }
+
+        Orion.Wait(300);
+    }
+}
+
+// =====================================================
+// EQUIP / SCAVENGER
+// =====================================================
+
+function AutoReEquip() {
+    Orion.Print('Monitor Disarm attivo...');
+
+    while (!Player.Dead()) {
+        if (Orion.BuffExists('Disarm')) {
+            while (Orion.BuffExists('Disarm')) Orion.Wait(300);
+
+            var arma = Orion.FindObject('kaldun');
+
+            if (arma) {
+                Orion.Equip(arma.Serial());
+                Orion.CharPrint(Player.Serial(), 65, 'Equipaggiata arma: ' + arma.Name());
+            } else {
+                Orion.CharPrint(Player.Serial(), 33, 'Nessuna arma salvata (kaldun)');
+            }
+        }
+
+        if (Player.Str() > 125) {
+            var oggetto = Orion.FindObject('0x404A4CAC');
+
+            if (oggetto && oggetto.Container() == Orion.ObjAtLayer('Backpack').Serial()) {
+                Orion.Equip(oggetto.Serial());
+                Orion.CharPrint(Player.Serial(), 65, 'Equipaggiato oggetto per forza > 125');
+            }
+        }
+
+        Orion.Wait(300);
+    }
+}
+
+function BoneScavengerSimple() {
+    var ignoraSerial = parseInt('0x4053424E');
+    var piccozzaID = '0x0E86';
+    var boneGraphics = ['0xAF1E', '0xA331', '0xABCE', '0xABCF', '0xABD0'];
+
+    var picca = Orion.FindType(piccozzaID, '-1', 'backpack');
+
+    if (!picca.length) {
+        Orion.CharPrint(Player.Serial(), 33, 'Piccozza non trovata nello zaino!');
+        return;
+    }
+
+    Orion.Equip(picca[0]);
+    Orion.CharPrint(Player.Serial(), 65, 'Piccozza equipaggiata');
+
+    while (!Player.Dead()) {
+        var bones = Orion.FindTypeEx(boneGraphics.join('|'), '-1', 'ground', 'item', 14);
+
+        for (var i = 0; i < bones.length; i++) {
+            var bone = bones[i];
+
+            if (!bone || bone.Serial() === ignoraSerial) continue;
+
+            Orion.CharPrint(bone.Serial(), 65, '*TROVATO*');
+            Orion.Wait(200);
+
+            Orion.UseObject(bone.Serial());
+            Orion.Wait(300);
+
+            Orion.UseObject(picca[0]);
+
+            if (Orion.WaitForTarget(1000)) {
+                Orion.TargetObject(bone.Serial());
+                Orion.Wait(300);
+            }
+        }
+
+        Orion.Wait(500);
+    }
+}
+
+function BoneScavengerEquipped() {
+    var itemColor = '0x05DD';
+    var ignoraSerial = '0x4053424E';
+
+    Orion.Print('0x60', 'Script AVVIATO');
+
+    while (!Player.Dead()) {
+        var picca = Orion.ObjAtLayer(1);
+
+        if (!picca || picca.Graphic() !== '0x0E86') picca = Orion.ObjAtLayer(2);
+
+        if (!picca || picca.Graphic() !== '0x0E86') {
+            var findInPack = Orion.FindType('0x0E86', '-1', 'backpack', 'item|recurse');
+            if (findInPack.length > 0) picca = Orion.FindObject(findInPack[0]);
+        }
+
+        if (!picca) {
+            Orion.Print(33, 'Piccozza non trovata.');
+            Orion.Wait(2000);
+            continue;
+        }
+
+        var objects = Orion.FindTypeEx('any', itemColor, 'ground', 'item', 33);
+
+        for (var i = 0; i < objects.length; i++) {
+            var obj = objects[i];
+
+            if (!obj || obj.Serial() === ignoraSerial) continue;
+
+            Orion.CharPrint(obj.Serial(), 65, '*OGGETTO RILEVATO*');
+            Orion.CancelTarget();
+            Orion.UseObject(picca.Serial());
+
+            if (Orion.WaitForTarget(1500)) {
+                Orion.TargetObject(obj.Serial());
+                Orion.Wait(100);
+                Orion.Ignore(obj.Serial());
+            }
+        }
+
+        Orion.Wait(200);
+    }
+}
+
+// =====================================================
+// DOOM GAUNTLET
+// =====================================================
+
+var currentDressList = '';
+var currentWeaponDress = '';
+var currentTalismanDress = '';
+
+var rails = {
+    r1:  [[439,432],[450,432],[464,432],[469,428],[470,428],[473,428]],
+    r1m: [[485,455]],
+    r2:  [[486,450],[486,439],[482,432],[472,432],[470,432],[462,492],[462,493],[462,496]],
+    r2m: [[484,517]],
+    r3:  [[479,507],[468,502],[468,493],[453,468],[403,500],[403,501],[403,504]],
+    r3m: [[399,509],[399,522],[399,531]],
+    r4:  [[407,522],[409,500],[415,466],[357,474],[357,475]],
+    r4m: [[351,502],[338,510]],
+    r5:  [[348,498],[361,485],[360,474],[364,433],[362,433]],
+    r5m: [[343,434],[327,434]],
+    r6:  [[342,430],[363,430],[398,430],[419,429]]
+};
+
+function ToggleDoomGauntlet() {
+    if (Orion.ScriptRunning('AutoDoomGauntlet')) {
+        Orion.Terminate('AutoDoomGauntlet');
+        Orion.CharPrint(Player.Serial(), 33, 'DOOM Gauntlet Disattivato');
+    } else {
+        ensureDoomSupportScripts();
+
+        Orion.Exec('AutoDoomGauntlet', 'true');
+        Orion.CharPrint(Player.Serial(), 65, 'DOOM Gauntlet ATTIVATO!');
+    }
+
+    GUI();
+}
+
+function pauseCombatMode() {
+    Orion.PauseScript('SoloFollowAndAttack');
+    Orion.PauseScript('SoloFollowAndAttackSS');
+    Orion.PauseScript('UseSpecialAbilities');
+    Orion.PauseScript('UseSpecialAbilitiesSS');
+    Orion.PauseScript('AutoArcheryAttack');
+    Orion.PauseScript('AttackNearestEnemy');
+    Orion.PauseScript('SOLOGENERAL');
+
+    Orion.WarMode(0);
+    Orion.CancelTarget();
+}
+
+function resumeCombatMode() {
+    if (typeof SOLO === 'function') SOLO();
+
+    Orion.ResumeScript('SoloFollowAndAttack');
+    Orion.ResumeScript('SoloFollowAndAttackSS');
+    Orion.ResumeScript('UseSpecialAbilities');
+    Orion.ResumeScript('UseSpecialAbilitiesSS');
+    Orion.ResumeScript('AutoArcheryAttack');
+    Orion.ResumeScript('AttackNearestEnemy');
+    Orion.ResumeScript('SOLOGENERAL');
+}
+
+function walkPath(coords) {
+    if (!coords || !coords.length) return;
+
+    pauseCombatMode();
+
+    var nearestIndex = 0, minDistance = 10000;
+
+    for (var j = 0; j < coords.length; j++) {
+        var dist = Orion.GetDistance(coords[j][0], coords[j][1]);
+
+        if (dist < minDistance) {
+            minDistance = dist;
+            nearestIndex = j;
+        }
+    }
+
+    for (var i = nearestIndex; i < coords.length; i++) {
+        Orion.WalkTo(coords[i][0], coords[i][1], Player.Z(), 1, 255, 1, 2, 5000);
+        Orion.Wait(10);
+    }
+}
+
+function forceStep(direction, steps) {
+    pauseCombatMode();
+
+    for (var i = 0; i < steps; i++) {
+        Orion.Step(direction);
+        Orion.Wait(80);
+    }
+}
+
+function equipSlayer(listName) {
+    if (currentDressList !== listName) {
+        Orion.Print(65, 'Dress Doom: ' + listName);
+        Orion.Dress(listName);
+        Orion.Wait(80);
+        currentDressList = listName;
+    }
+}
+
+function getEnemy(range) {
+    var mobs = Orion.FindTypeEx(targetGraphics, 'any', 'ground', targetFlags, range, targetNoto);
+
+    if (!mobs || !mobs.length) return null;
+
+    for (var i = 0; i < mobs.length; i++) {
+        var mob = mobs[i];
+
+        if (!mob) continue;
+        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[mob.Serial()]) continue;
+        if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(mob)) continue;
+
+        return mob;
+    }
+
+    return null;
+}
+
+function IsWeaponEquipped() {
+    var left = Orion.ObjAtLayer('LeftHand');
+    var right = Orion.ObjAtLayer('RightHand');
+
+    return !!(left || right);
+}
+
+function EnsureDoomDFWeaponEquipped() {
+    if (!IsWeaponEquipped()) {
+        Orion.CharPrint(Player.Serial(), 33, '*NESSUNA ARMA - RIMETTO DARK FATHER*');
+        safeToggleDressWeapon('Dress_DoomDarkFather');
+        Orion.Wait(250);
+    }
+}
+
+function IsRevenantMob(mob) {
+    if (!mob) return false;
+
+    var name = mob.Name ? (mob.Name() || '').toLowerCase() : '';
+    var props = mob.Properties ? (mob.Properties() || '').toLowerCase() : '';
+    var graphic = mob.Graphic ? String(mob.Graphic()).toLowerCase() : '';
+
+    if (name.indexOf('revenant') !== -1) return true;
+    if (props.indexOf('revenant') !== -1) return true;
+
+    // sicurezza extra, se nel tuo shard il revenant usa questo graphic
+    if (graphic === '0x0190' && props.indexOf('a revenant') !== -1) return true;
+
+    return false;
+}
+
+function CountValidDFSpawnMobs() {
+    var enemiesNear = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'live|ignoreself|ignorefriends',
+        2,
+        'gray|criminal|red|enemy|orange'
+    );
+
+    var validEnemiesNear = 0;
+
+    for (var j = 0; j < enemiesNear.length; j++) {
+        var nearMob = enemiesNear[j];
+        if (!nearMob) continue;
+
+        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[nearMob.Serial()]) continue;
+        if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(nearMob)) continue;
+
+        // IMPORTANTISSIMO:
+        // I revenant non fanno switchare alla generica.
+        // Devono essere gestiti solo da CheckAndDispelRevenant.
+        if (IsRevenantMob(nearMob)) continue;
+
+        validEnemiesNear++;
+    }
+
+    return validEnemiesNear;
+}
+
+function fightLogic(range, roomNum) {
+    resumeCombatMode();
+
+    var roomClear = false;
+    var emptyCheckStarted = false;
+    var emptySince = 0;
+    var dfGenericMode = false;
+
+    while (!Player.Dead() && !roomClear) {
+
+        if (IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        /*
+            Check arma costante durante Doom.
+            Se per qualunque motivo sei senza arma in mano,
+            rimette subito quella del Dark Father.
+        */
+        if (roomNum === 6) {
+            EnsureDoomDFWeaponEquipped();
+        }
+
+        var enemy = getEnemy(range);
+
+        if (enemy) {
+            emptyCheckStarted = false;
+            emptySince = 0;
+
+            if (roomNum === 6) {
+                var validEnemiesNear = CountValidDFSpawnMobs();
+
+                if (validEnemiesNear > 1) {
+                    if (!dfGenericMode) {
+                        safeToggleDressWeapon('Dress_GenericArea');
+                        Orion.Wait(250);
+                        dfGenericMode = true;
+                    }
+
+                    if (!Orion.AbilityStatus('Secondary')) {
+                        Orion.UseAbility('Secondary');
+                    }
+                } else {
+                    if (dfGenericMode || !IsWeaponEquipped()) {
+                        safeToggleDressWeapon('Dress_DoomDarkFather');
+                        Orion.Wait(250);
+                        dfGenericMode = false;
+                    }
+                }
+
+                /*
+                    Secondo check dopo eventuale switch:
+                    se lo switch ha fallito o sei rimasto disarmato,
+                    forza di nuovo Dark Father.
+                */
+                EnsureDoomDFWeaponEquipped();
+            }
+
+            Orion.Wait(150);
+        } else {
+            if (roomNum === 6) {
+                if (dfGenericMode || !IsWeaponEquipped()) {
+                    safeToggleDressWeapon('Dress_DoomDarkFather');
+                    Orion.Wait(250);
+                    dfGenericMode = false;
+                }
+
+                EnsureDoomDFWeaponEquipped();
+            }
+
+            if (!emptyCheckStarted) {
+                emptySince = Orion.Now();
+                emptyCheckStarted = true;
+            }
+
+            if (Orion.Now() - emptySince >= 3000) roomClear = true;
+            else Orion.Wait(250);
+        }
+    }
+
+    /*
+        Prima di uscire dalla stanza 6, assicura che torni
+        sempre con l'arma Dark Father.
+    */
+    if (roomNum === 6) {
+        safeToggleDressWeapon('Dress_DoomDarkFather');
+        Orion.Wait(250);
+        EnsureDoomDFWeaponEquipped();
+    }
+}
+
+function ensureDoomSupportScripts() {
+    Orion.SetGlobal('StopAllScripts', 'false');
+
+    if (!Orion.ScriptRunning('AutoVampiricEmbrace')) {
+        Orion.Exec('AutoVampiricEmbrace', 'true');
+    }
+
+    if (!Orion.ScriptRunning('doomBoneCutter')) {
+        Orion.Print(65, '>> Attivazione doomBoneCutter...');
+        Orion.Exec('doomBoneCutter', 'true');
+    }
+
+    if (!Orion.ScriptRunning('AutoLogoutOnDeath')) {
+        Orion.Exec('AutoLogoutOnDeath', 'true');
+    }
+}
+
+function AutoDoomGauntlet(stanza, singleRun) {
+    Orion.Print(89, '=== Avvio Doom Gauntlet ===');
+    Orion.IgnoreReset();
+
+    ensureDoomSupportScripts();
+
+    var isSingle = singleRun === true;
+    Orion.Wait(50);
+
+    while (!Player.Dead()) {
+        if (stanza <= 1) {
+            Orion.Print(65, '>> Stanza 1 - Darknight Creeper');
+            safeToggleDressTalisman('Dress_TalismanUndead');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomDarknightCreeper');
+            walkPath(rails.r1);
+            forceStep('East', 2);
+            walkPath(rails.r1m);
+            fightLogic(15, 1);
+        }
+
+        if (stanza <= 2) {
+            Orion.Print(65, '>> Stanza 2 - Fleshrenderer');
+            safeToggleDressTalisman('Dress_TalismanUndead');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomFleshrenderer');
+            
+if (Orion.BuffExists('Poison')) {
+    Orion.WarMode(false);
+    Orion.Cast('Cleanse by Fire', 'self');
+    Orion.Wait(1200);
+}
+
+            walkPath(rails.r2);
+            forceStep('South', 4);
+            walkPath(rails.r2m);
+            fightLogic(15, 2);
+            Orion.UseObject('0x40101F16');
+        }
+
+        if (stanza <= 3) {
+            Orion.Print(65, '>> Stanza 3 - Impaler');
+            safeToggleDressTalisman('Dress_TalismanDemon');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomImpaler');
+            walkPath(rails.r3);
+            forceStep('South', 4);
+            walkPath(rails.r3m);
+            fightLogic(15, 3);
+        }
+
+        if (stanza <= 4) {
+            Orion.Print(65, '>> Stanza 4 - Shadow Knight');
+            safeToggleDressTalisman('Dress_TalismanUndead');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomShadowKnight');
+            walkPath(rails.r4);
+            forceStep('West', 4);
+            forceStep('South', 4);
+            walkPath(rails.r4m);
+            fightLogic(15, 4);
+        }
+
+        if (stanza <= 5) {
+            Orion.Print(65, '>> Stanza 5 - Abyssmal Horror');
+            safeToggleDressTalisman('Dress_TalismanDemon');
+            Orion.Wait(150);
+            safeToggleDressWeapon('Dress_DoomAbyssmalHorror');
+            walkPath(rails.r5);
+            forceStep('West', 4);
+            walkPath(rails.r5m);
+            fightLogic(15, 5);
+        }
+
+if (stanza <= 6) {
+    Orion.Print(65, '>> Stanza 6 - Dark Father');
+
+    safeToggleDressTalisman('Dress_TalismanDemon');
+    Orion.Wait(150);
+    safeToggleDressWeapon('Dress_DoomDarkFather');
+    Orion.Wait(250);
+    EnsureDoomDFWeaponEquipped();
+
+    walkPath(rails.r6);
+    EnsureDoomDFWeaponEquipped();
+
+    fightLogic(18, 6);
+}
+
+        if (isSingle) {
+            Orion.Print(89, '=== Task terminato, ripristino DOOM principale ===');
+            if (typeof ToggleDoomGauntlet === 'function') ToggleDoomGauntlet();
+            break;
+        }
+
+        stanza = 1;
+        Orion.Print(55, '=== Giro finito, ricomincio dalla prima ===');
+        Orion.Wait(1000);
+    }
+}
+
+function safeToggleDressWeapon(listName) {
+    var forceEquip = false;
+
+    if (!IsWeaponEquipped()) {
+        forceEquip = true;
+    }
+
+    if (currentWeaponDress !== listName || forceEquip) {
+        ToggleDressWeapon(listName);
+        currentWeaponDress = listName;
+        Orion.Wait(250);
+    }
+}
+
+function safeToggleDressTalisman(listName) {
+    if (currentTalismanDress !== listName) {
+        ToggleDressTalisman(listName);
+        currentTalismanDress = listName;
+    }
+}
+
+
+
+// =====================================================
+// SMELTING
+// =====================================================
+
+const CALDERONE_SERIAL = '0x407AA952';
+const COLORE_GENERICO = '0x0AE0';
+const GRAFICA_SABBIA = '0xA3E8';
+const NOME_UOVA_PARZIALE = 'Umbrascale Dragon Egg';
+
+var ignoreList = [];
+
+function SmeltAndStack() {
+    Orion.Print(68, '--- Inizio Ciclo Smelting ---');
+    ignoreList = [];
+
+    while (!Player.Dead()) {
+        var itemToSmelt = null;
+        var colorItems = Orion.FindType('any', COLORE_GENERICO, 'backpack');
+
+        for (var i = 0; i < colorItems.length; i++) {
+            if (ignoreList.indexOf(colorItems[i]) === -1) {
+                itemToSmelt = colorItems[i];
+                break;
+            }
+        }
+
+        if (!itemToSmelt) {
+            var allInBackpack = Orion.FindType('any', 'any', 'backpack');
+
+            for (var j = 0; j < allInBackpack.length; j++) {
+                var serial = allInBackpack[j];
+                if (ignoreList.indexOf(serial) !== -1) continue;
+
+                var obj = Orion.FindObject(serial);
+
+                if (obj && obj.Exists()) {
+                    var props = obj.Properties();
+
+                    if (props && props.indexOf(NOME_UOVA_PARZIALE) !== -1) {
+                        itemToSmelt = serial;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (itemToSmelt) {
+            Orion.Print(55, 'Provo a smeltare: ' + itemToSmelt);
+            Orion.UseObject(CALDERONE_SERIAL);
+
+            if (Orion.WaitForTarget(2000)) {
+                Orion.TargetObject(itemToSmelt);
+                Orion.Wait(1000);
+            }
+
+            if (Orion.FindObject(itemToSmelt)) {
+                Orion.Print(33, 'Oggetto non smeltato. Lo ignoro e procedo.');
+                ignoreList.push(itemToSmelt);
+            }
+
+            Orion.Wait(100);
+        } else {
+            Orion.Print(33, 'Nessun altro oggetto trovato. Raggruppo la sabbia...');
+            StackSand();
+            break;
+        }
+    }
+
+    Orion.Print(68, '--- Operazione Completata ---');
+}
+
+function StackSand() {
+    var sandPiles = Orion.FindType(GRAFICA_SABBIA, 'any', 'backpack');
+
+    if (sandPiles.length < 2) {
+        Orion.Print(25, 'Meno di 2 pile di sabbia trovate. Nulla da unire.');
+        return;
+    }
+
+    var masterPile = sandPiles[0];
+
+    for (var i = 1; i < sandPiles.length; i++) {
+        var currentPile = sandPiles[i];
+
+        if (currentPile !== masterPile && Orion.FindObject(currentPile)) {
+            Orion.MoveItem(currentPile, 0, masterPile);
+            Orion.Wait(600);
+        }
+    }
+
+    Orion.Print(25, 'Sabbia raggruppata.');
+}
+
+function StartSmelting() {
+    Orion.Exec('SmeltAndStack');
+}
+
+// =====================================================
+// EVENTO VOID
+// =====================================================
+
+if (!Shared.GetVar('idenemyevento_list')) Shared.AddVar('idenemyevento_list', '');
+
+var _eventPrimaryMarked = {};
+var _eventSecondaryMarked = {};
+var _eventAggroDone = {};
+var _eventHighlightDone = {};
+var EVENT_HIGHLIGHT_COLOR = '2775';
+
+function GetEnemyList() {
+    var raw = Shared.GetVar('idenemyevento_list');
+    return raw ? raw.split('|') : [];
+}
+
+function SaveEnemyList(arr) {
+    Shared.AddVar('idenemyevento_list', arr.join('|'));
+}
+
+function CleanupRuntimeState() {
+    var maps = [_eventPrimaryMarked, _eventSecondaryMarked, _eventAggroDone, _eventHighlightDone];
+
+    for (var m = 0; m < maps.length; m++) {
+        for (var serial in maps[m]) {
+            var obj = Orion.FindObject(serial);
+
+            if (!obj || !obj.Exists() || obj.Dead()) delete maps[m][serial];
+        }
+    }
+}
+
+function AddEnemyToEventList() {
+    Orion.Print(55, 'Seleziona il nemico da aggiungere ai filtri Evento...');
+
+    Orion.AddObject('temp_target');
+    while (Orion.HaveTarget()) Orion.Wait(50);
+
+    var targetObj = Orion.FindObject('temp_target');
+
+    if (targetObj) {
+        var graphic = targetObj.Graphic();
+
+        if (graphic) {
+            var currentList = GetEnemyList();
+
+            if (currentList.indexOf(graphic) === -1) {
+                currentList.push(graphic);
+                SaveEnemyList(currentList);
+                Orion.Print(66, 'Tipo aggiunto: ' + graphic + ' (Filtro Attivo)');
+            } else {
+                Orion.Print(33, 'Questo tipo di nemico e gia presente.');
+            }
+        }
+    }
+}
+
+function ClearEventList() {
+    Shared.AddVar('idenemyevento_list', '');
+    _eventPrimaryMarked = {};
+    _eventSecondaryMarked = {};
+    _eventAggroDone = {};
+    _eventHighlightDone = {};
+    Orion.Print(33, 'Filtri rimossi. Lista svuotata.');
+}
+
+function SortByDistance(serials) {
+    serials.sort(function(a, b) {
+        var oa = Orion.FindObject(a), ob = Orion.FindObject(b);
+        var da = oa && oa.Exists() ? oa.Distance() : 999;
+        var db = ob && ob.Exists() ? ob.Distance() : 999;
+        return da - db;
+    });
+
+    return serials;
+}
+
+function HighlightAggroMobOnce(serial) {
+    if (!_eventHighlightDone[serial]) {
+        Orion.AddHighlightCharacter(serial, EVENT_HIGHLIGHT_COLOR, true);
+        _eventHighlightDone[serial] = true;
+    }
+}
+
+function MarkPrimaryTargetOnce(serial) {
+    if (!_eventPrimaryMarked[serial]) {
+        Orion.CharPrint(serial, 48, '*TARGET*');
+        _eventPrimaryMarked[serial] = true;
+    }
+}
+
+function MarkAggroOnce(serial) {
+    if (!_eventSecondaryMarked[serial]) {
+        Orion.CharPrint(serial, 63, '*AGGRATO*');
+        _eventSecondaryMarked[serial] = true;
+    }
+}
+
+function AggroMobOnce(serial, isPrimary) {
+    if (_eventAggroDone[serial]) return;
+
+    HighlightAggroMobOnce(serial);
+
+    if (isPrimary) MarkPrimaryTargetOnce(serial);
+    else MarkAggroOnce(serial);
+
+    Orion.Attack(serial);
+    Orion.Wait(80);
+
+    _eventAggroDone[serial] = true;
+}
+
+function HandleAggroAndNavigation() {
+    CleanupRuntimeState();
+
+    var currentList = GetEnemyList();
+    if (!currentList || !currentList.length) return false;
+
+    var range = 10;
+    var mobs = [];
+    var alreadyAdded = {};
+
+    for (var t = 0; t < currentList.length; t++) {
+        var graphic = currentList[t];
+        if (!graphic || graphic === '') continue;
+
+        var found = Orion.FindTypeEx(graphic, 'any', 'ground', 'mobile|live|ignorefriends|inlos', range, 'gray|red|orange');
+
+        if (found && found.length) {
+            for (var i = 0; i < found.length; i++) {
+                var mob = found[i];
+                var serial = mob.Serial();
+
+                if (!alreadyAdded[serial]) {
+                    alreadyAdded[serial] = true;
+                    mobs.push(serial);
+                }
+            }
+        }
+    }
+
+    if (!mobs.length) return false;
+
+    mobs = SortByDistance(mobs);
+
+    var primarySerial = mobs[0];
+    var primaryObj = Orion.FindObject(primarySerial);
+
+    if (!primaryObj || !primaryObj.Exists() || primaryObj.Dead()) return false;
+
+    HighlightAggroMobOnce(primarySerial);
+    AggroMobOnce(primarySerial, true);
+
+    for (var j = 1; j < mobs.length; j++) {
+        var serial2 = mobs[j];
+        var obj2 = Orion.FindObject(serial2);
+
+        if (!obj2 || !obj2.Exists() || obj2.Dead() || obj2.Distance() > range) continue;
+        if (obj2.Graphic() == '0x003B') continue;
+
+        HighlightAggroMobOnce(serial2);
+        AggroMobOnce(serial2, false);
+    }
+
+    if (Orion.ClientLastAttack() !== primarySerial) {
+        Orion.Attack(primarySerial);
+        Orion.Wait(50);
+    }
+
+    if (primaryObj.Distance() > 1) Orion.WalkTo(primaryObj.X(), primaryObj.Y(), primaryObj.Z(), 1, 5, 1, 1);
+
+    return true;
+}
+
+function EventoVoid() {
+    Orion.Print(66, '--- Evento Void: Aggro Prioritario Attivo ---');
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') {
+            Orion.StopWalking();
+            return;
+        }
+
+        HandleAggroAndNavigation();
+        Orion.Wait(100);
+    }
+}
+
+function EventoVoid3() {
+    RunRailCombat([
+        [6790,2180],[6808,2201],[6823,2187],[6819,2172],[6842,2171],[6792,2214],[6777,2214],[6765,2210],
+        [6748,2229],[6819,2225],[6831,2225],[6836,2205],[6808,2197],[6789,2189],[6830,2168],[6845,2158],
+        [6827,2147],[6790,2179]
+    ], 10000);
+}
+
+// =====================================================
+// SMALL UTILITIES
+// =====================================================
+
+function message() {
+    var x = Player.X(), y = Player.Y();
+
+    if (x === 28 && y === 212) Orion.Say('Ord');
+    else if (x === 43 && y === 212) Orion.Say('An-Ord');
+    else Orion.Say('*bank* *recsu* *recdu* *guards* *cross*');
+}
+
+function CheckObjectColorNumber() {
+    Orion.Print(55, 'Seleziona oggetto o mob per leggere il colore...');
+
+    Orion.AddObject('check_color_target');
+
+    while (Orion.HaveTarget()) Orion.Wait(50);
+
+    var obj = Orion.FindObject('check_color_target');
+
+    if (!obj) {
+        Orion.Print(33, 'Nessun oggetto selezionato.');
+        return;
+    }
+
+    var colorHex = obj.Color();
+    var colorDec = parseInt(colorHex, 16);
+
+    Orion.Print(66, 'Name: ' + obj.Name());
+    Orion.Print(66, 'Serial: ' + obj.Serial());
+    Orion.Print(66, 'Graphic: ' + obj.Graphic());
+    Orion.Print(66, 'Color Hex: ' + colorHex);
+    Orion.Print(66, 'Color Dec: ' + colorDec);
+}
+
+function ShowKarmaFama() {
+    Orion.ClearJournal();
+    Orion.Say('[premium');
+
+    if (Orion.WaitForGump(1000)) {
+        var gump0 = Orion.GetGump('last');
+
+        if ((gump0 !== null) && (!gump0.Replayed()) && (gump0.ID() === '0x5CB83289')) {
+            gump0.Select(Orion.CreateGumpHook(3));
+            Orion.Wait(200);
+        }
+    }
+
+    var journalLine = Orion.InJournal('Fame');
+
+    if (journalLine) {
+        var text = '';
+
+        if (journalLine.Text) text = journalLine.Text();
+        else if (journalLine.Message) text = journalLine.Message();
+        else text = '' + journalLine;
+
+        Orion.Print(65, 'Fame/Karma: ' + text);
+
+        var match = text.match(/Fame\s*=\s*(-?\d+)\s+Karma\s*=\s*(-?\d+)/i);
+
+        if (match) {
+            var fame = Number(match[1]);
+            var karma = Number(match[2]);
+
+            Orion.CharPrint(Player.Serial(), 1153, '*FAMA* : ' + fame);
+            Orion.Wait(150);
+
+            if (karma < 0) {
+                Orion.CharPrint(Player.Serial(), 33, '*KARMA* : ' + karma);
+            } else {
+                Orion.CharPrint(Player.Serial(), 88, '*KARMA* : ' + karma);
+            }
+        } else {
+            Orion.CharPrint(Player.Serial(), 33, '*Formato Fame/Karma non letto*');
+            Orion.Print(33, 'Testo ricevuto: ' + text);
+        }
+    } else {
+        Orion.CharPrint(Player.Serial(), 33, '*Fame/Karma non trovati nel journal*');
+    }
+
+    Orion.Wait(100);
+
+    var gump1 = Orion.GetGump('last');
+    if (gump1 !== null) gump1.Close();
+}
+
+function IsBloodOathLocked() {
+    return Orion.GetGlobal('BloodOathLock') === 'true' || Orion.BuffExists('Blood Oath');
+}
+
+function HandleBloodOath() {
+    if (!Orion.BuffExists('Blood Oath')) {
+        Orion.SetGlobal('BloodOathLock', 'false');
+        return false;
+    }
+
+    Orion.SetGlobal('BloodOathLock', 'true');
+
+    Orion.Print(33, 'BLOOD OATH RILEVATO!');
+    Orion.CharPrint(Player.Serial(), 33, '*BLOOD OATH RILEVATO!*');
+
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    var lastBeep = 0;
+    var lastCast = 0;
+    var maxSafetyTime = Orion.Now() + 15000;
+
+    while (!Player.Dead() && Orion.BuffExists('Blood Oath')) {
+        Orion.WarMode(false);
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+
+        if (Orion.Now() - lastBeep > 2500) {
+            Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
+            lastBeep = Orion.Now();
+        }
+
+        if (Orion.Now() - lastCast >= 180) {
+            lastCast = Orion.Now();
+
+            Orion.ClearJournal();
+            Orion.Cast('209'); // Remove Curse
+
+            if (Orion.WaitForTarget(3000)) {
+                Orion.TargetObject('self');
+                Orion.Wait(200);
+            } else {
+                Orion.CancelTarget();
+                Orion.CancelWaitTarget();
+                Orion.Wait(80);
+            }
+
+            if (
+                Orion.InJournal('fizzles') ||
+                Orion.InJournal('You are frozen') ||
+                Orion.InJournal('You cannot move') ||
+                Orion.InJournal('You must wait') ||
+                Orion.InJournal('not yet recovered')
+            ) {
+                Orion.Wait(80);
+            }
+        }
+
+        if (Orion.Now() > maxSafetyTime) {
+            maxSafetyTime = Orion.Now() + 15000;
+        }
+
+        Orion.Wait(40);
+    }
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+    Orion.SetGlobal('BloodOathLock', 'false');
+
+    if (!Player.Dead()) {
+        Orion.CharPrint(Player.Serial(), 65, '*BLOOD OATH RIMOSSO*');
+        Orion.Print(65, 'BLOOD OATH RIMOSSO');
+    }
+
+    return true;
+}
