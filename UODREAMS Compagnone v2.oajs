@@ -1759,6 +1759,7 @@ function PostStopHandler() {
     Orion.Exec('SuperInsura', 'true');
     Orion.Exec('AutoReEquip', 'true');
     Orion.Exec('AutoVampiricEmbrace', 'true');
+	Orion.Exec('AutoCleansePoison', 'true');
 
     Orion.Print('0x55', '<< Tutti gli script fermati correttamente >>');
     Orion.Print('0x55', '<< Scripts di Autostart RIAVVIATI! >>');
@@ -1888,7 +1889,7 @@ function RemoveCurseSelf() {
     if (Orion.WaitForTarget(1000)) Orion.TargetObject('self');
 }
 
-function CheckCurseAndPoison() {
+function CheckCurseAndPoison2() {
     var lastRemoveCurse = 0;
     var removeCurseCooldown = 180;
 
@@ -1930,21 +1931,12 @@ function CheckCurseAndPoison() {
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
 
-        /*
-            Blood Oath resta prioritario.
-            Se è attivo, lascia lavorare HandleBloodOath().
-        */
         if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
             HandleBloodOath();
             Orion.Wait(50);
             continue;
         }
 
-        /*
-            Questo script NON ferma il combat.
-            Però evita di sprecare Remove Curse mentre sei ferito,
-            come nella tua versione originale.
-        */
         if (Player.Hits() < Player.MaxHits()) {
             Orion.Wait(50);
             continue;
@@ -1958,10 +1950,7 @@ function CheckCurseAndPoison() {
 
                 CastRemoveCurseSelfFast();
 
-                /*
-                    Se fizzla o non parte il target, non aspetta 1 secondo:
-                    riprova quasi subito.
-                */
+
                 if (
                     Orion.InJournal('fizzles') ||
                     Orion.InJournal('You are frozen') ||
@@ -1982,6 +1971,111 @@ function CheckCurseAndPoison() {
         }
 
         ClearTargetHard();
+        Orion.Wait(100);
+    }
+}
+
+function CheckCurseAndPoison() {
+    var lastRemoveCurse = 0;
+    var lastExtremePoisonCleanse = 0;
+
+    var removeCurseCooldown = 180;
+    var extremePoisonCooldown = 1200;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        if (Orion.InJournal('You are in extreme pain') || Orion.InJournal('require immediate aid')) {
+            var poisonNow = Orion.Now();
+
+            if ((poisonNow - lastExtremePoisonCleanse) >= extremePoisonCooldown) {
+                lastExtremePoisonCleanse = poisonNow;
+
+                Orion.CharPrint(Player.Serial(), 33, '*EXTREME POISON - CLEANSE*');
+
+                Orion.WarMode(false);
+                Orion.CancelTarget();
+                Orion.CancelWaitTarget();
+                Orion.ClearJournal();
+
+                Orion.Cast('Cleanse by Fire');
+
+                if (Orion.WaitForTarget(2000)) {
+                    Orion.TargetObject('self');
+                    Orion.Wait(450);
+                } else {
+                    Orion.CancelTarget();
+                    Orion.CancelWaitTarget();
+                    Orion.Wait(80);
+                }
+
+                Orion.CancelTarget();
+                Orion.CancelWaitTarget();
+                Orion.ClearJournal();
+
+                Orion.Wait(100);
+                continue;
+            }
+
+            Orion.Wait(80);
+            continue;
+        }
+
+        if (Player.Hits() < Player.MaxHits()) {
+            Orion.Wait(50);
+            continue;
+        }
+
+        if (Orion.BuffExists('Curse') || Orion.BuffExists('Corpse Skin')) {
+            var now = Orion.Now();
+
+            if ((now - lastRemoveCurse) >= removeCurseCooldown) {
+                lastRemoveCurse = now;
+
+                Orion.CancelTarget();
+                Orion.CancelWaitTarget();
+                Orion.ClearJournal();
+
+                if (Player.Serial().toString().toLowerCase() === '0x0002c7ab') {
+                    Orion.Cast('209', 'self');
+                    Orion.Wait(200);
+                } else {
+                    Orion.Cast('209');
+
+                    if (Orion.WaitForTarget(3000)) {
+                        Orion.TargetObject('self');
+                        Orion.Wait(400);
+                    } else {
+                        Orion.CancelTarget();
+                        Orion.CancelWaitTarget();
+                        Orion.Wait(80);
+                    }
+                }
+
+                Orion.CancelTarget();
+                Orion.CancelWaitTarget();
+
+                if (Orion.InJournal('fizzles') || Orion.InJournal('You are frozen') || Orion.InJournal('You cannot move') || Orion.InJournal('You must wait') || Orion.InJournal('not yet recovered')) {
+                    Orion.Wait(80);
+                } else {
+                    Orion.Wait(80);
+                }
+
+                continue;
+            }
+
+            Orion.Wait(40);
+            continue;
+        }
+
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
         Orion.Wait(100);
     }
 }
@@ -5632,4 +5726,91 @@ function HandleBloodOath() {
     }
 
     return true;
+}
+
+function AutoCleansePoison() {
+    var lastCast = 0;
+    var lastCombat = 0;
+
+    Orion.Print(65, 'AutoCleansePoison AVVIATO');
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var now = Orion.Now();
+
+        var inCombat = false;
+
+        if (Player.WarMode()) {
+            inCombat = true;
+            lastCombat = now;
+        }
+
+        var lastAttack = Orion.ClientLastAttack();
+
+        if (lastAttack && lastAttack !== '' && lastAttack !== '0x000') {
+            var mob = Orion.FindObject(lastAttack);
+
+            if (mob && Orion.ObjectExists(lastAttack) && mob.Hits() > 0 && mob.Distance() <= 12) {
+                inCombat = true;
+                lastCombat = now;
+            }
+        }
+
+        var enemies = Orion.FindType(
+            'any',
+            'any',
+            'ground',
+            'mobile|live|near|inlos|ignoreself|ignorefriends',
+            12,
+            'gray|criminal|red|enemy|orange'
+        );
+
+        if (enemies && enemies.length > 0) {
+            inCombat = true;
+            lastCombat = now;
+        }
+
+        if (inCombat || now - lastCombat < 6000) {
+            Orion.Wait(250);
+            continue;
+        }
+
+        if (!Orion.BuffExists('Poison')) {
+            Orion.Wait(250);
+            continue;
+        }
+
+        if (Player.Mana() < 10) {
+            Orion.Wait(500);
+            continue;
+        }
+
+        if (now - lastCast < 3000) {
+            Orion.Wait(250);
+            continue;
+        }
+
+        lastCast = now;
+
+        Orion.CharPrint(Player.Serial(), 65, '*CLEANSE POISON*');
+
+        Orion.WarMode(false);
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        Orion.ClearJournal();
+
+        Orion.Cast('Cleanse by Fire');
+
+        if (Orion.WaitForTarget(2000)) {
+            Orion.TargetObject(Player.Serial());
+            Orion.Wait(700);
+        } else {
+            Orion.CancelTarget();
+            Orion.CancelWaitTarget();
+            Orion.Wait(200);
+        }
+
+        Orion.Wait(250);
+    }
 }
