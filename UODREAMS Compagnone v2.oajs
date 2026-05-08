@@ -3508,52 +3508,139 @@ function MountPetManager() {
     GUI();
 }
 
-function autoMount() {
-    while (!Player.Dead()) {
-        var isMounted = Orion.ObjAtLayer('myMount') !== null;
+function IsMountedCompagnone() {
+    try {
+        var m1 = Orion.ObjAtLayer('Mount');
+        if (m1 !== null) return true;
+    } catch (e1) {}
 
-        if (!isMounted && Orion.BuffExists('dismount')) {
+    try {
+        var m2 = Orion.ObjAtLayer('myMount');
+        if (m2 !== null) return true;
+    } catch (e2) {}
+
+    try {
+        if (typeof Player.Mount === 'function') {
+            var m3 = Player.Mount();
+            if (m3 && m3 !== null && m3 !== '0x00000000' && m3 !== '0x000') return true;
+        }
+    } catch (e3) {}
+
+    try {
+        if (typeof Player.Mounted === 'function' && Player.Mounted()) return true;
+    } catch (e4) {}
+
+    return false;
+}
+
+function autoMount() {
+    var lastFollowSay = 0;
+    var lastMountTry = 0;
+    var lastPrint = 0;
+
+    while (!Player.Dead()) {
+        if (IsMountedCompagnone()) {
+            Orion.SetGlobal('NeedMount', 'false');
+            Orion.Wait(400);
+            continue;
+        }
+
+        Orion.SetGlobal('NeedMount', 'true');
+        Orion.WarMode(false);
+
+        try { Orion.StopWalking(); } catch (e0) {}
+        try { Orion.CancelWaitTarget(); } catch (e1) {}
+
+        var now = Orion.Now();
+
+        if (now - lastFollowSay > 2500) {
             Orion.Say('All follow Me');
-            Orion.Wait(1500);
+            lastFollowSay = now;
+        }
+
+        if (now - lastPrint > 4000) {
+            Orion.Print(33, 'AutoMount: sono a piedi, provo a rimontare.');
+            lastPrint = now;
+        }
+
+        if (Orion.BuffExists('dismount')) {
+            Orion.Wait(700);
             continue;
         }
 
         var pets = Orion.FindList('savedMounts', 'ground', null, 18);
+        var nearestPet = null;
 
         for (var i = 0; i < pets.length; i++) {
             var pet = Orion.FindObject(pets[i]);
             if (!pet || pet.Hits() <= 0) continue;
 
             Orion.GetStatus(pet.Serial());
-            Orion.Wait(100);
+            Orion.Wait(50);
 
             if (pet.Poisoned() && Player.Mana() >= 10) {
                 Orion.Cast('Cleanse by Fire');
 
-                if (Orion.WaitForTarget(1500)) {
+                if (Orion.WaitForTarget(1200)) {
                     Orion.TargetObject(pet.Serial());
-                    Orion.Wait(300);
+                    Orion.Wait(250);
                 }
             }
 
             if (pet.YellowHits() && Player.Mana() >= 20) {
                 Orion.Cast('Remove Curse');
 
-                if (Orion.WaitForTarget(1500)) {
+                if (Orion.WaitForTarget(1200)) {
                     Orion.TargetObject(pet.Serial());
-                    Orion.Wait(400);
+                    Orion.Wait(300);
                 }
             }
 
-            Orion.WarMode(false);
-            Orion.UseObject(pet.Serial());
-            Orion.Wait(50);
-
-            if (Orion.ObjAtLayer('myMount') !== null) break;
+            if (!nearestPet || pet.Distance() < nearestPet.Distance()) {
+                nearestPet = pet;
+            }
         }
 
-        Orion.Wait(50);
+        if (nearestPet) {
+            if (nearestPet.Distance() <= 3) {
+                if (now - lastMountTry > 800) {
+                    Orion.WarMode(false);
+
+                    try { Orion.StopWalking(); } catch (e2) {}
+
+                    Orion.UseObject(nearestPet.Serial());
+                    lastMountTry = now;
+                    Orion.Wait(600);
+
+                    if (IsMountedCompagnone()) {
+                        Orion.SetGlobal('NeedMount', 'false');
+                        Orion.Print(65, 'AutoMount: rimontato.');
+                        Orion.Wait(400);
+                        continue;
+                    }
+                }
+            } else {
+                if (now - lastFollowSay > 2500) {
+                    Orion.Say('All follow Me');
+                    lastFollowSay = now;
+                }
+
+                try { Orion.StopWalking(); } catch (e3) {}
+                Orion.Wait(350);
+            }
+        } else {
+            if (now - lastFollowSay > 2500) {
+                Orion.Say('All follow Me');
+                lastFollowSay = now;
+            }
+
+            Orion.Wait(350);
+        }
+
+        Orion.Wait(100);
     }
+
+    Orion.SetGlobal('NeedMount', 'false');
 }
 
 function SetKnifeForBoneCutter() {
