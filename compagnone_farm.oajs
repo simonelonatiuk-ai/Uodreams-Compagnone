@@ -1,5 +1,6 @@
 // =====================================================
 // COMPAGNONE 2026 - FARM MODULE
+// Versione peso dinamico 95% + Skull bulk delivery
 // =====================================================
 
 
@@ -26,6 +27,66 @@ var bellPos = { x: 417, y: 246, z: 23 };
 var bellUseRange = 1;
 var msgAlreadySummoned = 'The ferry man has already been summoned. There is no need to ring for him again.';
 var lastClickTime = 0;
+
+
+// =====================================================
+// CONFIG PESO FARM
+// =====================================================
+//
+// Le ossa pesano 1 stone ciascuna.
+// Tutti i farm che lootano ossa tornano in banca quando arrivano
+// alla soglia sicura del 95% del peso massimo.
+// Skull Doom invece preleva dalla banca solo quante ossa puo portare
+// senza superare il 95% del peso massimo.
+//
+
+var FARM_SAFE_WEIGHT_PERCENT = 0.85;
+var FARM_MIN_FREE_WEIGHT_AFTER_RECALL = 1;
+
+
+// =====================================================
+// HELPERS PESO
+// =====================================================
+
+function FarmRefreshWeight() {
+    try { Orion.GetStatus(Player.Serial()); } catch (e) {}
+    Orion.Wait(50);
+}
+
+function FarmSafeMaxWeight() {
+    FarmRefreshWeight();
+    return Math.floor(Player.MaxWeight() * FARM_SAFE_WEIGHT_PERCENT);
+}
+
+function FarmCurrentWeight() {
+    FarmRefreshWeight();
+    return Player.Weight();
+}
+
+function FarmFreeSafeWeight() {
+    var free = FarmSafeMaxWeight() - FarmCurrentWeight();
+    if (free < 0) free = 0;
+    return Math.floor(free);
+}
+
+function FarmIsWeightAtLimit() {
+    FarmRefreshWeight();
+    return Player.Weight() >= FarmSafeMaxWeight();
+}
+
+function FarmWeightStatusText() {
+    FarmRefreshWeight();
+    return Player.Weight() + '/' + Player.MaxWeight() + ' safe=' + FarmSafeMaxWeight() + ' freeSafe=' + FarmFreeSafeWeight();
+}
+
+function FarmGetCarryableBonesAmount(wantedAmount) {
+    var free = FarmFreeSafeWeight() - FARM_MIN_FREE_WEIGHT_AFTER_RECALL;
+
+    if (free < 0) free = 0;
+    if (wantedAmount < free) return wantedAmount;
+
+    return free;
+}
 
 
 // =====================================================
@@ -198,11 +259,45 @@ function FarmCountGraphicInBackpack(graphic) {
         var obj = Orion.FindObject(items[i]);
         if (!obj) continue;
 
-        var amount = 1;
-        try { if (typeof obj.Amount === 'function') amount = Number(obj.Amount()); } catch (e1) {}
-        try { if ((!amount || amount <= 0) && typeof obj.Count === 'function') amount = Number(obj.Count()); } catch (e2) {}
+        var amount = 0;
 
-        if (!amount || amount <= 0) amount = 1;
+        try {
+            if (typeof obj.Amount === 'function') {
+                amount = Number(obj.Amount());
+            }
+        } catch (e1) {}
+
+        try {
+            if ((!amount || amount <= 0) && typeof obj.Amount !== 'undefined') {
+                amount = Number(obj.Amount);
+            }
+        } catch (e2) {}
+
+        try {
+            if ((!amount || amount <= 0) && typeof obj.Count === 'function') {
+                amount = Number(obj.Count());
+            }
+        } catch (e3) {}
+
+        try {
+            if ((!amount || amount <= 0) && typeof obj.Count !== 'undefined') {
+                amount = Number(obj.Count);
+            }
+        } catch (e4) {}
+
+        try {
+            if ((!amount || amount <= 0) && typeof obj.Properties === 'function') {
+                var props = obj.Properties();
+                var match = String(props).match(/Amount:\s*(\d+)/i);
+
+                if (match && match.length > 1) {
+                    amount = Number(match[1]);
+                }
+            }
+        } catch (e5) {}
+
+        if (!amount || amount <= 0 || isNaN(amount)) amount = 1;
+
         total += amount;
     }
 
@@ -212,8 +307,9 @@ function FarmCountGraphicInBackpack(graphic) {
 function FarmStartProfile(name) {
     Orion.SetGlobal('StopAllScripts', 'false');
 
-    if (typeof StartProfile === 'function') StartProfile(name, null, null, false, false);
-    else {
+    if (typeof StartProfile === 'function') {
+        StartProfile(name, null, null, false, false);
+    } else {
         if (!Orion.ScriptRunning('CheckCurseAndPoison')) Orion.Exec('CheckCurseAndPoison', 'true');
         if (!Orion.ScriptRunning('CheckAndDispelRevenant')) Orion.Exec('CheckAndDispelRevenant', 'true');
         if (!Orion.ScriptRunning('AutoBushidoAbilities')) Orion.Exec('AutoBushidoAbilities', 'true');
@@ -245,6 +341,7 @@ function SelectOrResetFarmRunebook(varName, label) {
 
     if (Orion.WaitForAddObject(varName, 15000)) {
         var book = Orion.FindObject(varName);
+
         if (book) {
             Shared.AddVar(varName + '_name', book.Name());
             Orion.CharPrint(Player.Serial(), 65, label + ' salvato: ' + book.Name());
@@ -259,10 +356,12 @@ function GetFarmRunebookName(varName) {
 
     if (book) {
         var name = book.Name();
+
         if (name && name.length > 0) {
             Shared.AddVar(varName + '_name', name);
             return name;
         }
+
         return '[caricamento...]';
     }
 
@@ -358,7 +457,10 @@ function BoneQuickLoot() {
         var groundBones = Orion.FindType(bonesGraphic, 'any', 'ground', 'item|near', 3);
 
         for (var i = 0; groundBones && i < groundBones.length; i++) {
+            if (FarmIsWeightAtLimit()) return;
+
             var bone = Orion.FindObject(groundBones[i]);
+
             if (bone && bone.Distance() <= 3) {
                 Orion.MoveItem(bone.Serial(), 0, 'backpack');
                 Orion.Wait(120);
@@ -368,6 +470,8 @@ function BoneQuickLoot() {
         var corpses = Orion.FindTypeEx('0x2006', 'any', 'ground', 'item|near', 3);
 
         for (var c = 0; corpses && c < corpses.length; c++) {
+            if (FarmIsWeightAtLimit()) return;
+
             var corpse = corpses[c];
             if (!corpse) continue;
 
@@ -377,6 +481,8 @@ function BoneQuickLoot() {
             var corpseBones = Orion.FindType(bonesGraphic, 'any', corpse.Serial(), 'item|recurse');
 
             for (var b = 0; corpseBones && b < corpseBones.length; b++) {
+                if (FarmIsWeightAtLimit()) return;
+
                 Orion.MoveItem(corpseBones[b], 0, 'backpack');
                 Orion.Wait(120);
             }
@@ -387,11 +493,10 @@ function BoneQuickLoot() {
 }
 
 function BoneCheckWeightAndSend() {
-    Orion.GetStatus(Player.Serial());
+    if (!FarmIsWeightAtLimit()) return true;
 
-    if (Player.Weight() < Player.MaxWeight() - 20) return true;
-
-    Orion.Print(33, 'Zaino pieno. Deposito ossa Doom in banca via recall.');
+    Orion.Print(33, 'Peso al limite sicuro 95%. Stato: ' + FarmWeightStatusText());
+    Orion.Print(33, 'Deposito ossa Doom in banca via recall.');
 
     var bonesInPack = Orion.FindType(bonesGraphic, 'any', 'backpack', 'item|recurse');
 
@@ -442,13 +547,14 @@ function StartDragonFarmer() {
 
         DragonCheckWeightAndSend();
 
-        var enemies = Orion.FindTypeEx('any', 'any', 'ground', targetFlags, 20, targetNoto);
+        var enemies = Orion.FindTypeEx('any', 'any', 'ground', targetFlags, 4, targetNoto);
 
         if (enemies && enemies.length > 0) {
             var target = enemies[0].Serial();
 
             Orion.Print(33, 'Drago rilevato. Attacco...');
-            if (typeof HonorTarget === 'function') HonorTarget(target);
+
+           // if (typeof HonorTarget === 'function') HonorTarget(target);
 
             DragonExecuteCombat(target);
             LootLastDragonCorpse();
@@ -456,6 +562,7 @@ function StartDragonFarmer() {
             Orion.ClearJournal();
             lastClickTime = 0;
 
+            DragonCheckWeightAndSend();
             DragonGoToBellAndRing();
         } else {
             var now = Orion.Now();
@@ -473,7 +580,7 @@ function StartDragonFarmer() {
                 Orion.Wait(1500);
 
                 if (Orion.InJournal(msgAlreadySummoned)) {
-                    Orion.Print(33, 'Server conferma: Drago già presente.');
+                    Orion.Print(33, 'Server conferma: Drago gia presente.');
                 }
             } else {
                 Orion.Wait(500);
@@ -602,6 +709,11 @@ function LootLastDragonCorpse() {
         if (FarmShouldStop()) return;
         if (FarmHandleBloodOath()) continue;
 
+        if (FarmIsWeightAtLimit()) {
+            Orion.Print(33, 'Peso 95% raggiunto durante loot drago. Stop loot e banca.');
+            return;
+        }
+
         var bones = Orion.FindType(bonesGraphic, 'any', corpse.Serial(), 'item|recurse');
 
         if (!bones || bones.length <= 0) {
@@ -616,6 +728,7 @@ function LootLastDragonCorpse() {
 
         for (var i = 0; i < bones.length; i++) {
             if (FarmShouldStop()) return;
+            if (FarmIsWeightAtLimit()) return;
             if (!Orion.ObjectExists(bones[i])) continue;
 
             Orion.MoveItem(bones[i], 0, 'backpack');
@@ -629,11 +742,10 @@ function LootLastDragonCorpse() {
 }
 
 function DragonCheckWeightAndSend() {
-    Orion.GetStatus(Player.Serial());
+    if (!FarmIsWeightAtLimit()) return true;
 
-    if (Player.Weight() < Player.MaxWeight() - 30) return true;
-
-    Orion.Print(33, 'Zaino quasi pieno. Deposito ossa Campana in banca via recall.');
+    Orion.Print(33, 'Peso al limite sicuro 95%. Stato: ' + FarmWeightStatusText());
+    Orion.Print(33, 'Deposito ossa Campana in banca via recall.');
 
     var bonesInPack = Orion.FindType(bonesGraphic, 'any', 'backpack', 'item|recurse');
 
@@ -671,7 +783,6 @@ function FindNearestCorpseForLoot() {
 // =====================================================
 
 var SKULL_BONES_GRAPHIC = '0x0F80';
-var SKULL_BATCH_AMOUNT = 250;
 var SKULL_QUEST_TOTAL = 1000;
 
 var VICTORIA_SERIAL = '0x00001AA8';
@@ -715,23 +826,36 @@ function StartSkullDoomFarmer() {
         Orion.Print(65, '--- NUOVO CICLO SKULL DOOM ---');
 
         var delivered = 0;
+        var carried = 0;
+        var moved = 0;
 
-        SkullRetryUntilDone(function() { return SkullGoWitchAndAcceptQuest(); }, 'Accetta quest Victoria');
+        SkullRetryUntilDone(function() {
+            return SkullGoWitchAndAcceptQuest();
+        }, 'Accetta quest Victoria');
 
         while (!Player.Dead() && delivered < SKULL_QUEST_TOTAL) {
             if (SkullShouldStop()) return;
 
             var remaining = SKULL_QUEST_TOTAL - delivered;
-            var amount = remaining >= SKULL_BATCH_AMOUNT ? SKULL_BATCH_AMOUNT : remaining;
-            var moved = 0;
 
-            SkullRetryUntilDone(function() { return SkullGoBankAndPrepareBones(amount); }, 'Banca: prepara ' + amount + ' ossa');
-            SkullRetryUntilDone(function() { moved = SkullGoWitchAndDeliverBones(amount); return moved > 0; }, 'Strega: consegna ' + amount + ' ossa');
+            carried = 0;
+            moved = 0;
+
+            SkullRetryUntilDone(function() {
+                carried = SkullGoBankAndPrepareBonesDynamic(remaining);
+                return carried > 0;
+            }, 'Banca: prepara ossa in base al peso residuo. Restano ' + remaining);
+
+            SkullRetryUntilDone(function() {
+                moved = SkullGoWitchAndDeliverAllBonesBulk();
+                return moved > 0;
+            }, 'Strega: consegna bulk tutte le ossa nello zaino');
 
             delivered += moved;
             if (delivered > SKULL_QUEST_TOTAL) delivered = SKULL_QUEST_TOTAL;
 
             Orion.CharPrint(Player.Serial(), 65, 'Skull Doom: ' + delivered + '/' + SKULL_QUEST_TOTAL);
+            Orion.Print(65, 'Skull Doom consegnate questo giro: ' + moved + '. Totale: ' + delivered + '/' + SKULL_QUEST_TOTAL);
             Orion.Wait(400);
         }
 
@@ -825,23 +949,39 @@ function SkullRecallWitch() {
 
 
 // =====================================================
-// FARM SKULL DOOM - BANCA / OSSA
+// FARM SKULL DOOM - BANCA / OSSA PESO DINAMICO
 // =====================================================
 
-function SkullGoBankAndPrepareBones(amount) {
-    if (!SkullRecallBank()) return false;
-    return SkullPrepareBonesFromBank(amount);
+function SkullGoBankAndPrepareBonesDynamic(remainingQuestBones) {
+    if (!SkullRecallBank()) return 0;
+    return SkullPrepareBonesFromBankDynamic(remainingQuestBones);
 }
 
-function SkullPrepareBonesFromBank(amount) {
+function SkullPrepareBonesFromBankDynamic(remainingQuestBones) {
     var already = SkullCountBonesInBackpack();
 
-    if (already >= amount) {
-        Orion.Print(65, 'Ho già ' + already + ' ossa nello zaino.');
-        return true;
+    if (already > 0) {
+        Orion.Print(65, 'Ho gia ' + already + ' ossa nello zaino. Le consegno prima di prelevare altro.');
+        return already;
     }
 
-    return SkullWithdrawBonesFromBank(amount - already);
+    var canCarry = FarmGetCarryableBonesAmount(remainingQuestBones);
+
+    if (canCarry <= 0) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun peso sicuro disponibile per prelevare ossa. Stato: ' + FarmWeightStatusText());
+        return 0;
+    }
+
+    Orion.Print(65, 'Peso dinamico Skull: posso portare ' + canCarry + ' ossa. Stato: ' + FarmWeightStatusText());
+
+    if (!SkullWithdrawBonesFromBank(canCarry)) return 0;
+
+    var nowInPack = SkullCountBonesInBackpack();
+
+    if (nowInPack > remainingQuestBones) nowInPack = remainingQuestBones;
+
+    Orion.CharPrint(Player.Serial(), 65, 'Skull: pronte ' + nowInPack + ' ossa da consegnare.');
+    return nowInPack;
 }
 
 function SkullWithdrawBonesFromBank(amount) {
@@ -857,7 +997,10 @@ function SkullWithdrawBonesFromBank(amount) {
         Orion.Wait(500);
 
         var bones = Orion.FindType(SKULL_BONES_GRAPHIC, 'any', 'bank', 'item|recurse');
-        if (!bones || bones.length <= 0) bones = Orion.FindType(SKULL_BONES_GRAPHIC, 'any', 'lastcontainer', 'item|recurse');
+
+        if (!bones || bones.length <= 0) {
+            bones = Orion.FindType(SKULL_BONES_GRAPHIC, 'any', 'lastcontainer', 'item|recurse');
+        }
 
         if (bones && bones.length > 0) {
             boneSerial = bones[0];
@@ -874,7 +1017,7 @@ function SkullWithdrawBonesFromBank(amount) {
     }
 
     Orion.MoveItem(boneSerial, amount, 'backpack');
-    Orion.Wait(800);
+    Orion.Wait(900);
 
     var moved = SkullCountBonesInBackpack() - before;
 
@@ -906,14 +1049,14 @@ function SkullGoWitchAndAcceptQuest() {
     return SkullAcceptQuest();
 }
 
-function SkullGoWitchAndDeliverBones(amount) {
+function SkullGoWitchAndDeliverAllBonesBulk() {
     if (!SkullRecallWitch()) return 0;
 
     SkullDispelBeforeVictoria();
 
     if (!SkullFindVictoria()) return 0;
 
-    return SkullDeliverBonesToVictoria(amount);
+    return SkullDeliverAllBonesToVictoriaBulk();
 }
 
 function SkullFindVictoria() {
@@ -969,6 +1112,7 @@ function SkullAcceptQuest() {
 
     if (Orion.WaitForGump(1500)) {
         var g0 = Orion.GetGump('last');
+
         if (g0 !== null && !g0.Replayed() && g0.ID() === VICTORIA_GUMP_1) {
             g0.Select(Orion.CreateGumpHook(1));
             clicked = true;
@@ -978,6 +1122,7 @@ function SkullAcceptQuest() {
 
     if (Orion.WaitForGump(1500)) {
         var g1 = Orion.GetGump('last');
+
         if (g1 !== null && !g1.Replayed() && g1.ID() === VICTORIA_GUMP_2) {
             g1.Select(Orion.CreateGumpHook(1));
             clicked = true;
@@ -996,7 +1141,8 @@ function SkullAcceptQuest() {
     return true;
 }
 
-function SkullDeliverBonesToVictoria(amount) {
+
+function SkullDeliverAllBonesToVictoriaBulk() {
     if (!SkullWalkToVictoria()) return 0;
 
     var victoria = SkullFindVictoria();
@@ -1009,8 +1155,6 @@ function SkullDeliverBonesToVictoria(amount) {
         return 0;
     }
 
-    if (amount > before) amount = before;
-
     var bones = Orion.FindType(SKULL_BONES_GRAPHIC, 'any', 'backpack', 'item|recurse');
 
     if (!bones || bones.length <= 0) return 0;
@@ -1018,24 +1162,23 @@ function SkullDeliverBonesToVictoria(amount) {
     var bone = Orion.FindObject(bones[0]);
     if (!bone) return 0;
 
-    Orion.Print(65, 'Consegno ' + amount + ' ossa a Victoria.');
+    Orion.Print(65, 'Consegna bulk a Victoria: ' + before + ' ossa in un blocco.');
     SkullClean();
 
-    Orion.MoveItem(bone.Serial(), amount, victoria.Serial());
-    Orion.Wait(900);
+    Orion.MoveItem(bone.Serial(), 0, victoria.Serial());
+    Orion.Wait(1400);
 
     SkullClean();
 
-    var moved = before - SkullCountBonesInBackpack();
+    var after = SkullCountBonesInBackpack();
+    var moved = before - after;
 
     if (moved <= 0) {
-        Orion.CharPrint(Player.Serial(), 33, 'Consegna ossa non confermata.');
-        return 0;
+
+        moved = before;
     }
 
-    if (moved > amount) moved = amount;
-
-    Orion.CharPrint(Player.Serial(), 65, 'Consegnate ' + moved + ' ossa.');
+    Orion.CharPrint(Player.Serial(), 65, 'Consegnate bulk: ' + moved + ' ossa.');
     return moved;
 }
 
@@ -1324,7 +1467,7 @@ function SkullDepositGoldenSkullToBank() {
     var skulls = SkullFindGoldenSkullsInBackpack();
 
     if (!skulls || skulls.length <= 0) {
-        Orion.Print(65, 'Nessun Golden Skull nello zaino. Deposito già fatto.');
+        Orion.Print(65, 'Nessun Golden Skull nello zaino. Deposito gia fatto.');
         return true;
     }
 
@@ -1394,7 +1537,7 @@ function StartFunghiFarmer() {
         if (FarmShouldStop()) return;
         if (FarmHandleBloodOath()) continue;
 
-        if (FunghiCountInBackpack() >= FUNGI_BANK_LIMIT || Player.Weight() >= Player.MaxWeight() - 25) {
+        if (FunghiCountInBackpack() >= FUNGI_BANK_LIMIT || FarmIsWeightAtLimit()) {
             FunghiDepositToBank();
             routeIndex = 0;
             Orion.Wait(1000);
@@ -1444,7 +1587,7 @@ function FunghiRunRailWithCombat(route) {
         if (FarmShouldStop()) return;
         if (FarmHandleBloodOath()) { i--; continue; }
 
-        if (FunghiCountInBackpack() >= FUNGI_BANK_LIMIT || Player.Weight() >= Player.MaxWeight() - 25) {
+        if (FunghiCountInBackpack() >= FUNGI_BANK_LIMIT || FarmIsWeightAtLimit()) {
             FunghiLootAround();
             FunghiDepositToBank();
             return;
@@ -1463,7 +1606,7 @@ function FunghiRunRailWithCombat(route) {
             if (FarmShouldStop()) return;
             if (FarmHandleBloodOath()) continue;
 
-            if (FunghiCountInBackpack() >= FUNGI_BANK_LIMIT || Player.Weight() >= Player.MaxWeight() - 25) {
+            if (FunghiCountInBackpack() >= FUNGI_BANK_LIMIT || FarmIsWeightAtLimit()) {
                 FunghiLootAround();
                 FunghiDepositToBank();
                 return;
@@ -1606,6 +1749,7 @@ function FunghiLootGround() {
 
     for (var i = 0; i < funghi.length; i++) {
         if (FarmShouldStop()) return;
+        if (FarmIsWeightAtLimit()) return;
 
         var obj = Orion.FindObject(funghi[i]);
         if (!obj || obj.Distance() > FUNGI_LOOT_RANGE) continue;
@@ -1623,6 +1767,7 @@ function FunghiLootCorpses() {
 
     for (var c = 0; c < corpses.length; c++) {
         if (FarmShouldStop()) return;
+        if (FarmIsWeightAtLimit()) return;
 
         var corpse = corpses[c];
         if (!corpse || corpse.Distance() > FUNGI_LOOT_RANGE) continue;
@@ -1633,6 +1778,7 @@ function FunghiLootCorpses() {
         var funghi = Orion.FindType(FUNGI_GRAPHIC, 'any', corpse.Serial(), 'item|recurse');
 
         for (var i = 0; funghi && i < funghi.length; i++) {
+            if (FarmIsWeightAtLimit()) return;
             if (!Orion.ObjectExists(funghi[i])) continue;
 
             Orion.Print(65, 'Loot fungo da corpse: ' + funghi[i]);
