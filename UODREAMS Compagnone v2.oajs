@@ -2074,8 +2074,6 @@ function CheckCurseAndPoison() {
             continue;
         }
 
-        Orion.CancelTarget();
-        Orion.CancelWaitTarget();
         Orion.Wait(100);
     }
 }
