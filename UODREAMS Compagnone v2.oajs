@@ -1818,7 +1818,7 @@ function SOLO() {
 
 function SOLOSNS() { StartProfile('Sampire SOLO SNS', null, 'SoloFollowAndAttackSS', true); }
 function SOLOArchery() { StartProfile('Sampire ARCHERY', null, 'AutoArcheryAttack', false, true); }
-function CHAMP() { StartProfile('Champ', 'SeguieMena', 'autoRemoveBloodOath'); }
+function CHAMP() { StartProfile('Champ', 'SeguieMena'); }
 
 function Abyssalrail() { StartProfile('Abyssal', 'Abyssal'); }
 function Primevalrail() { StartProfile('Primeval', 'Primeval'); }
@@ -3017,13 +3017,29 @@ function AttackNearestEnemy() {
 
 function SeguieMena() {
     while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (HandleBloodOath()) {
+            Orion.Wait(50);
+            continue;
+        }
+
         var target = FindNearestEnemy();
 
         if (target) {
-            if (!AttackNearestEnemy()) Orion.CharPrint(Player.Serial(), 33, 'Target ignorato, cercando altro...');
+            if (HandleBloodOath()) {
+                Orion.Wait(50);
+                continue;
+            }
+
+            if (!AttackNearestEnemy()) {
+                Orion.CharPrint(Player.Serial(), 33, 'Target ignorato, cercando altro...');
+            }
         } else {
             Orion.Wait(300);
         }
+
+        Orion.Wait(50);
     }
 }
 
@@ -3032,6 +3048,12 @@ function RunRailCombat(railCoordinates, walkTimeout, customTargetFn, customAttac
 
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (HandleBloodOath()) {
+            Orion.Wait(50);
+            continue;
+        }
+
         if (currentIndex >= railCoordinates.length) currentIndex = 0;
 
         var coord = railCoordinates[currentIndex];
@@ -3051,12 +3073,25 @@ function RunRailCombat(railCoordinates, walkTimeout, customTargetFn, customAttac
             }
         }
 
+        if (HandleBloodOath()) {
+            Orion.Wait(50);
+            continue;
+        }
+
         Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, walkTimeout);
 
         var checkDuration = 100;
         var startTime = Orion.Now();
 
         while (Orion.Now() - startTime < checkDuration) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+            if (HandleBloodOath()) {
+                Orion.Wait(50);
+                startTime = Orion.Now();
+                continue;
+            }
+
             var target = customTargetFn ? customTargetFn() : FindNearestEnemy();
             var success = customAttackFn ? customAttackFn(target) : (target && AttackNearestEnemy());
 
@@ -4466,16 +4501,6 @@ function OneShotHealChivalryfc2() {
     }
 
     Orion.CharPrint(Player.Serial(), 25, '*Sti Bbon*');
-}
-
-function autoRemoveBloodOath() {
-    while (true) {
-        if (Orion.BuffExists('Blood Oath')) {
-            Orion.Cast('209');
-            if (Orion.WaitForTarget(1000)) Orion.TargetObject('self');
-            Orion.Wait(150);
-        }
-    }
 }
 
 // =====================================================
