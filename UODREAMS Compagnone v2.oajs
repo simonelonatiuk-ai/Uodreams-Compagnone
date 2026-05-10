@@ -4341,8 +4341,13 @@ function EnsureCurseWeaponActive(enemyObj) {
 function AutoVampiricEmbrace() {
     Orion.Print('AutoVampiricEmbrace avviato');
 
-    var REAG_NOX_CRYSTAL = '0x0F8E', REAG_PIG_IRON = '0x0F8A', REAG_BAT_WING = '0x0F78';
-    var COMBAT_GRACE_MS = 8000, lastCombatTs = 0;
+    var REAG_NOX_CRYSTAL = '0x0F8E';
+    var REAG_PIG_IRON = '0x0F8A';
+    var REAG_BAT_WING = '0x0F78';
+
+    var COMBAT_GRACE_MS = 12000;
+    var lastCombatTs = 0;
+    var lastCastTry = 0;
 
     function hasAllReagents() {
         return Orion.Count(REAG_NOX_CRYSTAL, -1, 'backpack') > 0 &&
@@ -4350,28 +4355,94 @@ function AutoVampiricEmbrace() {
                Orion.Count(REAG_BAT_WING, -1, 'backpack') > 0;
     }
 
-    function inCombatNow() {
-        var atkSerial = Orion.ClientLastAttack();
-        var atk = atkSerial ? Orion.FindObject(atkSerial) : null;
+    function enemyNearby() {
+        var enemies = Orion.FindTypeEx(
+            'any',
+            'any',
+            'ground',
+            'mobile|live|near|inlos|ignoreself|ignorefriends',
+            12,
+            'gray|criminal|red|enemy|orange'
+        );
 
-        if (atk && atk.Hits() > 0 && atk.Distance() <= 12) {
-            lastCombatTs = Orion.Now();
+        return enemies && enemies.length > 0;
+    }
+
+    function hasValidLastAttack() {
+        var atkSerial = Orion.ClientLastAttack();
+
+        if (!atkSerial || atkSerial === '' || atkSerial === '0x000') {
+            return false;
+        }
+
+        var atk = Orion.FindObject(atkSerial);
+
+        if (!atk) {
+            return false;
+        }
+
+        if (atk.Dead && atk.Dead()) {
+            return false;
+        }
+
+        if (atk.Hits && atk.Hits() <= 0) {
+            return false;
+        }
+
+        if (atk.Distance && atk.Distance() <= 18) {
             return true;
         }
 
-        return (Orion.Now() - lastCombatTs) < COMBAT_GRACE_MS;
+        return false;
+    }
+
+    function inCombatNow() {
+        var now = Orion.Now();
+
+        if (Player.WarMode()) {
+            lastCombatTs = now;
+            return true;
+        }
+
+        if (hasValidLastAttack()) {
+            lastCombatTs = now;
+            return true;
+        }
+
+        if (enemyNearby()) {
+            lastCombatTs = now;
+            return true;
+        }
+
+        return (now - lastCombatTs) < COMBAT_GRACE_MS;
     }
 
     while (true) {
         Orion.Wait(500);
 
-        if (Player.Dead() || Player.Hidden()) continue;
+        if (Player.Dead()) continue;
+        if (Player.Hidden()) continue;
+
+        // Vampiric Embrace già attiva
         if (Orion.BuffExists('0x75C4')) continue;
+
         if (!hasAllReagents()) continue;
+
+        // Non castare se non sei full vita
         if (Player.Hits() !== Player.MaxHits()) continue;
+
+        // Blocco forte: niente Vampiric se sei in combat o appena uscito dal combat
         if (inCombatNow()) continue;
 
+        // Anti-spam extra
+        if (Orion.Now() - lastCastTry < 5000) continue;
+        lastCastTry = Orion.Now();
+
+        Orion.WarMode(false);
         Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        Orion.ClearJournal();
+
         Orion.Cast('113');
         Orion.Wait(2000);
     }
@@ -4965,26 +5036,280 @@ function BoneScavengerEquipped() {
 }
 
 // =====================================================
-// DOOM GAUNTLET
+// DOOM GAUNTLET - SIMPLE DIRECT EQUIP VERSION
 // =====================================================
 
 var currentDressList = '';
 var currentWeaponDress = '';
 var currentTalismanDress = '';
 
+var DOOM_EQUIP_RETRIES = 10;
+var DOOM_EQUIP_WAIT = 450;
+
 var rails = {
     r1:  [[439,432],[450,432],[464,432],[469,428],[470,428],[473,428]],
     r1m: [[485,455]],
+
     r2:  [[486,450],[486,439],[482,432],[472,432],[470,432],[462,492],[462,493],[462,496]],
     r2m: [[484,517]],
+
     r3:  [[479,507],[468,502],[468,493],[453,468],[403,500],[403,501],[403,504]],
     r3m: [[399,509],[399,522],[399,531]],
+
     r4:  [[407,522],[409,500],[415,466],[357,474],[357,475]],
     r4m: [[351,502],[338,510]],
+
     r5:  [[348,498],[361,485],[360,474],[364,433],[362,433]],
     r5m: [[343,434],[327,434]],
+
     r6:  [[342,430],[363,430],[398,430],[419,429]]
 };
+
+// =====================================================
+// SIMPLE EQUIP HELPERS
+// =====================================================
+
+function GetBackpackSerialSimple() {
+    var bp = Orion.ObjAtLayer('Backpack');
+    if (!bp) return '';
+    return String(bp.Serial()).toLowerCase();
+}
+
+function ObjIsInBackpack(obj) {
+    if (!obj) return false;
+
+    var bpSerial = GetBackpackSerialSimple();
+    if (!bpSerial) return false;
+
+    try {
+        return String(obj.Container()).toLowerCase() === bpSerial;
+    } catch (e) {
+        return false;
+    }
+}
+
+function IsWeaponObjEquipped(obj) {
+    if (!obj) return false;
+
+    var serial = String(obj.Serial()).toLowerCase();
+
+    var right = Orion.ObjAtLayer('RightHand');
+    var left = Orion.ObjAtLayer('LeftHand');
+
+    if (right && String(right.Serial()).toLowerCase() === serial) return true;
+    if (left && String(left.Serial()).toLowerCase() === serial) return true;
+
+    return false;
+}
+
+function IsAnyWeaponEquipped() {
+    return !!(Orion.ObjAtLayer('RightHand') || Orion.ObjAtLayer('LeftHand'));
+}
+
+function IsTalismanObjEquipped(obj) {
+    if (!obj) return false;
+
+    var equipped = Orion.ObjAtLayer('Talisman');
+    if (!equipped) return false;
+
+    return String(equipped.Serial()).toLowerCase() === String(obj.Serial()).toLowerCase();
+}
+
+function ClearDoomEquipState() {
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    try {
+        Orion.StopWalking();
+    } catch (e) {}
+
+    Orion.Wait(80);
+}
+
+function EquipDoomWeaponSimple(varName, label) {
+    label = label || varName;
+
+    for (var i = 0; i < DOOM_EQUIP_RETRIES; i++) {
+        var weapon = Orion.FindObject(varName);
+
+        if (!weapon) {
+            Orion.CharPrint(Player.Serial(), 33, '*ARMA NON TROVATA: ' + label + '*');
+            Orion.Print(33, 'Doom weapon non trovata: ' + varName);
+            return false;
+        }
+
+        if (IsWeaponObjEquipped(weapon)) {
+            currentWeaponDress = varName;
+            Shared.AddVar('active_weapon_script', label);
+            return true;
+        }
+
+        ClearDoomEquipState();
+
+        // ClassicAssist style:
+        // Cast Create Food -> EquipItem
+        Orion.Cast('Create Food');
+        Orion.Wait(100);
+
+        weapon = Orion.FindObject(varName);
+
+        if (!weapon) {
+            Orion.CharPrint(Player.Serial(), 33, '*ARMA PERSA DOPO CREATE FOOD: ' + label + '*');
+            return false;
+        }
+
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+
+        Orion.Equip(weapon.Serial());
+        Orion.Wait(DOOM_EQUIP_WAIT);
+
+        weapon = Orion.FindObject(varName);
+
+        if (weapon && IsWeaponObjEquipped(weapon)) {
+            currentWeaponDress = varName;
+            Shared.AddVar('active_weapon_script', label);
+            Orion.CharPrint(Player.Serial(), 65, '*ARMA EQUIPPATA: ' + label + '*');
+            return true;
+        }
+
+        Orion.CharPrint(Player.Serial(), 33, '*RETRY EQUIP ARMA ' + (i + 1) + '/' + DOOM_EQUIP_RETRIES + ': ' + label + '*');
+    }
+
+    Orion.CharPrint(Player.Serial(), 33, '*ERRORE: NON RIESCO A EQUIPPARE ' + label + '*');
+    Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
+
+    return false;
+}
+
+function EquipDoomTalismanSimple(varName, label) {
+    label = label || varName;
+
+    for (var i = 0; i < DOOM_EQUIP_RETRIES; i++) {
+        var talisman = Orion.FindObject(varName);
+
+        if (!talisman) {
+            Orion.CharPrint(Player.Serial(), 33, '*TALISMANO NON TROVATO: ' + label + '*');
+            Orion.Print(33, 'Doom talisman non trovato: ' + varName);
+            return false;
+        }
+
+        if (IsTalismanObjEquipped(talisman)) {
+            currentTalismanDress = varName;
+            Shared.AddVar('active_talisman_script', label);
+            return true;
+        }
+
+        ClearDoomEquipState();
+
+        talisman = Orion.FindObject(varName);
+
+        if (!talisman) {
+            Orion.CharPrint(Player.Serial(), 33, '*TALISMANO PERSO: ' + label + '*');
+            return false;
+        }
+
+        Orion.Equip(talisman.Serial());
+        Orion.Wait(DOOM_EQUIP_WAIT);
+
+        talisman = Orion.FindObject(varName);
+
+        if (talisman && IsTalismanObjEquipped(talisman)) {
+            currentTalismanDress = varName;
+            Shared.AddVar('active_talisman_script', label);
+            Orion.CharPrint(Player.Serial(), 65, '*TALISMANO EQUIPPATO: ' + label + '*');
+            return true;
+        }
+
+        Orion.CharPrint(Player.Serial(), 33, '*RETRY TALISMANO ' + (i + 1) + '/' + DOOM_EQUIP_RETRIES + ': ' + label + '*');
+    }
+
+    Orion.CharPrint(Player.Serial(), 33, '*ERRORE: NON RIESCO A EQUIPPARE TALISMANO ' + label + '*');
+    Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
+
+    return false;
+}
+
+function EnsureDoomWeaponSimple(varName, label) {
+    var weapon = Orion.FindObject(varName);
+
+    if (!weapon) {
+        Orion.CharPrint(Player.Serial(), 33, '*ARMA DOOM NON TROVATA: ' + label + '*');
+        return false;
+    }
+
+    if (IsWeaponObjEquipped(weapon)) return true;
+
+    Orion.CharPrint(Player.Serial(), 33, '*ARMA NON IN MANO - RIDRESSO: ' + label + '*');
+    return EquipDoomWeaponSimple(varName, label);
+}
+
+function EnsureDoomTalismanSimple(varName, label) {
+    var talisman = Orion.FindObject(varName);
+
+    if (!talisman) {
+        Orion.CharPrint(Player.Serial(), 33, '*TALISMANO DOOM NON TROVATO: ' + label + '*');
+        return false;
+    }
+
+    if (IsTalismanObjEquipped(talisman)) return true;
+
+    Orion.CharPrint(Player.Serial(), 33, '*TALISMANO NON EQUIPPATO - RIDRESSO: ' + label + '*');
+    return EquipDoomTalismanSimple(varName, label);
+}
+
+// =====================================================
+// DOOM ROOM EQUIP
+// =====================================================
+
+function DoomEquipRoom1() {
+    EquipDoomTalismanSimple('talisman_undead', 'Talisman Undead');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_darknight_creeper', 'Darknight Creeper');
+    EnsureDoomWeaponSimple('doom_darknight_creeper', 'Darknight Creeper');
+}
+
+function DoomEquipRoom2() {
+    EquipDoomTalismanSimple('talisman_undead', 'Talisman Undead');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_fleshrenderer', 'Fleshrenderer');
+    EnsureDoomWeaponSimple('doom_fleshrenderer', 'Fleshrenderer');
+}
+
+function DoomEquipRoom3() {
+    EquipDoomTalismanSimple('talisman_demon', 'Talisman Demon');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_impaler', 'Impaler');
+    EnsureDoomWeaponSimple('doom_impaler', 'Impaler');
+}
+
+function DoomEquipRoom4() {
+    EquipDoomTalismanSimple('talisman_undead', 'Talisman Undead');
+    Orion.Wait(150);
+
+    // Questa è la stanza Shadow Knight: arma con bleeding / primary.
+    EquipDoomWeaponSimple('doom_shadow_knight', 'Shadow Knight Bleeding');
+    EnsureDoomWeaponSimple('doom_shadow_knight', 'Shadow Knight Bleeding');
+}
+
+function DoomEquipRoom5() {
+    EquipDoomTalismanSimple('talisman_demon', 'Talisman Demon');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_abyssmal_horror', 'Abyssmal Horror');
+    EnsureDoomWeaponSimple('doom_abyssmal_horror', 'Abyssmal Horror');
+}
+
+function DoomEquipRoom6() {
+    EquipDoomTalismanSimple('talisman_demon', 'Talisman Demon');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_dark_father', 'Dark Father');
+    EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+}
+
+// =====================================================
+// DOOM MAIN CONTROLS
+// =====================================================
 
 function ToggleDoomGauntlet() {
     if (Orion.ScriptRunning('AutoDoomGauntlet')) {
@@ -5009,8 +5334,9 @@ function pauseCombatMode() {
     Orion.PauseScript('AttackNearestEnemy');
     Orion.PauseScript('SOLOGENERAL');
 
-    Orion.WarMode(0);
+    Orion.WarMode(false);
     Orion.CancelTarget();
+    Orion.CancelWaitTarget();
 }
 
 function resumeCombatMode() {
@@ -5030,7 +5356,8 @@ function walkPath(coords) {
 
     pauseCombatMode();
 
-    var nearestIndex = 0, minDistance = 10000;
+    var nearestIndex = 0;
+    var minDistance = 10000;
 
     for (var j = 0; j < coords.length; j++) {
         var dist = Orion.GetDistance(coords[j][0], coords[j][1]);
@@ -5056,15 +5383,6 @@ function forceStep(direction, steps) {
     }
 }
 
-function equipSlayer(listName) {
-    if (currentDressList !== listName) {
-        Orion.Print(65, 'Dress Doom: ' + listName);
-        Orion.Dress(listName);
-        Orion.Wait(80);
-        currentDressList = listName;
-    }
-}
-
 function getEnemy(range) {
     var mobs = Orion.FindTypeEx(targetGraphics, 'any', 'ground', targetFlags, range, targetNoto);
 
@@ -5083,21 +5401,6 @@ function getEnemy(range) {
     return null;
 }
 
-function IsWeaponEquipped() {
-    var left = Orion.ObjAtLayer('LeftHand');
-    var right = Orion.ObjAtLayer('RightHand');
-
-    return !!(left || right);
-}
-
-function EnsureDoomDFWeaponEquipped() {
-    if (!IsWeaponEquipped()) {
-        Orion.CharPrint(Player.Serial(), 33, '*NESSUNA ARMA - RIMETTO DARK FATHER*');
-        safeToggleDressWeapon('Dress_DoomDarkFather');
-        Orion.Wait(250);
-    }
-}
-
 function IsRevenantMob(mob) {
     if (!mob) return false;
 
@@ -5107,8 +5410,6 @@ function IsRevenantMob(mob) {
 
     if (name.indexOf('revenant') !== -1) return true;
     if (props.indexOf('revenant') !== -1) return true;
-
-    // sicurezza extra, se nel tuo shard il revenant usa questo graphic
     if (graphic === '0x0190' && props.indexOf('a revenant') !== -1) return true;
 
     return false;
@@ -5132,10 +5433,6 @@ function CountValidDFSpawnMobs() {
 
         if (typeof ignoredMobs !== 'undefined' && ignoredMobs[nearMob.Serial()]) continue;
         if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(nearMob)) continue;
-
-        // IMPORTANTISSIMO:
-        // I revenant non fanno switchare alla generica.
-        // Devono essere gestiti solo da CheckAndDispelRevenant.
         if (IsRevenantMob(nearMob)) continue;
 
         validEnemiesNear++;
@@ -5153,20 +5450,18 @@ function fightLogic(range, roomNum) {
     var dfGenericMode = false;
 
     while (!Player.Dead() && !roomClear) {
-
         if (IsBloodOathLocked()) {
             HandleBloodOath();
             Orion.Wait(50);
             continue;
         }
 
-        /*
-            Check arma costante durante Doom.
-            Se per qualunque motivo sei senza arma in mano,
-            rimette subito quella del Dark Father.
-        */
         if (roomNum === 6) {
-            EnsureDoomDFWeaponEquipped();
+            if (dfGenericMode) {
+                EnsureDoomWeaponSimple('generic_area', 'Generica Area');
+            } else {
+                EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+            }
         }
 
         var enemy = getEnemy(range);
@@ -5180,7 +5475,8 @@ function fightLogic(range, roomNum) {
 
                 if (validEnemiesNear > 1) {
                     if (!dfGenericMode) {
-                        safeToggleDressWeapon('Dress_GenericArea');
+                        EquipDoomWeaponSimple('generic_area', 'Generica Area');
+                        EnsureDoomWeaponSimple('generic_area', 'Generica Area');
                         Orion.Wait(250);
                         dfGenericMode = true;
                     }
@@ -5189,31 +5485,24 @@ function fightLogic(range, roomNum) {
                         Orion.UseAbility('Secondary');
                     }
                 } else {
-                    if (dfGenericMode || !IsWeaponEquipped()) {
-                        safeToggleDressWeapon('Dress_DoomDarkFather');
+                    if (dfGenericMode || !IsAnyWeaponEquipped()) {
+                        EquipDoomWeaponSimple('doom_dark_father', 'Dark Father');
+                        EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
                         Orion.Wait(250);
                         dfGenericMode = false;
                     }
                 }
-
-                /*
-                    Secondo check dopo eventuale switch:
-                    se lo switch ha fallito o sei rimasto disarmato,
-                    forza di nuovo Dark Father.
-                */
-                EnsureDoomDFWeaponEquipped();
             }
 
             Orion.Wait(150);
         } else {
             if (roomNum === 6) {
-                if (dfGenericMode || !IsWeaponEquipped()) {
-                    safeToggleDressWeapon('Dress_DoomDarkFather');
+                if (dfGenericMode || !IsAnyWeaponEquipped()) {
+                    EquipDoomWeaponSimple('doom_dark_father', 'Dark Father');
+                    EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
                     Orion.Wait(250);
                     dfGenericMode = false;
                 }
-
-                EnsureDoomDFWeaponEquipped();
             }
 
             if (!emptyCheckStarted) {
@@ -5221,19 +5510,18 @@ function fightLogic(range, roomNum) {
                 emptyCheckStarted = true;
             }
 
-            if (Orion.Now() - emptySince >= 3000) roomClear = true;
-            else Orion.Wait(250);
+            if (Orion.Now() - emptySince >= 3000) {
+                roomClear = true;
+            } else {
+                Orion.Wait(250);
+            }
         }
     }
 
-    /*
-        Prima di uscire dalla stanza 6, assicura che torni
-        sempre con l'arma Dark Father.
-    */
     if (roomNum === 6) {
-        safeToggleDressWeapon('Dress_DoomDarkFather');
+        EquipDoomWeaponSimple('doom_dark_father', 'Dark Father');
+        EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
         Orion.Wait(250);
-        EnsureDoomDFWeaponEquipped();
     }
 }
 
@@ -5254,129 +5542,124 @@ function ensureDoomSupportScripts() {
     }
 }
 
+// =====================================================
+// DOOM GAUNTLET RUN
+// =====================================================
+
 function AutoDoomGauntlet(stanza, singleRun) {
     Orion.Print(89, '=== Avvio Doom Gauntlet ===');
     Orion.IgnoreReset();
 
     ensureDoomSupportScripts();
 
+    if (!stanza) stanza = 1;
+
     var isSingle = singleRun === true;
+
     Orion.Wait(50);
 
     while (!Player.Dead()) {
         if (stanza <= 1) {
             Orion.Print(65, '>> Stanza 1 - Darknight Creeper');
-            safeToggleDressTalisman('Dress_TalismanUndead');
-            Orion.Wait(150);
-            safeToggleDressWeapon('Dress_DoomDarknightCreeper');
+
+            DoomEquipRoom1();
+
             walkPath(rails.r1);
             forceStep('East', 2);
             walkPath(rails.r1m);
+
+            EnsureDoomWeaponSimple('doom_darknight_creeper', 'Darknight Creeper');
             fightLogic(15, 1);
         }
 
         if (stanza <= 2) {
             Orion.Print(65, '>> Stanza 2 - Fleshrenderer');
-            safeToggleDressTalisman('Dress_TalismanUndead');
-            Orion.Wait(150);
-            safeToggleDressWeapon('Dress_DoomFleshrenderer');
-            
-if (Orion.BuffExists('Poison')) {
-    Orion.WarMode(false);
-    Orion.Cast('Cleanse by Fire', 'self');
-    Orion.Wait(1200);
-}
+
+            DoomEquipRoom2();
+
+            if (Orion.BuffExists('Poison')) {
+                Orion.WarMode(false);
+                Orion.Cast('Cleanse by Fire', 'self');
+                Orion.Wait(1200);
+            }
 
             walkPath(rails.r2);
             forceStep('South', 4);
             walkPath(rails.r2m);
+
+            EnsureDoomWeaponSimple('doom_fleshrenderer', 'Fleshrenderer');
             fightLogic(15, 2);
+
             Orion.UseObject('0x40101F16');
         }
 
         if (stanza <= 3) {
             Orion.Print(65, '>> Stanza 3 - Impaler');
-            safeToggleDressTalisman('Dress_TalismanDemon');
-            Orion.Wait(150);
-            safeToggleDressWeapon('Dress_DoomImpaler');
+
+            DoomEquipRoom3();
+
             walkPath(rails.r3);
             forceStep('South', 4);
             walkPath(rails.r3m);
+
+            EnsureDoomWeaponSimple('doom_impaler', 'Impaler');
             fightLogic(15, 3);
         }
 
         if (stanza <= 4) {
-            Orion.Print(65, '>> Stanza 4 - Shadow Knight');
-            safeToggleDressTalisman('Dress_TalismanUndead');
-            Orion.Wait(150);
-            safeToggleDressWeapon('Dress_DoomShadowKnight');
+            Orion.Print(65, '>> Stanza 4 - Shadow Knight / Bleeding');
+
+            DoomEquipRoom4();
+
             walkPath(rails.r4);
             forceStep('West', 4);
             forceStep('South', 4);
             walkPath(rails.r4m);
+
+            EnsureDoomWeaponSimple('doom_shadow_knight', 'Shadow Knight Bleeding');
             fightLogic(15, 4);
         }
 
         if (stanza <= 5) {
             Orion.Print(65, '>> Stanza 5 - Abyssmal Horror');
-            safeToggleDressTalisman('Dress_TalismanDemon');
-            Orion.Wait(150);
-            safeToggleDressWeapon('Dress_DoomAbyssmalHorror');
+
+            DoomEquipRoom5();
+
             walkPath(rails.r5);
             forceStep('West', 4);
             walkPath(rails.r5m);
+
+            EnsureDoomWeaponSimple('doom_abyssmal_horror', 'Abyssmal Horror');
             fightLogic(15, 5);
         }
 
-if (stanza <= 6) {
-    Orion.Print(65, '>> Stanza 6 - Dark Father');
+        if (stanza <= 6) {
+            Orion.Print(65, '>> Stanza 6 - Dark Father');
 
-    safeToggleDressTalisman('Dress_TalismanDemon');
-    Orion.Wait(150);
-    safeToggleDressWeapon('Dress_DoomDarkFather');
-    Orion.Wait(250);
-    EnsureDoomDFWeaponEquipped();
+            DoomEquipRoom6();
 
-    walkPath(rails.r6);
-    EnsureDoomDFWeaponEquipped();
+            walkPath(rails.r6);
 
-    fightLogic(18, 6);
-}
+            EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+            fightLogic(18, 6);
+        }
 
         if (isSingle) {
             Orion.Print(89, '=== Task terminato, ripristino DOOM principale ===');
-            if (typeof ToggleDoomGauntlet === 'function') ToggleDoomGauntlet();
+
+            if (typeof ToggleDoomGauntlet === 'function') {
+                ToggleDoomGauntlet();
+            }
+
             break;
         }
 
         stanza = 1;
+
         Orion.Print(55, '=== Giro finito, ricomincio dalla prima ===');
         Orion.Wait(1000);
     }
 }
-
-function safeToggleDressWeapon(listName) {
-    var forceEquip = false;
-
-    if (!IsWeaponEquipped()) {
-        forceEquip = true;
-    }
-
-    if (currentWeaponDress !== listName || forceEquip) {
-        ToggleDressWeapon(listName);
-        currentWeaponDress = listName;
-        Orion.Wait(250);
-    }
-}
-
-function safeToggleDressTalisman(listName) {
-    if (currentTalismanDress !== listName) {
-        ToggleDressTalisman(listName);
-        currentTalismanDress = listName;
-    }
-}
-
-
 
 // =====================================================
 // SMELTING
@@ -5430,7 +5713,7 @@ function SmeltAndStack() {
 
             if (Orion.WaitForTarget(2000)) {
                 Orion.TargetObject(itemToSmelt);
-                Orion.Wait(1000);
+                Orion.Wait(1200);
             }
 
             if (Orion.FindObject(itemToSmelt)) {
