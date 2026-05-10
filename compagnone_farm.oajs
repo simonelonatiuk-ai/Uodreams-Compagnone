@@ -1,11 +1,13 @@
 // =====================================================
 // COMPAGNONE 2026 - FARM MODULE
-// Versione pulita:
+// Versione completa integrata:
 // - Nessuna funzione duplicata
-// - Logica fix mantenuta
 // - Peso farm generale 85%
 // - Skull Doom prelievo ossa banca con MaxWeight -10
 // - Nome SKULL_RUNEBOOK_VAR corretto
+// - Fix sicurezza recall: riconosce banca tramite banker/minter/innkeeper
+// - Se sta farmando ma rileva banca, torna alla zona farm corretta
+// - Loot ossa Doom velocizzato e interrotto se mob vicino
 // =====================================================
 
 
@@ -36,14 +38,6 @@ var lastClickTime = 0;
 
 // =====================================================
 // CONFIG PESO FARM
-// =====================================================
-//
-// Le ossa pesano 1 stone ciascuna.
-// Tutti i farm generici tornano in banca quando arrivano
-// alla soglia sicura dell'85% del peso massimo.
-//
-// Skull Doom invece preleva dalla banca solo quante ossa puo portare
-// lasciando sempre 10 stone libere rispetto al MaxWeight.
 // =====================================================
 
 var FARM_SAFE_WEIGHT_PERCENT = 0.85;
@@ -191,7 +185,7 @@ function FarmRecallRune(varName, hookId, label) {
                     gump.Select(Orion.CreateGumpHook(hookId));
                     Orion.Wait(1800);
                     FarmCleanState(100);
-                    Orion.Print(65, 'Recall completato: ' + label);
+                    Orion.Print(65, 'Recall comando inviato: ' + label);
                     return true;
                 }
 
@@ -386,6 +380,291 @@ function EnsureSbloccaSeFermoRunning() {
 
 
 // =====================================================
+// FARM LOCATION SAFETY / BANK / DOOM DETECTION
+// =====================================================
+//
+// NPC banca sicuro dallo screen:
+// Serial: 0x00008A59
+// Name/Properties: Arcadia The Innkeeper
+//
+// Doom viene riconosciuto dalla strega Victoria:
+// VICTORIA_SERIAL = 0x00001AA8
+// oppure NPC con nome/properties Victoria / Sorceress
+// =====================================================
+
+var FARM_BANK_NPC_RANGE = 24;
+var FARM_DOOM_NPC_RANGE = 35;
+var FARM_NO_ENEMY_BANK_CHECK_MS = 5000;
+
+var FARM_KNOWN_BANK_NPCS = [
+    '0x00008A59' // Arcadia The Innkeeper
+];
+
+function FarmNormalizeSerial(serial) {
+    var s = String(serial).toLowerCase();
+
+    if (s.indexOf('0x') !== 0) {
+        s = '0x' + s;
+    }
+
+    return s;
+}
+
+function FarmSerialMatches(a, b) {
+    return FarmNormalizeSerial(a) === FarmNormalizeSerial(b);
+}
+
+function FarmFindKnownBankNpc() {
+    for (var i = 0; i < FARM_KNOWN_BANK_NPCS.length; i++) {
+        var serial = FARM_KNOWN_BANK_NPCS[i];
+        var npc = Orion.FindObject(serial);
+
+        if (npc && Orion.ObjectExists(serial)) {
+            try {
+                if (npc.Distance() <= FARM_BANK_NPC_RANGE) {
+                    return npc;
+                }
+            } catch (e) {
+                return npc;
+            }
+        }
+    }
+
+    return null;
+}
+
+function FarmFindBankNpcByName(range) {
+    range = range || FARM_BANK_NPC_RANGE;
+
+    var npcs = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'mobile|live|near|inlos',
+        range,
+        'any'
+    );
+
+    if (!npcs || npcs.length <= 0) return null;
+
+    for (var i = 0; i < npcs.length; i++) {
+        var npc = npcs[i];
+        if (!npc) continue;
+
+        var serial = npc.Serial ? npc.Serial() : '';
+
+        for (var k = 0; k < FARM_KNOWN_BANK_NPCS.length; k++) {
+            if (FarmSerialMatches(serial, FARM_KNOWN_BANK_NPCS[k])) {
+                return npc;
+            }
+        }
+
+        var name = '';
+        var props = '';
+
+        try {
+            name = npc.Name ? (npc.Name() || '').toLowerCase() : '';
+        } catch (e1) {}
+
+        try {
+            props = npc.Properties ? (npc.Properties() || '').toLowerCase() : '';
+        } catch (e2) {}
+
+        var text = name + ' ' + props;
+
+        if (
+            text.indexOf('arcadia') !== -1 ||
+            text.indexOf('innkeeper') !== -1 ||
+            text.indexOf('inkeeper') !== -1 ||
+            text.indexOf('banker') !== -1 ||
+            text.indexOf('minter') !== -1 ||
+            text.indexOf('banchiere') !== -1
+        ) {
+            return npc;
+        }
+    }
+
+    return null;
+}
+
+function FarmFindBankNpc(range) {
+    var known = FarmFindKnownBankNpc();
+
+    if (known) {
+        return known;
+    }
+
+    return FarmFindBankNpcByName(range || FARM_BANK_NPC_RANGE);
+}
+
+function FarmIsInBankArea() {
+    var npc = FarmFindBankNpc(FARM_BANK_NPC_RANGE);
+
+    if (npc) {
+        var name = '';
+
+        try {
+            name = npc.Name ? npc.Name() : '';
+        } catch (e) {}
+
+        Orion.Print(33, '[FARM SAFETY] BANCA rilevata: ' + name + ' ' + npc.Serial());
+        return true;
+    }
+
+    return false;
+}
+
+function FarmFindDoomWitch() {
+    var fixed = Orion.FindObject('0x00001AA8');
+
+    if (fixed && Orion.ObjectExists('0x00001AA8')) {
+        try {
+            if (fixed.Distance() <= FARM_DOOM_NPC_RANGE) {
+                return fixed;
+            }
+        } catch (e0) {
+            return fixed;
+        }
+    }
+
+    var npcs = Orion.FindTypeEx(
+        '0x0190|0x0191',
+        'any',
+        'ground',
+        'mobile|live|near|inlos',
+        FARM_DOOM_NPC_RANGE,
+        'any'
+    );
+
+    if (!npcs || npcs.length <= 0) return null;
+
+    for (var i = 0; i < npcs.length; i++) {
+        var npc = npcs[i];
+        if (!npc) continue;
+
+        var name = '';
+        var props = '';
+
+        try {
+            name = npc.Name ? (npc.Name() || '').toLowerCase() : '';
+        } catch (e1) {}
+
+        try {
+            props = npc.Properties ? (npc.Properties() || '').toLowerCase() : '';
+        } catch (e2) {}
+
+        var text = name + ' ' + props;
+
+        if (
+            text.indexOf('victoria') !== -1 ||
+            text.indexOf('sorceress') !== -1 ||
+            text.indexOf('the sorceress') !== -1
+        ) {
+            return npc;
+        }
+    }
+
+    return null;
+}
+
+function FarmIsInDoomArea() {
+    var witch = FarmFindDoomWitch();
+
+    if (witch) {
+        var name = '';
+
+        try {
+            name = witch.Name ? witch.Name() : '';
+        } catch (e) {}
+
+        Orion.Print(65, '[FARM SAFETY] DOOM rilevato: ' + name + ' ' + witch.Serial());
+        return true;
+    }
+
+    return false;
+}
+
+function FarmRecallOutOfBank(runebookVar, hookId, label) {
+    return FarmRetryUntilDone(function() {
+        FarmCleanState(150);
+
+        if (!FarmRecallRune(runebookVar, hookId, label)) {
+            return false;
+        }
+
+        Orion.Wait(1800);
+
+        if (label === 'STREGA DOOM') {
+            if (FarmIsInDoomArea()) {
+                Orion.Print(65, '[FARM SAFETY] Arrivato correttamente a Doom/Strega.');
+                return true;
+            }
+
+            if (FarmIsInBankArea()) {
+                Orion.CharPrint(Player.Serial(), 33, 'Recall fallito: sono ancora in banca. Riprovo Strega Doom.');
+                return false;
+            }
+
+            Orion.CharPrint(Player.Serial(), 33, 'Non vedo Victoria/Strega Doom. Riprovo recall Doom.');
+            return false;
+        }
+
+        if (label === 'CAMPANA') {
+            if (!FarmIsInBankArea() && Orion.GetDistance(bellPos.x, bellPos.y) <= 25) {
+                Orion.Print(65, '[FARM SAFETY] Arrivato correttamente alla Campana.');
+                return true;
+            }
+
+            if (FarmIsInBankArea()) {
+                Orion.CharPrint(Player.Serial(), 33, 'Recall fallito: sono ancora in banca. Riprovo Campana.');
+                return false;
+            }
+
+            Orion.CharPrint(Player.Serial(), 33, 'Non sono vicino alla Campana. Riprovo recall Campana.');
+            return false;
+        }
+
+        if (FarmIsInBankArea()) {
+            Orion.CharPrint(Player.Serial(), 33, 'Sono ancora in banca dopo recall ' + label + '. Riprovo.');
+            return false;
+        }
+
+        return true;
+
+    }, 'Recall sicuro fuori banca -> ' + label, 900);
+}
+
+function FarmFindAnyEnemyNear(range) {
+    range = range || 12;
+
+    var enemies = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'mobile|live|near|inlos|ignoreself|ignorefriends',
+        range,
+        targetNoto
+    );
+
+    if (!enemies || enemies.length <= 0) return null;
+
+    for (var i = 0; i < enemies.length; i++) {
+        var mob = enemies[i];
+        if (!mob) continue;
+
+        if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(mob)) {
+            Orion.Ignore(mob.Serial());
+            continue;
+        }
+
+        return mob;
+    }
+
+    return null;
+}
+
+
+// =====================================================
 // SET RUNEBOOK DA GUI
 // =====================================================
 
@@ -458,9 +737,7 @@ function StartBoneScavenger() {
     Orion.IgnoreReset();
     FarmCleanState(100);
 
-    if (!FarmRetryUntilDone(function() {
-        return FarmRecallRune(FARM_RUNEBOOK_OSSA_DOOM_VAR, FARM_RUNE_WITCH_HOOK, 'STREGA DOOM');
-    }, 'Partenza Farm Ossa Doom dalla Strega')) {
+    if (!FarmRecallOutOfBank(FARM_RUNEBOOK_OSSA_DOOM_VAR, FARM_RUNE_WITCH_HOOK, 'STREGA DOOM')) {
         return;
     }
 
@@ -480,6 +757,8 @@ function StopBoneScavenger() {
 
 function RunRailBoneFarm(railCoordinates) {
     var currentIndex = 0;
+    var noEnemySince = Orion.Now();
+    var lastSafetyCheck = 0;
 
     while (!Player.Dead()) {
         if (FarmShouldStop()) return;
@@ -487,9 +766,51 @@ function RunRailBoneFarm(railCoordinates) {
 
         BoneCheckWeightAndSend();
 
+        /*
+            SAFETY DOOM:
+            - Se sono in banca mentre sto farmando, torno alla strega.
+            - Se per 30 secondi non vedo nemici e non vedo Victoria/Strega,
+              probabilmente sono in una zona sbagliata: torno alla strega.
+            - Se vedo nemici, resetto il timer.
+        */
+        var now = Orion.Now();
+
+        if (now - lastSafetyCheck > 3000) {
+            lastSafetyCheck = now;
+
+            var bankHere = FarmIsInBankArea();
+            var doomHere = FarmIsInDoomArea();
+            var enemyHere = FarmFindAnyEnemyNear(18);
+
+            if (enemyHere) {
+                noEnemySince = now;
+            }
+
+            if (bankHere && !doomHere) {
+                Orion.CharPrint(Player.Serial(), 33, 'BANCA rilevata durante farm Doom. Torno alla Strega.');
+                FarmRecallOutOfBank(FARM_RUNEBOOK_OSSA_DOOM_VAR, FARM_RUNE_WITCH_HOOK, 'STREGA DOOM');
+                Orion.IgnoreReset();
+                currentIndex = 0;
+                noEnemySince = Orion.Now();
+                FarmCleanState(150);
+                continue;
+            }
+
+            if (!enemyHere && !doomHere && (now - noEnemySince > 30000)) {
+                Orion.CharPrint(Player.Serial(), 33, '30s senza nemici e non vedo la Strega. Torno a Doom.');
+                FarmRecallOutOfBank(FARM_RUNEBOOK_OSSA_DOOM_VAR, FARM_RUNE_WITCH_HOOK, 'STREGA DOOM');
+                Orion.IgnoreReset();
+                currentIndex = 0;
+                noEnemySince = Orion.Now();
+                FarmCleanState(150);
+                continue;
+            }
+        }
+
         if (currentIndex >= railCoordinates.length) currentIndex = 0;
 
         var coord = railCoordinates[currentIndex];
+
         Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 2, 2000);
 
         var endScan = Orion.Now() + 100;
@@ -501,6 +822,8 @@ function RunRailBoneFarm(railCoordinates) {
             var target = FindNearestEnemy();
 
             if (target) {
+                noEnemySince = Orion.Now();
+
                 var success = AttackNearestEnemy();
 
                 if (success) {
@@ -519,23 +842,37 @@ function RunRailBoneFarm(railCoordinates) {
 }
 
 function BoneQuickLoot() {
-    Orion.Print(55, 'Loot ossa rapido...');
+    var lootEnd = Orion.Now() + 750;
 
-    var endTime = Orion.Now() + 1800;
-
-    while (!Player.Dead() && Orion.Now() < endTime) {
+    while (!Player.Dead() && Orion.Now() < lootEnd) {
         if (FarmShouldStop()) return;
+        if (FarmHandleBloodOath()) continue;
+
+        if (FarmIsWeightAtLimit()) return;
+
+        var danger = FarmFindAnyEnemyNear(3);
+
+        if (danger) {
+            Orion.Print(33, 'Nemico vicino durante loot ossa: interrompo loot.');
+            return;
+        }
+
+        var movedSomething = false;
 
         var groundBones = Orion.FindType(bonesGraphic, 'any', 'ground', 'item|near', 3);
 
         for (var i = 0; groundBones && i < groundBones.length; i++) {
             if (FarmIsWeightAtLimit()) return;
 
+            danger = FarmFindAnyEnemyNear(3);
+            if (danger) return;
+
             var bone = Orion.FindObject(groundBones[i]);
 
             if (bone && bone.Distance() <= 3) {
                 Orion.MoveItem(bone.Serial(), 0, 'backpack');
-                Orion.Wait(120);
+                Orion.Wait(70);
+                movedSomething = true;
             }
         }
 
@@ -544,23 +881,32 @@ function BoneQuickLoot() {
         for (var c = 0; corpses && c < corpses.length; c++) {
             if (FarmIsWeightAtLimit()) return;
 
+            danger = FarmFindAnyEnemyNear(3);
+            if (danger) return;
+
             var corpse = corpses[c];
             if (!corpse) continue;
 
             Orion.UseObject(corpse.Serial());
-            Orion.Wait(100);
+            Orion.Wait(70);
 
             var corpseBones = Orion.FindType(bonesGraphic, 'any', corpse.Serial(), 'item|recurse');
 
             for (var b = 0; corpseBones && b < corpseBones.length; b++) {
                 if (FarmIsWeightAtLimit()) return;
 
+                danger = FarmFindAnyEnemyNear(3);
+                if (danger) return;
+
                 Orion.MoveItem(corpseBones[b], 0, 'backpack');
-                Orion.Wait(120);
+                Orion.Wait(70);
+                movedSomething = true;
             }
         }
 
-        Orion.Wait(80);
+        if (!movedSomething) return;
+
+        Orion.Wait(40);
     }
 }
 
@@ -583,9 +929,7 @@ function BoneCheckWeightAndSend() {
 
     Orion.Print(65, 'Ritorno alla Strega Doom per riprendere la rail.');
 
-    if (!FarmRetryUntilDone(function() {
-        return FarmRecallRune(FARM_RUNEBOOK_OSSA_DOOM_VAR, FARM_RUNE_WITCH_HOOK, 'STREGA DOOM');
-    }, 'Ritorno alla Strega Doom')) {
+    if (!FarmRecallOutOfBank(FARM_RUNEBOOK_OSSA_DOOM_VAR, FARM_RUNE_WITCH_HOOK, 'STREGA DOOM')) {
         return false;
     }
 
@@ -620,6 +964,20 @@ function StartDragonFarmer() {
     while (!Player.Dead()) {
         if (FarmShouldStop()) return;
         if (FarmHandleBloodOath()) continue;
+
+        if (FarmIsInBankArea() && !IsNearBell()) {
+            Orion.CharPrint(Player.Serial(), 33, 'Sono in banca ma dovrei farmare Campana. Torno alla campana.');
+
+            if (!FarmRetryUntilDone(function() {
+                return DragonGoToBellAndRing();
+            }, 'Ritorno sicuro alla campana dalla banca')) {
+                return;
+            }
+
+            Orion.IgnoreReset();
+            FarmCleanState(100);
+            continue;
+        }
 
         DragonCheckWeightAndSend();
 
@@ -687,14 +1045,24 @@ function StopDragonFarmer() {
 function DragonGoToBellAndRing() {
     FarmCleanState(100);
 
-    if (Orion.GetDistance(bellPos.x, bellPos.y) > 10) {
-        Orion.Print(65, 'Campana lontana: recall runa 7.');
+    if (FarmIsInBankArea() || Orion.GetDistance(bellPos.x, bellPos.y) > 10) {
+        Orion.Print(65, 'Campana lontana o banca rilevata: recall runa 7.');
 
         if (!FarmRecallRune(FARM_RUNEBOOK_OSSA_CAMPANA_VAR, FARM_RUNE_CAMPANA_HOOK, 'CAMPANA')) {
             return false;
         }
 
-        Orion.Wait(1000);
+        Orion.Wait(1200);
+
+        if (FarmIsInBankArea()) {
+            Orion.Print(33, 'Recall campana non riuscito: sono ancora in banca.');
+            return false;
+        }
+
+        if (Orion.GetDistance(bellPos.x, bellPos.y) > 25) {
+            Orion.Print(33, 'Recall campana non confermato: sono ancora troppo lontano dalla campana.');
+            return false;
+        }
     }
 
     Orion.Print(65, 'Vado diretto alla campana: ' + bellPos.x + ',' + bellPos.y);
@@ -716,13 +1084,19 @@ function DragonGoToBellAndRing() {
 
     for (var i = 0; i < tiles.length; i++) {
         if (FarmShouldStop()) return false;
+        if (FarmHandleBloodOath()) continue;
 
-        Orion.WalkTo(tiles[i][0], tiles[i][1], Player.Z(), 1, 255, 1, 2, 3500);
-        Orion.Wait(300);
+        if (FarmIsInBankArea()) {
+            Orion.Print(33, 'Banca rilevata mentre andavo alla campana. Recall da rifare.');
+            return false;
+        }
+
+        Orion.WalkTo(tiles[i][0], tiles[i][1], Player.Z(), 1, 255, 1, 2, 3000);
+        Orion.Wait(220);
 
         Orion.Print(65, 'Provo campana da distanza: ' + Orion.GetDistance(bellPos.x, bellPos.y));
         Orion.UseObject(bellSerial);
-        Orion.Wait(700);
+        Orion.Wait(500);
 
         if (Orion.InJournal(msgAlreadySummoned) || Orion.GetDistance(bellPos.x, bellPos.y) <= 2) {
             Orion.Print(65, 'Campana usata o raggiunta.');
@@ -732,7 +1106,7 @@ function DragonGoToBellAndRing() {
 
     Orion.Print(33, 'Non sono riuscito ad arrivare al tile campana. Provo comunque UseObject.');
     Orion.UseObject(bellSerial);
-    Orion.Wait(700);
+    Orion.Wait(500);
 
     if (Orion.InJournal(msgAlreadySummoned) || Orion.GetDistance(bellPos.x, bellPos.y) <= 2) {
         Orion.Print(65, 'Campana usata o raggiunta dopo tentativo finale.');
@@ -808,11 +1182,16 @@ function LootLastDragonCorpse() {
     Orion.UseObject(corpse.Serial());
     Orion.Wait(300);
 
-    var timeout = Orion.Now() + 5000;
+    var timeout = Orion.Now() + 4000;
 
     while (!Player.Dead() && Orion.Now() < timeout) {
         if (FarmShouldStop()) return;
         if (FarmHandleBloodOath()) continue;
+
+        if (FarmFindAnyEnemyNear(3)) {
+            Orion.Print(33, 'Nemico vicino durante loot drago: interrompo loot.');
+            return;
+        }
 
         if (FarmIsWeightAtLimit()) {
             Orion.Print(33, 'Peso 85% raggiunto durante loot drago. Stop loot e banca.');
@@ -822,7 +1201,7 @@ function LootLastDragonCorpse() {
         var bones = Orion.FindType(bonesGraphic, 'any', corpse.Serial(), 'item|recurse');
 
         if (!bones || bones.length <= 0) {
-            Orion.Wait(150);
+            Orion.Wait(100);
             bones = Orion.FindType(bonesGraphic, 'any', corpse.Serial(), 'item|recurse');
 
             if (!bones || bones.length <= 0) {
@@ -834,13 +1213,14 @@ function LootLastDragonCorpse() {
         for (var i = 0; i < bones.length; i++) {
             if (FarmShouldStop()) return;
             if (FarmIsWeightAtLimit()) return;
+            if (FarmFindAnyEnemyNear(3)) return;
             if (!Orion.ObjectExists(bones[i])) continue;
 
             Orion.MoveItem(bones[i], 0, 'backpack');
-            Orion.Wait(350);
+            Orion.Wait(220);
         }
 
-        Orion.Wait(100);
+        Orion.Wait(80);
     }
 
     Orion.Print(33, 'Timeout loot corpse.');
@@ -866,20 +1246,18 @@ function DragonCheckWeightAndSend() {
     Orion.Print(65, 'Ritorno alla campana.');
 
     if (!FarmRetryUntilDone(function() {
-        return FarmRecallRune(FARM_RUNEBOOK_OSSA_CAMPANA_VAR, FARM_RUNE_CAMPANA_HOOK, 'CAMPANA');
+        return DragonGoToBellAndRing();
     }, 'Recall campana dopo deposito')) {
+        return false;
+    }
+
+    if (FarmIsInBankArea()) {
+        Orion.Print(33, 'Sono ancora in banca dopo ritorno campana. Riprovo.');
         return false;
     }
 
     Orion.IgnoreReset();
     FarmCleanState(100);
-
-    if (!FarmRetryUntilDone(function() {
-        return DragonGoToBellAndRing();
-    }, 'Raggiungi campana dopo deposito')) {
-        return false;
-    }
-
     return true;
 }
 
