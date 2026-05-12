@@ -1795,9 +1795,15 @@ function SOLO() {
 
 function TankerManuale() {
     try { Orion.IgnoreReset(); } catch(e) {}
-    ignoredMobs = {};
+
+    ignoredMobs = ignoredMobs || {};
+
     Orion.SetGlobal('StopAllScripts', 'false');
-    if (!Orion.GetGlobal('LastEnemySerial')) Orion.SetGlobal('LastEnemySerial', '');
+
+    if (!Orion.GetGlobal('LastEnemySerial')) {
+        Orion.SetGlobal('LastEnemySerial', '');
+    }
+
     StartProfile('Sampire TANKER MANUALE', null, 'TankerManualeAttack');
 }
 
@@ -4025,106 +4031,183 @@ function SoloFollowAndAttackSS() {
 
 function GetManualSelectedEnemy() {
     var serial = Orion.GetGlobal('LastEnemySerial');
-    var enemy = null;
 
-    if (serial && Orion.ObjectExists(serial)) enemy = Orion.FindObject(serial);
-    if (!enemy) enemy = Orion.FindObject('myTarget');
-
-    if (!enemy || enemy.Dead() || enemy.Hits() <= 0 || ignoredMobs[enemy.Serial()] || IsIgnoredSummon(enemy)) {
-        NextEnemyManual();
-        serial = Orion.GetGlobal('LastEnemySerial');
-        enemy = (serial && Orion.ObjectExists(serial)) ? Orion.FindObject(serial) : Orion.FindObject('myTarget');
+    if (!serial || serial === '' || serial === '0x000') {
+        return null;
     }
 
-    if (!enemy || enemy.Dead() || enemy.Hits() <= 0) return null;
-    if (ignoredMobs[enemy.Serial()] || IsIgnoredSummon(enemy)) return null;
+    if (!Orion.ObjectExists(serial)) {
+        Orion.SetGlobal('LastEnemySerial', '');
+        Orion.RemoveObject('myTarget');
+        return null;
+    }
+
+    var enemy = Orion.FindObject(serial);
+
+    if (!enemy) {
+        Orion.SetGlobal('LastEnemySerial', '');
+        Orion.RemoveObject('myTarget');
+        return null;
+    }
+
+    if (enemy.Dead && enemy.Dead()) {
+        Orion.SetGlobal('LastEnemySerial', '');
+        Orion.RemoveObject('myTarget');
+        return null;
+    }
+
+    if (ignoredMobs[enemy.Serial()] || IsIgnoredSummon(enemy)) {
+        ignoredMobs[enemy.Serial()] = true;
+        Orion.Ignore(enemy.Serial());
+        Orion.SetGlobal('LastEnemySerial', '');
+        Orion.RemoveObject('myTarget');
+        return null;
+    }
 
     return enemy;
 }
 
 function TankerManualeAttack() {
     var honoredTarget = null;
+    var activeSerial = '';
 
     ignoredMobs = ignoredMobs || {};
 
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
-        if (HandleBloodOath()) continue;
 
-        Orion.WarMode(true);
+        if (HandleBloodOath()) {
+            Orion.Wait(50);
+            continue;
+        }
 
         var enemy = GetManualSelectedEnemy();
 
+        // NESSUN TARGET MANUALE SCELTO: NON ATTACCA NESSUNO.
         if (!enemy) {
-            lastEOOTarget = '';
-            Orion.Wait(100);
+            activeSerial = '';
+            honoredTarget = null;
+            Orion.WarMode(false);
+            Orion.Wait(150);
             continue;
         }
 
         var currentSerial = enemy.Serial();
 
-        if (ignoredMobs[currentSerial] || IsIgnoredSummon(enemy)) {
-            Orion.Ignore(currentSerial);
-            ignoredMobs[currentSerial] = true;
+        if (activeSerial !== currentSerial) {
+            activeSerial = currentSerial;
             honoredTarget = null;
+
+            Orion.ClearHighlightCharacters(true);
+            Orion.ShowStatusbar(currentSerial, 1200, 1200);
+            Orion.AddHighlightCharacter(currentSerial, 1283, true);
+            Orion.CharPrint(currentSerial, 23, '*TARGET*');
+        }
+
+        if (ignoredMobs[currentSerial] || IsIgnoredSummon(enemy)) {
+            ignoredMobs[currentSerial] = true;
+            Orion.Ignore(currentSerial);
             Orion.SetGlobal('LastEnemySerial', '');
             Orion.RemoveObject('myTarget');
-            Orion.Wait(100);
+            activeSerial = '';
+            honoredTarget = null;
+            Orion.WarMode(false);
+            Orion.Wait(150);
             continue;
         }
 
-        if (!honoredTarget || honoredTarget.Serial() !== currentSerial) honoredTarget = TryHonorEnemy(enemy) ? enemy : null;
+        if (!honoredTarget || honoredTarget.Serial() !== currentSerial) {
+            honoredTarget = TryHonorEnemy(enemy) ? enemy : null;
+        }
+
+        Orion.WarMode(true);
 
         while (!Player.Dead() && Orion.ObjectExists(currentSerial)) {
-            var selectedSerial = Orion.GetGlobal('LastEnemySerial');
-            if (selectedSerial && selectedSerial !== currentSerial && Orion.ObjectExists(selectedSerial)) break;
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
 
-            enemy = Orion.FindObject(currentSerial);
-
-            if (!enemy || enemy.Dead()) break;
-            if (HandleBloodOath()) break;
-
-            if (ignoredMobs[currentSerial] || IsIgnoredSummon(enemy)) {
-                Orion.Ignore(currentSerial);
-                ignoredMobs[currentSerial] = true;
+            if (HandleBloodOath()) {
+                Orion.Wait(50);
                 break;
             }
 
-            var noto = enemy.Notoriety();
+            // SE CAMBI TARGET CON NextEnemyManual, ESCE SUBITO E PASSA AL NUOVO.
+            var selectedSerial = Orion.GetGlobal('LastEnemySerial');
 
-            if ((noto === 3 || noto === 6) && lastEOOTarget !== currentSerial && Player.Mana() >= 14) {
-                if (Orion.BuffExists('Enemy of One')) {
-                    Orion.Cast('Enemy of One');
-
-                    var offTimeout = 0;
-                    while (Orion.BuffExists('Enemy of One') && offTimeout < 10) {
-                        Orion.Wait(150);
-                        offTimeout++;
-                    }
-
-                    Orion.Wait(50);
-                }
-
-                Orion.Cast('Enemy of One');
-
-                var onTimeout = 0;
-                while (!Orion.BuffExists('Enemy of One') && onTimeout < 10) {
-                    Orion.Wait(100);
-                    onTimeout++;
-                }
-
-                if (Orion.BuffExists('Enemy of One')) lastEOOTarget = currentSerial;
+            if (!selectedSerial || selectedSerial === '' || selectedSerial === '0x000') {
+                activeSerial = '';
+                honoredTarget = null;
+                Orion.WarMode(false);
+                break;
             }
 
-            if (enemy.Distance() <= 12) Orion.Attack(currentSerial);
+            if (selectedSerial !== currentSerial) {
+                activeSerial = '';
+                honoredTarget = null;
+                break;
+            }
+
+            enemy = Orion.FindObject(currentSerial);
+
+            if (!enemy || !Orion.ObjectExists(currentSerial)) {
+                StopManualAttackScripts();
+                return;
+            }
+
+            if (enemy.Dead && enemy.Dead()) {
+                StopManualAttackScripts();
+                return;
+            }
+
+            if (ignoredMobs[currentSerial] || IsIgnoredSummon(enemy)) {
+                ignoredMobs[currentSerial] = true;
+                Orion.Ignore(currentSerial);
+                Orion.SetGlobal('LastEnemySerial', '');
+                Orion.RemoveObject('myTarget');
+                activeSerial = '';
+                honoredTarget = null;
+                Orion.WarMode(false);
+                break;
+            }
+
+            Orion.WarMode(true);
+
+            if (enemy.Distance() <= 12) {
+                Orion.Attack(currentSerial);
+            }
 
             Orion.Wait(100);
         }
 
-        honoredTarget = null;
+        // SE ESCE DAL WHILE PERCHÉ IL MOB NON ESISTE PIÙ, STOPPA L'ATTACCO.
+        if (currentSerial && !Orion.ObjectExists(currentSerial)) {
+            StopManualAttackScripts();
+            return;
+        }
+
         Orion.CancelTarget();
+        Orion.Wait(100);
     }
 }
+
+function StopManualAttackScripts() {
+    Orion.SetGlobal('LastEnemySerial', '');
+    Orion.RemoveObject('myTarget');
+
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    Orion.Terminate('TankerManualeAttack');
+    Orion.Terminate('UseSpecialAbilities');
+    Orion.Terminate('UseSpecialAbilitiesSS');
+    Orion.Terminate('UseArcheryPrimaryOnly');
+    Orion.Terminate('AutoArcheryAttack');
+    Orion.Terminate('SoloFollowAndAttack');
+    Orion.Terminate('SoloFollowAndAttackSS');
+
+    Orion.CharPrint(Player.Serial(), 33, '*TARGET MORTO - ATTACCO STOPPATO*');
+}
+
 
 function GetClosestEnemySolo() {
     Orion.IgnoreReset();
@@ -4684,11 +4767,20 @@ function AutoArcheryAttack() {
 }
 
 function NextEnemyManual() {
-    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|mobile', 12, 'gray|criminal|red|enemy|orange');
+    var enemies = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'ignoreself|ignorefriends|live|inlos|mobile',
+        12,
+        'gray|criminal|red|enemy|orange'
+    );
+
     var validEnemies = [];
 
     for (var i = 0; i < enemies.length; i++) {
         var mob = enemies[i];
+
         if (!mob || !Orion.ObjectExists(mob.Serial())) continue;
         if (ignoredMobs[mob.Serial()]) continue;
 
@@ -4709,7 +4801,9 @@ function NextEnemyManual() {
         return null;
     }
 
-    validEnemies.sort(function(a, b) { return a.Distance() - b.Distance(); });
+    validEnemies.sort(function(a, b) {
+        return a.Distance() - b.Distance();
+    });
 
     var lastSerial = Orion.GetGlobal('LastEnemySerial');
     var idx = -1;
@@ -4728,12 +4822,17 @@ function NextEnemyManual() {
     Orion.ClearHighlightCharacters(true);
     Orion.AddObject('myTarget', target.Serial());
     Orion.ShowStatusbar(target.Serial(), 1200, 1200);
-    Orion.AddHighlightCharacter(target.Serial(), 0x0480, true);
 
-    if (lastSerial && Orion.ObjectExists(lastSerial)) Orion.CharPrint(lastSerial, 0, ' ');
+    // Colore target manuale: 2275
+    Orion.AddHighlightCharacter(target.Serial(), 1283, true);
 
-    Orion.CharPrint(target.Serial(), 35, '*NEMICO*: ' + target.Name());
+    if (lastSerial && Orion.ObjectExists(lastSerial)) {
+        Orion.CharPrint(lastSerial, 0, ' ');
+    }
+
+    Orion.CharPrint(target.Serial(), 23, '*NEMICO*: ' + target.Name());
     Orion.SetGlobal('LastEnemySerial', target.Serial());
+
     return target;
 }
 
