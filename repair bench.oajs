@@ -1,7 +1,7 @@
 function RepairGear() {
     MergeCustomRepairArr();
 
-    var minDura = 120; // Durabilità sotto la quale riparare
+    var minDura = 150; // Durabilità sotto la quale riparare
     var backpack = Orion.FindObject("backpack");
     
     if (!backpack) {
@@ -463,3 +463,4 @@ customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','tailor');
 // Added by Compagnone Repair Bench
 if (typeof customRepairArr === "undefined") var customRepairArr = [];
 customRepairArr.push("0xB2C7","Wyrmscale Helm","tinker");
+
