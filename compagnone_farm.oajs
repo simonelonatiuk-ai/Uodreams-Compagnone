@@ -360,7 +360,7 @@ function FarmStartProfile(name) {
         if (!Orion.ScriptRunning('CheckCurseAndPoison')) Orion.Exec('CheckCurseAndPoison', 'true');
         if (!Orion.ScriptRunning('CheckAndDispelRevenant')) Orion.Exec('CheckAndDispelRevenant', 'true');
         if (!Orion.ScriptRunning('AutoBushidoAbilities')) Orion.Exec('AutoBushidoAbilities', 'true');
-        if (!Orion.ScriptRunning('autoMount')) Orion.Exec('autoMount', 'true');
+        if (!Orion.ScriptRunning('AutoMount')) Orion.Exec('AutoMount', 'true');
         if (!Orion.ScriptRunning('Durability_Watcher')) Orion.Exec('Durability_Watcher', 'true');
         if (!Orion.ScriptRunning('SuperInsura')) Orion.Exec('SuperInsura', 'true');
         if (!Orion.ScriptRunning('AutoConsecrate')) Orion.Exec('AutoConsecrate', 'true');
@@ -652,7 +652,7 @@ function FarmFindAnyEnemyNear(range) {
         var mob = enemies[i];
         if (!mob) continue;
 
-        if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(mob)) {
+        if (typeof IsIgnoredSummon === 'function' && IsIgnoredSummon(mob)) {
             Orion.Ignore(mob.Serial());
             continue;
         }
@@ -1452,7 +1452,7 @@ function SkullHonorFromCore(target) {
 }
 
 function SkullIsIgnoredSummonSafe(mob) {
-    if (typeof isIgnoredSummon === 'function') return isIgnoredSummon(mob);
+    if (typeof IsIgnoredSummon === 'function') return IsIgnoredSummon(mob);
     return false;
 }
 
@@ -2239,7 +2239,7 @@ function FunghiFindNearestSolen() {
         var mob = mobs[j];
         if (!mob) continue;
 
-        if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(mob)) {
+        if (typeof IsIgnoredSummon === 'function' && IsIgnoredSummon(mob)) {
             Orion.Ignore(mob.Serial());
             continue;
         }
@@ -2284,7 +2284,7 @@ function FunghiAttackSolen(solen) {
             return true;
         }
 
-        if (typeof isIgnoredSummon === 'function' && isIgnoredSummon(mob)) {
+        if (typeof IsIgnoredSummon === 'function' && IsIgnoredSummon(mob)) {
             Orion.Ignore(serial);
             return false;
         }
