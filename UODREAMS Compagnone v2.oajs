@@ -59,7 +59,6 @@ var bagOfSendingGraphic = '0x0E76'; // <-- metti qui il graphic corretto della B
 // =====================================================
 
 function Autostart() {
-    if (!Orion.ScriptRunning('AutoLogoutOnDeath')) Orion.Exec('AutoLogoutOnDeath', 'true');
     Orion.Exec('GUISelector', 'true');
 }
 
@@ -1736,7 +1735,6 @@ function PostStopHandler() {
     Orion.Exec('AutoReEquip', 'true');
     Orion.Exec('AutoVampiricEmbrace', 'true');
 	Orion.Exec('AutoCleansePoison', 'true');
-    Orion.Exec('AutoLogoutOnDeath', 'true');
 
     Orion.Print('0x55', '<< Tutti gli script fermati correttamente >>');
     Orion.Print('0x55', '<< Scripts di Autostart RIAVVIATI! >>');
