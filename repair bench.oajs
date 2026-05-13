@@ -1,97 +1,34 @@
-function RepairGear() {
-    MergeCustomRepairArr();
+// =====================================================
+// COMPAGNONE 2026 - REPAIR BENCH
+// File completo pronto per copia/incolla o include
+// =====================================================
+//
+// Fix inclusi:
+// - ripara SOLO item nello zaino
+// - customRepairArr viene aggiornata subito quando aggiungi un item dalla GUI
+// - se aggiungi due volte lo stesso graphic, vince SEMPRE l'ultimo
+// - itemArr base resta valido, ma i custom hanno priorità
+// - pochi messaggi a schermo
+//
+// Nota importante:
+// Se due item diversi hanno lo stesso graphic, lo script non può distinguerli
+// in modo affidabile dal solo graphic. In quel caso vince l'ultima entry custom.
+// =====================================================
 
-    var minDura = 150; // Durabilità sotto la quale riparare
-    var backpack = Orion.FindObject("backpack");
-    
-    if (!backpack) {
-        Orion.Print("Errore: Zaino non trovato!");
-        return;
-    }
+var minDura = 150;
 
-    // Trova la repair bench a terra (raggio 3 caselle)
-    var repairBench = Orion.FindType("0xA278|0xA277|0xA27F|0xA27E", "0x0", "ground", 3);
-    if (!repairBench.length) {
-        Orion.Print("Errore: Repair bench non trovata vicino a te!");
-        return;
-    }
+var REPAIR_HOOKS = {
+    blacksmith: 10,
+    tailor: 11,
+    tinker: 12,
+    carpenter: 13,
+    fletcher: 14
+};
 
-    Orion.Print("Interazione con la repair bench...");
-    Orion.UseObject(repairBench[0]);
+// =====================================================
+// DATABASE OGGETTI RIPARABILI
+// =====================================================
 
-    // Attendi l'apertura del gump di riparazione
-    if (!Orion.WaitForGump(2000)) {
-        Orion.Print("Errore: Gump di riparazione non apparso.");
-        return;
-    }
-
-    // Trova tutti gli oggetti nello zaino
-    var items = Orion.FindType("any", "any", backpack.Serial());
-    if (!items.length) {
-        Orion.Print("Zaino vuoto.");
-        return;
-    }
-
-    for (var i = 0; i < items.length; i++) {
-        var item = Orion.FindObject(items[i]);
-        if (!item) continue;
-
-        var properties = item.Properties();
-        var currentGraphic = item.Graphic().toLowerCase();
-        var objInd = -1;
-
-for (var j = itemArr.length - 3; j >= 0; j -= 3) {
-    if (itemArr[j].toLowerCase() === currentGraphic) {
-        objInd = j;
-        break;
-    }
-}
-
-        // 1. Salta se l'oggetto è Imbued
-        if (Orion.Contains(properties, "Imbued")) {
-            continue;
-        }
-
-        // 2. Controllo Durabilità con Regex specifica (Cerca il formato "X / Y")
-        // Questo evita di leggere "Durability 70%" dei materiali speciali
-        var duraMatch = properties.match(/Durability\s+(\d+)\s+\/\s+(\d+)/i);
-
-        if (duraMatch && objInd >= 0) {
-            var currentDura = Number(duraMatch[1]);
-            var maxDura = Number(duraMatch[2]);
-
-            // Ripara se sotto la soglia E se non è già al massimo
-            if (currentDura < minDura && currentDura < maxDura) {
-                Orion.Print("Riparazione: " + item.Name() + " [" + currentDura + "/" + maxDura + "]");
-
-                var repairType = itemArr[objInd + 2];
-                var gumpHook = 0;
-
-                switch (repairType) {
-                    case "blacksmith": gumpHook = 10; break;
-                    case "tailor":     gumpHook = 11; break;
-                    case "tinker":     gumpHook = 12; break;
-                    case "carpenter":  gumpHook = 13; break;
-                    default: continue;
-                }
-
-                var gump = Orion.GetGump("last");
-                if (gump) {
-                    gump.Select(Orion.CreateGumpHook(gumpHook));
-                    
-                    if (Orion.WaitForTarget(2000)) {
-                        Orion.TargetObject(item.Serial());
-                        Orion.Wait(600); // Pausa per evitare lag/blocchi
-                    }
-                }
-            }
-        }
-    }
-
-    Orion.Print("Riparazioni completate!");
-}
-
-// Database oggetti riparabili
 var itemArr = [
     '0x2D2D','AssassinSpike(left)','blacksmith',
     '0x2D21','AssassinSpike(right)','blacksmith',
@@ -300,7 +237,6 @@ var itemArr = [
     '0x13C7','LeatherGorget(mono)','tailor',
     '0x278A','LeatherHaidate(mono)','tailor',
     '0x277E','LeatherHiroSode(mono)','tailor',
-    //'0xA1C7','LeatherJingasa(mono)','tinker',
     '0x13D2','LeatherLeggings(left)','tailor',
     '0x13CB','LeatherLeggings(right)','tailor',
     '0x277A','LeatherMempo(mono)','tailor',
@@ -394,7 +330,6 @@ var itemArr = [
     '0x2643','GlovesOfFeudalGrip','blacksmith',
     '0x3BB5','CorsairsMedallion','tailor',
     '0xA1C7','BloodyMask','tailor',
-    //'0xAECC','fire plate Arms','tailor',
     '0xAECE','BarbedBalronBoneArmor','tailor',
     '0xA429','CorsairsMedallion','tailor',
     '0x170B','Bogling Hide Mukuluks','tailor',
@@ -406,61 +341,421 @@ var itemArr = [
     '0xAEAF','Gloves plate brit blue','blacksmith',
     '0xA410','Corsair helm','tinker'
 ];
+
 // =====================================================
-// REPAIR BENCH - CUSTOM ITEMS SYSTEM
+// CUSTOM ITEMS
+// Le righe aggiunte dalla GUI verranno appese qui sotto nel file.
+// Se stesso graphic compare più volte, vince l'ultimo.
 // =====================================================
 
-var customRepairArr = [
-    '0x1B76','Heater Shield Of The Umbrascale','blacksmith'
-];
+if (typeof customRepairArr === 'undefined') var customRepairArr = [];
 
-//var customRepairMerged = false;
+customRepairArr.push('0x1B76','Heater Shield Of The Umbrascale','blacksmith');
+customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','blacksmith');
+customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','blacksmith');
+customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','blacksmith');
+customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','tailor');
+customRepairArr.push('0xB2C7','Wyrmscale Helm','tinker');
+customRepairArr.push('0x1545','Helm Of Fortitude','tailor');
+customRepairArr.push('0xAECD','Horned Platemail Gloves','tailor');
+
+// =====================================================
+// NORMALIZZAZIONE GRAPHIC
+// =====================================================
+
+function NormalizeRepairGraphic(graphic) {
+    var g = String(graphic);
+
+    if (g.indexOf('0x') !== 0 && g.indexOf('0X') !== 0) {
+        g = '0x' + g;
+    }
+
+    return g.toUpperCase().replace('0X', '0x');
+}
+
+// =====================================================
+// COSTRUISCE INDICE REPAIR
+// =====================================================
+
+function BuildRepairIndex() {
+    var repairIndex = {};
+
+    if (typeof itemArr !== 'undefined' && itemArr && itemArr.length) {
+        for (var i = 0; i < itemArr.length; i += 3) {
+            if (!itemArr[i]) continue;
+
+            var baseGraphic = NormalizeRepairGraphic(itemArr[i]).toLowerCase();
+
+            repairIndex[baseGraphic] = {
+                graphic: NormalizeRepairGraphic(itemArr[i]),
+                name: itemArr[i + 1],
+                tool: itemArr[i + 2]
+            };
+        }
+    }
+
+    if (typeof customRepairArr !== 'undefined' && customRepairArr && customRepairArr.length) {
+        for (var j = 0; j < customRepairArr.length; j += 3) {
+            if (!customRepairArr[j]) continue;
+
+            var customGraphic = NormalizeRepairGraphic(customRepairArr[j]).toLowerCase();
+
+            repairIndex[customGraphic] = {
+                graphic: NormalizeRepairGraphic(customRepairArr[j]),
+                name: customRepairArr[j + 1],
+                tool: customRepairArr[j + 2]
+            };
+        }
+    }
+
+    return repairIndex;
+}
+
+// =====================================================
+// MERGE CUSTOM
+// =====================================================
 
 function MergeCustomRepairArr() {
-    if (!customRepairArr || !customRepairArr.length) {
+    if (typeof customRepairArr === 'undefined') {
+        customRepairArr = [];
+    }
+
+    var repairIndex = BuildRepairIndex();
+    var rebuilt = [];
+
+    for (var graphic in repairIndex) {
+        rebuilt.push(
+            repairIndex[graphic].graphic,
+            repairIndex[graphic].name,
+            repairIndex[graphic].tool
+        );
+    }
+
+    itemArr = rebuilt;
+}
+
+// =====================================================
+// AGGIORNA CUSTOM IN MEMORIA
+// =====================================================
+
+function AddOrUpdateRepairCustom(graphic, name, tool) {
+    if (typeof customRepairArr === 'undefined') {
+        customRepairArr = [];
+    }
+
+    graphic = NormalizeRepairGraphic(graphic);
+    var graphicKey = graphic.toLowerCase();
+
+    var rebuilt = [];
+
+    for (var i = 0; i < customRepairArr.length; i += 3) {
+        if (!customRepairArr[i]) continue;
+
+        var oldGraphic = NormalizeRepairGraphic(customRepairArr[i]).toLowerCase();
+
+        if (oldGraphic !== graphicKey) {
+            rebuilt.push(customRepairArr[i], customRepairArr[i + 1], customRepairArr[i + 2]);
+        }
+    }
+
+    rebuilt.push(graphic, name, tool);
+
+    customRepairArr = rebuilt;
+
+    MergeCustomRepairArr();
+}
+
+// =====================================================
+// LETTURA DURABILITA'
+// =====================================================
+
+function GetRepairDurability(properties) {
+    if (!properties) return null;
+
+    var match = properties.match(/Durability\s+(\d+)\s+\/\s+(\d+)/i);
+
+    if (!match) return null;
+
+    return {
+        current: Number(match[1]),
+        max: Number(match[2])
+    };
+}
+
+// =====================================================
+// CANDIDATI REPAIR - SOLO BACKPACK
+// =====================================================
+
+function GetRepairCandidates() {
+    var backpack = Orion.FindObject('backpack');
+
+    if (!backpack) return [];
+
+    return Orion.FindType('any', 'any', backpack.Serial());
+}
+
+// =====================================================
+// MAIN REPAIR
+// =====================================================
+
+function RepairGear() {
+    MergeCustomRepairArr();
+
+    var repairIndex = BuildRepairIndex();
+
+    var backpack = Orion.FindObject('backpack');
+
+    if (!backpack) {
+        Orion.Print('Errore: Zaino non trovato!');
         return;
     }
 
-    for (var i = 0; i < customRepairArr.length; i += 3) {
-        var graphic = String(customRepairArr[i]).toLowerCase();
-        var name = customRepairArr[i + 1];
-        var tool = customRepairArr[i + 2];
+    var repairBench = Orion.FindType('0xA278|0xA277|0xA27F|0xA27E', '0x0', 'ground', 3);
 
-        var found = false;
+    if (!repairBench.length) {
+        Orion.Print('Errore: Repair bench non trovata vicino a te!');
+        return;
+    }
 
-        for (var j = itemArr.length - 3; j >= 0; j -= 3) {
-            if (String(itemArr[j]).toLowerCase() === graphic) {
-                itemArr[j] = customRepairArr[i];
-                itemArr[j + 1] = name;
-                itemArr[j + 2] = tool;
-                found = true;
-                break;
-            }
+    Orion.UseObject(repairBench[0]);
+
+    if (!Orion.WaitForGump(2000)) {
+        Orion.Print('Errore: Gump di riparazione non apparso.');
+        return;
+    }
+
+    var items = GetRepairCandidates();
+
+    if (!items.length) {
+        Orion.Print('Zaino vuoto.');
+        return;
+    }
+
+    var repairedCount = 0;
+
+    for (var i = 0; i < items.length; i++) {
+        var item = Orion.FindObject(items[i]);
+
+        if (!item) continue;
+
+        var properties = item.Properties();
+
+        if (!properties) continue;
+
+        if (Orion.Contains(properties, 'Imbued')) continue;
+
+        var graphic = NormalizeRepairGraphic(item.Graphic()).toLowerCase();
+        var repairInfo = repairIndex[graphic];
+
+        if (!repairInfo) continue;
+
+        var dura = GetRepairDurability(properties);
+
+        if (!dura) continue;
+
+        if (dura.current >= minDura) continue;
+        if (dura.current >= dura.max) continue;
+
+        var repairType = String(repairInfo.tool).toLowerCase();
+        var gumpHook = REPAIR_HOOKS[repairType];
+
+        if (!gumpHook) continue;
+
+        var gump = Orion.GetGump('last');
+
+        if (!gump) {
+            Orion.Print('Errore: gump non disponibile.');
+            return;
         }
 
-        if (!found) {
-            itemArr.push(customRepairArr[i], name, tool);
+        gump.Select(Orion.CreateGumpHook(gumpHook));
+
+        if (Orion.WaitForTarget(2000)) {
+            Orion.TargetObject(item.Serial());
+            Orion.Wait(600);
+            repairedCount++;
         }
+    }
+
+    Orion.Print('Riparazioni completate: ' + repairedCount);
+}
+
+// =====================================================
+// ADD TO REPAIR BENCH - GUI
+// Richiede che nel file GUI principale esistano:
+// REPAIR_TOOL_GUMP_ID, DrawPanel, AddBigButton, AddGuiTitle, GUI.
+// =====================================================
+
+function AddToRepairBench() {
+    Orion.CharPrint(Player.Serial(), 65, 'Seleziona item da aggiungere alla Repair Bench');
+
+    if (!Orion.WaitForAddObject('repairbench_pending_item', 15000)) {
+        Orion.CharPrint(Player.Serial(), 33, 'Target annullato.');
+        return;
+    }
+
+    var item = Orion.FindObject('repairbench_pending_item');
+
+    if (!item) {
+        Orion.CharPrint(Player.Serial(), 33, 'Item non trovato.');
+        return;
+    }
+
+    Shared.AddVar('repairbench_pending_graphic', item.Graphic());
+    Shared.AddVar('repairbench_pending_name', item.Name());
+
+    RepairBenchToolSelectorGUI();
+}
+
+function RepairBenchToolSelectorGUI() {
+    var g = Orion.CreateCustomGump(REPAIR_TOOL_GUMP_ID);
+    g.Clear();
+    g.SetCallback('RepairBenchToolOnClick');
+
+    var offsetX = 350;
+    var offsetY = 280;
+    var width = 8;
+    var height = 6;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    if (typeof AddGuiTitle === 'function') {
+        AddGuiTitle(g, offsetX, offsetY, width, 'SELECT REPAIR TOOL');
+    } else {
+        g.AddText(offsetX + 55, offsetY + 15, 89, 'SELECT REPAIR TOOL');
+    }
+
+    AddBigButton(g, 8001, offsetX + 55, offsetY + 55,  '', '0x796', 'Blacksmith', 'Usa Blacksmith', 22);
+    AddBigButton(g, 8002, offsetX + 55, offsetY + 85,  '', '0x796', 'Tailor',     'Usa Tailor', 22);
+    AddBigButton(g, 8003, offsetX + 55, offsetY + 115, '', '0x796', 'Tinker',     'Usa Tinker', 22);
+    AddBigButton(g, 8004, offsetX + 55, offsetY + 145, '', '0x796', 'Carpenter',  'Usa Carpenter', 22);
+    AddBigButton(g, 8005, offsetX + 55, offsetY + 175, '', '0x796', 'Fletcher',   'Usa Fletcher', 22);
+
+    g.AddButton(8000, offsetX + 250, offsetY + 12, '0xA94', '0xA94', '0xA95', '');
+    g.AddTooltip('Close');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function RepairBenchToolOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 8001: SaveRepairBenchItem('blacksmith'); break;
+        case 8002: SaveRepairBenchItem('tailor'); break;
+        case 8003: SaveRepairBenchItem('tinker'); break;
+        case 8004: SaveRepairBenchItem('carpenter'); break;
+        case 8005: SaveRepairBenchItem('fletcher'); break;
+
+        case 8000:
+            var g = Orion.CreateCustomGump(REPAIR_TOOL_GUMP_ID);
+            g.Close();
+            break;
     }
 }
 
-// Added by Compagnone Repair Bench
-if (typeof customRepairArr === 'undefined') var customRepairArr = [];
-customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','blacksmith');
+function SaveRepairBenchItem(toolType) {
+    var graphic = Shared.GetVar('repairbench_pending_graphic');
+    var itemName = Shared.GetVar('repairbench_pending_name');
 
-// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
-if (typeof customRepairArr === 'undefined') var customRepairArr = [];
-customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','blacksmith');
+    if (!graphic || !itemName) {
+        Orion.CharPrint(Player.Serial(), 33, 'Nessun item in memoria.');
+        return;
+    }
 
-// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
-if (typeof customRepairArr === 'undefined') var customRepairArr = [];
-customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','blacksmith');
+    graphic = NormalizeRepairGraphic(graphic);
+    itemName = CleanRepairString(itemName);
+    toolType = CleanRepairString(toolType);
 
-// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
-if (typeof customRepairArr === 'undefined') var customRepairArr = [];
-customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','tailor');
+    var alreadyExists = RepairGraphicAlreadyExists(graphic);
+    var filePath = Orion.CurrentScriptDirPath() + '/repair bench.oajs';
 
-// Added by Compagnone Repair Bench
-if (typeof customRepairArr === "undefined") var customRepairArr = [];
-customRepairArr.push("0xB2C7","Wyrmscale Helm","tinker");
+    var line =
+        '\n// Added by Compagnone Repair Bench' +
+        (alreadyExists ? ' - OVERRIDE GRAPHIC ESISTENTE' : '') + '\n' +
+        'if (typeof customRepairArr === "undefined") var customRepairArr = [];\n' +
+        'customRepairArr.push(' +
+            QuoteRepairString(graphic) + ',' +
+            QuoteRepairString(itemName) + ',' +
+            QuoteRepairString(toolType) +
+        ');\n';
 
+    var file = Orion.NewFile();
+
+    file.Open(filePath, true);
+    Orion.Wait(50);
+    file.Append(filePath);
+    file.Write(line);
+    file.Close();
+
+    AddOrUpdateRepairCustom(graphic, itemName, toolType);
+    RememberRepairGraphic(graphic);
+
+    Orion.CharPrint(Player.Serial(), 65, 'Aggiunto Repair: ' + itemName + ' / ' + toolType);
+
+    Shared.RemoveVar('repairbench_pending_graphic');
+    Shared.RemoveVar('repairbench_pending_name');
+
+    var g = Orion.CreateCustomGump(REPAIR_TOOL_GUMP_ID);
+    g.Close();
+
+    if (typeof GUI === 'function') {
+        GUI();
+    }
+}
+
+function RepairGraphicAlreadyExists(graphic) {
+    var g = NormalizeRepairGraphic(graphic).toLowerCase();
+
+    if (typeof itemArr !== 'undefined' && itemArr && itemArr.length) {
+        for (var i = 0; i < itemArr.length; i += 3) {
+            if (!itemArr[i]) continue;
+
+            if (NormalizeRepairGraphic(itemArr[i]).toLowerCase() === g) {
+                return true;
+            }
+        }
+    }
+
+    if (typeof customRepairArr !== 'undefined' && customRepairArr && customRepairArr.length) {
+        for (var j = 0; j < customRepairArr.length; j += 3) {
+            if (!customRepairArr[j]) continue;
+
+            if (NormalizeRepairGraphic(customRepairArr[j]).toLowerCase() === g) {
+                return true;
+            }
+        }
+    }
+
+    var saved = Shared.GetVar('repairbench_added_graphics');
+
+    return !!(saved && String(saved).toLowerCase().indexOf('|' + g + '|') >= 0);
+}
+
+function RememberRepairGraphic(graphic) {
+    var g = NormalizeRepairGraphic(graphic).toLowerCase();
+    var saved = Shared.GetVar('repairbench_added_graphics') || '|';
+
+    if (String(saved).indexOf('|' + g + '|') < 0) {
+        saved += g + '|';
+        Shared.AddVar('repairbench_added_graphics', saved);
+    }
+}
+
+function CleanRepairString(str) {
+    return String(str)
+        .replace(/\r/g, '')
+        .replace(/\n/g, ' ')
+        .replace(/\t/g, ' ')
+        .replace(/\s+/g, ' ');
+}
+
+function QuoteRepairString(str) {
+    return '"' + String(str)
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\r/g, '')
+        .replace(/\n/g, ' ')
+        + '"';
+}
