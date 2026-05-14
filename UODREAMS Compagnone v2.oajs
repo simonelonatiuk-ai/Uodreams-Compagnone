@@ -1112,17 +1112,37 @@ function SaveRepairBenchItem(toolType) {
 
     var file = Orion.NewFile();
 
-    file.Open(filePath, true);
+    if (!file.Open(filePath, true)) {
+        Orion.CharPrint(Player.Serial(), 33, 'Errore apertura file repair bench.oajs');
+        return;
+    }
+
     Orion.Wait(50);
     file.Append(filePath);
     file.Write(line);
     file.Close();
 
+    // Aggiorna itemArr in memoria, se esiste nello stesso script/runtime
     if (typeof itemArr !== 'undefined') {
-        itemArr.push(graphic, itemName, toolType);
+        var updated = false;
+
+        for (var i = itemArr.length - 3; i >= 0; i -= 3) {
+            if (String(itemArr[i]).toLowerCase() === String(graphic).toLowerCase()) {
+                itemArr[i] = graphic;
+                itemArr[i + 1] = itemName;
+                itemArr[i + 2] = toolType;
+                updated = true;
+                break;
+            }
+        }
+
+        if (!updated) {
+            itemArr.push(graphic, itemName, toolType);
+        }
     }
 
     RememberRepairGraphic(graphic);
+    RememberRuntimeRepairOverride(graphic, itemName, toolType);
 
     Orion.CharPrint(
         Player.Serial(),
@@ -1139,6 +1159,43 @@ function SaveRepairBenchItem(toolType) {
     g.Close();
 
     GUI();
+}
+
+function RememberRuntimeRepairOverride(graphic, itemName, toolType) {
+    graphic = NormalizeRepairGraphic(graphic);
+    itemName = CleanRepairString(itemName);
+    toolType = CleanRepairString(toolType);
+
+    var g = graphic.toLowerCase();
+    var data = Shared.GetVar('repairbench_runtime_overrides') || '';
+    var rows = String(data).split('\n');
+    var newRows = [];
+    var replaced = false;
+
+    for (var i = 0; i < rows.length; i++) {
+        if (!rows[i]) {
+            continue;
+        }
+
+        var parts = rows[i].split('§');
+
+        if (parts.length < 3) {
+            continue;
+        }
+
+        if (String(parts[0]).toLowerCase() === g) {
+            newRows.push(graphic + '§' + itemName + '§' + toolType);
+            replaced = true;
+        } else {
+            newRows.push(rows[i]);
+        }
+    }
+
+    if (!replaced) {
+        newRows.push(graphic + '§' + itemName + '§' + toolType);
+    }
+
+    Shared.AddVar('repairbench_runtime_overrides', newRows.join('\n'));
 }
 
 function RepairGraphicAlreadyExists(graphic) {
@@ -3816,6 +3873,9 @@ function AutoHide() {
 }
 
 function ClickEverythingAround1Tile() {
+    Orion.CharPrint(Player.Serial(), 23, 'CLICCA TUTTO AVVIATO');
+    Orion.Print('CLICCA TUTTO AVVIATO');
+
     while (true) {
         var objects = Orion.FindTypeEx('any', 'any', 'ground', 'any', 1);
 
@@ -3830,6 +3890,20 @@ function ClickEverythingAround1Tile() {
         }
 
         Orion.Wait(100);
+    }
+}
+
+function WatchClickEverythingStopped() {
+    while (true) {
+        if (Orion.InJournal("Script 'ClickEverythingAround1Tile' stopped.")) {
+            Orion.CharPrint(Player.Serial(), 23, 'CLICCA TUTTO STOPPATO');
+            Orion.Print('CLICCA TUTTO STOPPATO');
+
+            Orion.ClearJournal();
+            Orion.Wait(1000);
+        }
+
+        Orion.Wait(250);
     }
 }
 
@@ -5138,7 +5212,7 @@ function AutoReEquip() {
                 Orion.CharPrint(Player.Serial(), 65, 'Equipaggiato oggetto per forza > 125');
             }
         }
-
+		WatchClickEverythingStopped();
         Orion.Wait(300);
     }
 }
