@@ -1,7 +1,8 @@
 function RepairGear() {
     MergeCustomRepairArr();
+    MergeRuntimeRepairOverrides();
 
-    var minDura = 150; // Durabilità sotto la quale riparare
+    var minDura = 220;
     var backpack = Orion.FindObject("backpack");
     
     if (!backpack) {
@@ -395,7 +396,7 @@ var itemArr = [
     '0x3BB5','CorsairsMedallion','tailor',
     '0xA1C7','BloodyMask','tailor',
     //'0xAECC','fire plate Arms','tailor',
-    '0xAECE','BarbedBalronBoneArmor','tailor',
+    '0xAECE','BarbedBalronBoneArmor','blacksmith',
     '0xA429','CorsairsMedallion','tailor',
     '0x170B','Bogling Hide Mukuluks','tailor',
     '0xAEAE','Arms plate brit blue','tailor',
@@ -406,6 +407,57 @@ var itemArr = [
     '0xAEAF','Gloves plate brit blue','blacksmith',
     '0xA410','Corsair helm','tinker'
 ];
+
+function UpsertRepairItem(graphic, name, tool) {
+    graphic = NormalizeRepairGraphicLocal(graphic);
+    var g = graphic.toLowerCase();
+
+    for (var i = itemArr.length - 3; i >= 0; i -= 3) {
+        if (String(itemArr[i]).toLowerCase() === g) {
+            itemArr[i] = graphic;
+            itemArr[i + 1] = name;
+            itemArr[i + 2] = tool;
+            return;
+        }
+    }
+
+    itemArr.push(graphic, name, tool);
+}
+
+function MergeRuntimeRepairOverrides() {
+    var data = Shared.GetVar('repairbench_runtime_overrides');
+
+    if (!data) {
+        return;
+    }
+
+    var rows = String(data).split('\n');
+
+    for (var i = 0; i < rows.length; i++) {
+        if (!rows[i]) {
+            continue;
+        }
+
+        var parts = rows[i].split('§');
+
+        if (parts.length < 3) {
+            continue;
+        }
+
+        UpsertRepairItem(parts[0], parts[1], parts[2]);
+    }
+}
+
+function NormalizeRepairGraphicLocal(graphic) {
+    var g = String(graphic);
+
+    if (g.indexOf('0x') !== 0 && g.indexOf('0X') !== 0) {
+        g = '0x' + g;
+    }
+
+    return g.toUpperCase().replace('0X', '0x');
+}
+
 // =====================================================
 // REPAIR BENCH - CUSTOM ITEMS SYSTEM
 // =====================================================
@@ -463,3 +515,29 @@ customRepairArr.push('0xAECC','Animated Platemail Arms Of Sorcery','tailor');
 // Added by Compagnone Repair Bench
 if (typeof customRepairArr === "undefined") var customRepairArr = [];
 customRepairArr.push("0xB2C7","Wyrmscale Helm","tinker");
+
+
+
+// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
+if (typeof customRepairArr === "undefined") var customRepairArr = [];
+customRepairArr.push("0xAECE","Barbed Platemail Tunic","tailor");
+
+// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
+if (typeof customRepairArr === "undefined") var customRepairArr = [];
+customRepairArr.push("0xAECE","Barbed Platemail Tunic","tailor");
+
+// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
+if (typeof customRepairArr === "undefined") var customRepairArr = [];
+customRepairArr.push("0xAECE","Barbed Platemail Tunic","tailor");
+
+// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
+if (typeof customRepairArr === "undefined") var customRepairArr = [];
+customRepairArr.push("0xAECE","Barbed Platemail Tunic","tailor");
+
+// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
+if (typeof customRepairArr === "undefined") var customRepairArr = [];
+customRepairArr.push("0xAECE","Barbed Platemail Tunic","tailor");
+
+// Added by Compagnone Repair Bench - OVERRIDE GRAPHIC ESISTENTE
+if (typeof customRepairArr === "undefined") var customRepairArr = [];
+customRepairArr.push("0xAECE","Barbed Platemail Tunic","tailor");
