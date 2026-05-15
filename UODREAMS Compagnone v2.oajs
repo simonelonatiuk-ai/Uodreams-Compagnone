@@ -21,7 +21,7 @@ var HUE_NAV_OFF     = '1900';
 var HUE_NAV_ON      = '1159';
 var HUE_BIG_BUTTON  = '1900';
 var HUE_SMALL_BUTTON= '1900';
-var HUE_DURA_BAD    = 33;
+var HUE_DURA_BAD    = 32;
 var HUE_DURA_WARN   = 53;
 var HUE_DURA_GOOD   = 1271;
 var HUE_OFF_TEXT    = 32;
@@ -205,9 +205,8 @@ function GUISampire() {
 
     var bx = offsetX + 235, by = offsetY + 160;
     AddBigButton(g, 7001, bx, by,       '23',   HUE_BUTTON_TEXT, 'Registra Rail', 'Apri Rail Recorder', 16);
-    AddBigButton(g, 5033, bx, by + 35,  '155',  HUE_BUTTON_TEXT, 'Add To Repair', 'Aggiungi item alla lista Repair Bench', 12);
-    AddBigButton(g, 7030, bx, by + 70,  '44',   HUE_BUTTON_TEXT, 'Posiziona UI',  'Apri Position Manager', 22);
-    AddBigButton(g, 7031, bx, by + 105, '1153', HUE_BUTTON_TEXT, 'Color - ID',    'Check Object Color Number', 22);
+    AddBigButton(g, 7030, bx, by + 35,  '44',   HUE_BUTTON_TEXT, 'Posiziona UI',  'Apri Position Manager', 22);
+    AddBigButton(g, 7031, bx, by + 70, '1153', HUE_BUTTON_TEXT, 'Color - ID',    'Check Object Color Number', 22);
 
     AddCheckRow(g, 3002, offsetX + 25, offsetX + 60, offsetY + prompt, 'Durability_Watcher', 'DURABILITY CHECK');
     prompt += 30;
@@ -377,8 +376,9 @@ function GUIMisc() {
     g.AddTooltip('Equippa Dress Luck');
     g.AddText(rightText, offsetY + y2 + 5, GetEquipDressColor('luck'), 'DRESS LUCK');
 
-    y2 += 45;
-    AddBigButton(g, 5034, rightBtn, offsetY + y2, '22', HUE_BUTTON_TEXT, 'Repair Armor', 'Avvia Repair Gear', 15);
+	y2 += 45;
+	AddSmallSetButton(g, 5033, rightBtn -15 , offsetY + y2 + 8, '2213', 'AGGIUNGI ITEM NON PRESENTE ALLA LISTA REPAIR');
+	AddBigButton(g, 5034, rightBtn, offsetY + y2, '22', HUE_BUTTON_TEXT, 'Repair Armor', 'Avvia Repair Gear', 15);
 
     y2 += 35;
     AddBigButton(g, 7041, rightBtn, offsetY + y2, '', HUE_BUTTON_TEXT, 'TALISMANI', 'Apri menu Talismani', 22);
@@ -894,13 +894,14 @@ function ToggleDressWeapon(scriptName) {
             var searingWeapon = Orion.FindObject(objVar);
 
             if (searingWeapon) {
-                Orion.Wait(100);
-                Orion.RequestContextMenu(searingWeapon.Serial());
-                Orion.WaitContextMenuID(searingWeapon.Serial(), 0);
-                Orion.CharPrint(Player.Serial(), 65, '*Lava Infused accesa*');
+                Orion.Wait(300);
+                CheckAndActivateLavaInfused(true);
             } else {
                 Orion.CharPrint(Player.Serial(), 33, 'Arma Lava Infused non trovata!');
             }
+        } else {
+            Orion.Wait(300);
+            CheckAndActivateLavaInfused(true);
         }
 
         Orion.CharPrint(Player.Serial(), 55, '*Equip: ' + scriptName.replace('Dress_', '').replace(/([A-Z])/g, ' $1').trim() + '*');
@@ -913,10 +914,75 @@ function ToggleDressWeapon(scriptName) {
 // DRESS GENERICO / LUCK
 // =====================================================
 
-function SaveCompagnoneDress() { Orion.SetDress('compagnone'); Orion.CharPrint(Player.Serial(), 65, '*Dress COMPAGNONE salvato!*'); Orion.Print(65, 'Dress list salvata/aggiornata: compagnone'); }
-function DressCompagnone() { Orion.Dress('compagnone'); Orion.CharPrint(Player.Serial(), 65, '*Dress COMPAGNONE equipaggiato!*'); Orion.Print(65, 'Dress list equipaggiata: compagnone'); }
-function SaveLuckDress() { Orion.SetDress('luck'); Orion.CharPrint(Player.Serial(), 65, '*Dress LUCK salvato!*'); Orion.Print(65, 'Dress list salvata/aggiornata: luck'); }
-function DressLuck() { Orion.Dress('luck'); Orion.CharPrint(Player.Serial(), 65, '*Dress LUCK equipaggiato!*'); Orion.Print(65, 'Dress list equipaggiata: luck'); }
+function SaveDressHands(dressName) {
+    var right = Orion.ObjAtLayer('RightHand');
+    var left = Orion.ObjAtLayer('LeftHand');
+
+    Orion.RemoveObject(dressName + '_right_hand');
+    Orion.RemoveObject(dressName + '_left_hand');
+    Shared.RemoveVar(dressName + '_right_hand_name');
+    Shared.RemoveVar(dressName + '_left_hand_name');
+
+    if (right) {
+        Orion.AddObject(dressName + '_right_hand', right.Serial());
+        Shared.AddVar(dressName + '_right_hand_name', right.Name());
+    }
+
+    if (left) {
+        Orion.AddObject(dressName + '_left_hand', left.Serial());
+        Shared.AddVar(dressName + '_left_hand_name', left.Name());
+    }
+}
+
+function EquipDressHands(dressName) {
+    var right = Orion.FindObject(dressName + '_right_hand');
+    var left = Orion.FindObject(dressName + '_left_hand');
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    if (right) {
+        Orion.Equip(right.Serial());
+        Orion.Wait(250);
+    }
+
+    if (left) {
+        Orion.Equip(left.Serial());
+        Orion.Wait(250);
+    }
+
+    CheckAndActivateLavaInfused(true);
+}
+
+function SaveCompagnoneDress() {
+    Orion.SetDress('compagnone');
+    SaveDressHands('compagnone');
+    Orion.CharPrint(Player.Serial(), 65, '*Dress COMPAGNONE salvato con arma/scudo!*');
+    Orion.Print(65, 'Dress list salvata/aggiornata: compagnone + mani');
+}
+
+function DressCompagnone() {
+    Orion.Dress('compagnone');
+    Orion.Wait(500);
+    EquipDressHands('compagnone');
+    Orion.CharPrint(Player.Serial(), 65, '*Dress COMPAGNONE equipaggiato!*');
+    Orion.Print(65, 'Dress list equipaggiata: compagnone + mani');
+}
+
+function SaveLuckDress() {
+    Orion.SetDress('luck');
+    SaveDressHands('luck');
+    Orion.CharPrint(Player.Serial(), 65, '*Dress LUCK salvato con arma/scudo!*');
+    Orion.Print(65, 'Dress list salvata/aggiornata: luck + mani');
+}
+
+function DressLuck() {
+    Orion.Dress('luck');
+    Orion.Wait(500);
+    EquipDressHands('luck');
+    Orion.CharPrint(Player.Serial(), 65, '*Dress LUCK equipaggiato!*');
+    Orion.Print(65, 'Dress list equipaggiata: luck + mani');
+}
 
 // =====================================================
 // RAIL RECORDER
@@ -5187,6 +5253,123 @@ function KillGenerali() {
 // EQUIP / SCAVENGER
 // =====================================================
 
+function ItemTextContains(item, needle) {
+    if (!item) return false;
+
+    var text = '';
+
+    try { text += ' ' + (item.Name() || ''); } catch (e) {}
+    try { text += ' ' + (item.Properties() || ''); } catch (e2) {}
+
+    return text.toLowerCase().indexOf(needle.toLowerCase()) !== -1;
+}
+
+function IsItemEquipped(item) {
+    if (!item) return false;
+
+    var right = Orion.ObjAtLayer('RightHand');
+    var left = Orion.ObjAtLayer('LeftHand');
+    var serial = String(item.Serial()).toLowerCase();
+
+    if (right && String(right.Serial()).toLowerCase() === serial) return true;
+    if (left && String(left.Serial()).toLowerCase() === serial) return true;
+
+    return false;
+}
+
+function GetItemColorDec(item) {
+    if (!item) return -1;
+
+    var color = '';
+    try { color = item.Color(); } catch (e) { return -1; }
+
+    if (color === undefined || color === null) return -1;
+
+    color = String(color).replace(/^\s+|\s+$/g, '');
+
+    if (color.indexOf('0x') === 0 || color.indexOf('0X') === 0) {
+        return parseInt(color, 16);
+    }
+
+    return parseInt(color, 10);
+}
+
+function IsLavaInfusedWeapon(item) {
+    if (!item) return false;
+
+    if (ItemTextContains(item, 'lava infused')) return true;
+    if (ItemTextContains(item, 'searing')) return true;
+
+    return false;
+}
+
+function IsLavaInfusedOn(weapon) {
+    return GetItemColorDec(weapon) === 1174;
+}
+
+function GetEquippedLavaInfusedWeapon() {
+    var right = Orion.ObjAtLayer('RightHand');
+    var left = Orion.ObjAtLayer('LeftHand');
+
+    // Controllo a monte: prima guarda sempre cosa hai realmente in mano.
+    // Cosi' funziona con qualunque dress/rail/macro, anche se non passa dai tasti GUI.
+    if (IsLavaInfusedWeapon(right)) return right;
+    if (IsLavaInfusedWeapon(left)) return left;
+
+    // Fallback originale: seriale salvato come bladed_searing.
+    var savedSearing = Orion.FindObject('bladed_searing');
+
+    if (savedSearing && IsItemEquipped(savedSearing)) return savedSearing;
+
+    return null;
+}
+
+function TryUseLavaInfusedContextMenu(weapon) {
+    if (!weapon) return false;
+
+    // Colore acceso: 0x0496 / dec 1174.
+    // Colore spento visto da te: dec 2500.
+    // Se e' gia' accesa non richiama il context menu, per non spegnerla.
+    if (IsLavaInfusedOn(weapon)) {
+        return true;
+    }
+
+    Orion.Wait(100);
+    Orion.RequestContextMenu(weapon.Serial());
+    Orion.WaitContextMenuID(weapon.Serial(), 0);
+    Orion.Wait(250);
+
+    if (IsLavaInfusedOn(weapon)) {
+        Orion.CharPrint(Player.Serial(), 65, '*Lava Infused accesa*');
+    } else {
+        Orion.CharPrint(Player.Serial(), 33, '*Tentativo accensione Lava Infused*');
+    }
+
+    return true;
+}
+
+function CheckAndActivateLavaInfused(force) {
+    var weapon = GetEquippedLavaInfusedWeapon();
+
+    if (!weapon) return false;
+
+    if (IsLavaInfusedOn(weapon)) return true;
+
+    var serial = String(weapon.Serial()).toLowerCase();
+    var lastSerial = Shared.GetVar('lava_infused_last_serial');
+    var lastTry = parseInt(Shared.GetVar('lava_infused_last_try') || '0', 10);
+    var now = Orion.Now();
+
+    // A monte sempre attivo, ma senza spammare context menu ogni 300ms.
+    // Se e' spenta, riprova ogni 2 secondi finche' non diventa colore 1174.
+    if (!force && lastSerial === serial && (now - lastTry) < 2000) return true;
+
+    Shared.AddVar('lava_infused_last_serial', serial);
+    Shared.AddVar('lava_infused_last_try', String(now));
+
+    return TryUseLavaInfusedContextMenu(weapon);
+}
+
 function AutoReEquip() {
     Orion.Print('Monitor Disarm attivo...');
 
@@ -5211,6 +5394,9 @@ function AutoReEquip() {
                 Orion.Equip(oggetto.Serial());
                 Orion.CharPrint(Player.Serial(), 65, 'Equipaggiato oggetto per forza > 125');
             }
+        }
+        if (Orion.GetGlobal('StopAllScripts') !== 'true') {
+            CheckAndActivateLavaInfused(false);
         }
 		WatchClickEverythingStopped();
         Orion.Wait(300);
@@ -5438,6 +5624,14 @@ function EquipDoomWeaponSimple(varName, label) {
             currentWeaponDress = varName;
             Shared.AddVar('active_weapon_script', label);
             Orion.CharPrint(Player.Serial(), 65, '*ARMA EQUIPPATA: ' + label + '*');
+
+            // Se la rail Doom ha appena dressato una Lava Infused/Searing,
+            // usa la stessa accensione del tasto Dress, ma solo dopo un equip reale.
+            if (Orion.GetGlobal('StopAllScripts') !== 'true') {
+                Orion.Wait(300);
+                CheckAndActivateLavaInfused(false);
+            }
+
             return true;
         }
 
