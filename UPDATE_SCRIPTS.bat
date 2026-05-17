@@ -2,7 +2,7 @@
 setlocal
 
 :: ==========================================
-:: INCOLLA QUI I TUOI LINK DI DOWNLOAD
+:: LINK DI DOWNLOAD
 :: ==========================================
 set "URL_1=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/COMPAGNONE_START.oajs"
 set "URL_2=https://raw.githubusercontent.com/simonelonatiuk-ai/Uodreams-Compagnone/refs/heads/main/COMPAGNONE_UTILITIES.oajs"
