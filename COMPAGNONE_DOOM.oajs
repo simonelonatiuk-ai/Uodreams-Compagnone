@@ -2,6 +2,14 @@
 // UODREAMS - DOOM
 // =====================================================
 
+// =====================================================
+// DOOM MENU - COMPLETAMENTE CORRETTO E CALIBRATO
+// =====================================================
+
+// =====================================================
+// DOOM MENU - LAYOUT DEFINITIVO E BOTTONI COERENTI
+// =====================================================
+
 function DoomMenuGUI() {
     var g = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
     g.Clear(); g.SetCallback('DoomMenuOnClick');
@@ -531,10 +539,11 @@ function DoomEquipRoom6() {
 function ToggleDoomGauntlet() {
     if (Orion.ScriptRunning('AutoDoomGauntlet')) {
         Orion.Terminate('AutoDoomGauntlet');
+        Orion.SetGlobal('RunningDoom', 'false'); 
         Orion.CharPrint(Player.Serial(), 33, 'DOOM Gauntlet Disattivato');
     } else {
         EnsureDoomSupportScripts();
-
+        Orion.SetGlobal('RunningDoom', 'true');  
         Orion.Exec('AutoDoomGauntlet', 'true');
         Orion.CharPrint(Player.Serial(), 65, 'DOOM Gauntlet ATTIVATO!');
     }
@@ -775,7 +784,7 @@ function EnsureDoomSupportScripts() {
 
 function AutoDoomGauntlet(stanza, singleRun) {
     Orion.Print(89, '=== Avvio Doom Gauntlet ===');
-    Orion.IgnoreReset();
+    Orion.SetGlobal('RunningDoom', 'true');
 
     EnsureDoomSupportScripts();
 
@@ -889,16 +898,12 @@ if (stanza <= 6) {
             break;
         }
 
-        stanza = 1;
-
+		stanza = 1;
         Orion.Print(55, '=== Giro finito, ricomincio dalla prima ===');
         Orion.Wait(1000);
     }
 
-    // Notifica Telegram se il PG è morto (il while si interrompe solo per morte o isSingle)
-    if (Player.Dead()) {
-        NotificaMorteDoom();
-    }
+    Orion.SetGlobal('RunningDoom', 'false');
 }
 
 // =====================================================
