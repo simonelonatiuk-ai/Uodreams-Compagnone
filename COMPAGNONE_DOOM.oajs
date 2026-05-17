@@ -2,14 +2,6 @@
 // UODREAMS - DOOM
 // =====================================================
 
-// =====================================================
-// DOOM MENU - COMPLETAMENTE CORRETTO E CALIBRATO
-// =====================================================
-
-// =====================================================
-// DOOM MENU - LAYOUT DEFINITIVO E BOTTONI COERENTI
-// =====================================================
-
 function DoomMenuGUI() {
     var g = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
     g.Clear(); g.SetCallback('DoomMenuOnClick');
