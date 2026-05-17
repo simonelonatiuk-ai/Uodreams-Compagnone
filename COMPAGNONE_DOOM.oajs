@@ -1,0 +1,1119 @@
+// =====================================================
+// UODREAMS - DOOM
+// =====================================================
+
+// =====================================================
+// DOOM MENU - COMPLETAMENTE CORRETTO E CALIBRATO
+// =====================================================
+
+// =====================================================
+// DOOM MENU - LAYOUT DEFINITIVO E BOTTONI COERENTI
+// =====================================================
+
+function DoomMenuGUI() {
+    var g = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
+    g.Clear(); g.SetCallback('DoomMenuOnClick');
+
+    var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
+    var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 60 : 260;
+    var width = 11, height = 11; // Altezza aumentata da 10 a 11 per far spazio al layout
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    g.AddText(offsetX + 150, offsetY + 12, 31, '*DOOM MENU*');
+    
+    // Tasto START DOOM (Centrato nel menu)
+    AddBigButton(g, 7400, offsetX + 140, offsetY + 40, '3', 31, 'START DOOM', 'Avvia Doom classico', 15);
+    
+    // TASTO COUNTER (Centrato esattamente sotto START DOOM, stessa estetica 'BigButton')
+    AddBigButton(g, 101205, offsetX + 140, offsetY + 68, '1152', 1152, 'COUNTER', 'Apri il pannello dei giri e dei drop', 28);
+
+    var doomTooltip = '';
+    doomTooltip += 'il bottone START DOOM avvia il giro completo dal centro. ';
+    doomTooltip += 'I bottoni delle singole stanze partono fuori dalla stanza scelta nel caso muori e devi riniziare da una stanza specifica. ';
+    doomTooltip += 'Impostare arma con primary bleeding per ShadowKnight per rivelarlo. ';
+    doomTooltip += 'Durante DF usa arma Generica Area se spawnano mob. ';
+    doomTooltip += 'Quando resta solo DF rimette arma DarkFather. DISABILITARE da paperdoll Auto avoid Obstacles per la rail di doom.';
+
+    g.AddButton(7410, offsetX + 260, offsetY + 48, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip(doomTooltip);
+
+    // Etichette abbassate per far spazio al tasto Counter e centraggio
+    g.AddText(offsetX + 45, offsetY + 105, 31, '  *STANZE*');
+    g.AddText(offsetX + 225, offsetY + 105, 31, '    *ARMI*');
+
+    var leftBtn = offsetX + 35;
+    var rightSet = offsetX + 205, rightBtn = offsetX + 225, rightText = offsetX + 260;
+    var ly = offsetY + 135, ry = offsetY + 135; // Allineamento verticale abbassato coerentemente
+    
+    AddBigButton(g, 7401, leftBtn, ly, '11', 1153, 'DarknightCreeper', 'Vai a Darknight Creeper', 5); ly += 32;
+    AddBigButton(g, 7402, leftBtn, ly, '55', 1153, 'Fleshrenderer', 'Vai a Fleshrenderer', 18); ly += 32;
+    AddBigButton(g, 7403, leftBtn, ly, '33', 1153, 'Impaler', 'Vai a Impaler', 22); ly += 32;
+    AddBigButton(g, 7404, leftBtn, ly, '11', 1153, 'ShadowKnight', 'Vai a Shadow Knight', 18); ly += 32;
+    AddBigButton(g, 7405, leftBtn, ly, '33', 1153, 'AbyssmalHorror', 'Vai ad Abyssmal Horror', 10); ly += 32;
+    AddBigButton(g, 7406, leftBtn, ly, '33', 1153, 'DarkFather', 'Dark Father singolo', 22);
+
+    AddDressWeaponRow(g, 3111, 3112, rightSet, rightBtn, rightText, ry, 'Dress_DoomDarknightCreeper', 'Darknight', '11'); ry += 32;
+    AddDressWeaponRow(g, 3113, 3114, rightSet, rightBtn, rightText, ry, 'Dress_DoomFleshrenderer', 'Fleshrenderer', '55'); ry += 32;
+    AddDressWeaponRow(g, 3115, 3116, rightSet, rightBtn, rightText, ry, 'Dress_DoomImpaler', 'Impaler', '33'); ry += 32;
+    AddDressWeaponRow(g, 3117, 3118, rightSet, rightBtn, rightText, ry, 'Dress_DoomShadowKnight', 'ShadowKnight', '11'); ry += 32;
+    AddDressWeaponRow(g, 3119, 3120, rightSet, rightBtn, rightText, ry, 'Dress_DoomAbyssmalHorror', 'Abyssmal', '33'); ry += 32;
+    AddDressWeaponRow(g, 3121, 3122, rightSet, rightBtn, rightText, ry, 'Dress_DoomDarkFather', 'DarkFather', '33');
+
+    g.AddButton(7499, offsetX + 355, offsetY + 12, 0xA94, 0xA94, 0xA95, '0');
+    g.AddTooltip('Chiudi Doom Menu');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function DoomMenuOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 7400: 
+            ToggleDoomGauntlet(); // Avvia solo la rail di Doom (Senza aprire lo Watcher in automatico)
+            DoomMenuGUI();         
+            break;
+
+        case 101205:
+            StartDoomWatcher();   // Il tasto COUNTER apre la GUI dedicata dei giri e attiva il monitor
+            DoomMenuGUI();
+            break;
+
+        case 7410:
+            DoomMenuGUI();
+            break;
+
+        case 7401: Orion.Print(65, '>> Vai a Darknight Creeper'); EnsureDoomSupportScripts(); AutoDoomGauntlet(1); DoomMenuGUI(); break;
+        case 7402: Orion.Print(65, '>> Vai a Fleshrenderer'); EnsureDoomSupportScripts(); AutoDoomGauntlet(2); DoomMenuGUI(); break;
+        case 7403: Orion.Print(65, '>> Vai a Impaler'); EnsureDoomSupportScripts(); AutoDoomGauntlet(3); DoomMenuGUI(); break;
+        case 7404: Orion.Print(65, '>> Vai a Shadow Knight'); EnsureDoomSupportScripts(); AutoDoomGauntlet(4); DoomMenuGUI(); break;
+        case 7405: Orion.Print(65, '>> Vai ad Abyssmal Horror'); EnsureDoomSupportScripts(); AutoDoomGauntlet(5); DoomMenuGUI(); break;
+        case 7406: Orion.Print(65, '>> Dark Father singolo'); EnsureDoomSupportScripts(); AutoDoomGauntlet(6, true); DoomMenuGUI(); break;
+
+        case 3111: ToggleDressWeapon('Dress_DoomDarknightCreeper'); DoomMenuGUI(); break;
+        case 3113: ToggleDressWeapon('Dress_DoomFleshrenderer'); DoomMenuGUI(); break;
+        case 3115: ToggleDressWeapon('Dress_DoomImpaler'); DoomMenuGUI(); break;
+        case 3117: ToggleDressWeapon('Dress_DoomShadowKnight'); DoomMenuGUI(); break;
+        case 3119: ToggleDressWeapon('Dress_DoomAbyssmalHorror'); DoomMenuGUI(); break;
+        case 3121: ToggleDressWeapon('Dress_DoomDarkFather'); DoomMenuGUI(); break;
+
+        case 3112: SelectOrResetWeapon('doom_darknight_creeper'); DoomMenuGUI(); break;
+        case 3114: SelectOrResetWeapon('doom_fleshrenderer'); DoomMenuGUI(); break;
+        case 3116: SelectOrResetWeapon('doom_impaler'); DoomMenuGUI(); break;
+        case 3118: SelectOrResetWeapon('doom_shadow_knight'); DoomMenuGUI(); break;
+        case 3120: SelectOrResetWeapon('doom_abyssmal_horror'); DoomMenuGUI(); break;
+        case 3122: SelectOrResetWeapon('doom_dark_father'); DoomMenuGUI(); break;
+
+        case 7499:
+            var g = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+// =====================================================
+// DOOM BONE CUTTER
+// =====================================================
+
+function DoomBoneCutter() {
+    var boneTypes = '0x0ECA|0x0ECB|0x0ECC|0x0ECD|0x0ECE|0x0ECF|0x0ED0|0x0ED1|0x0ED2';
+    var CUT_RANGE = 2;
+    var CUT_DELAY = 45;
+    var RETRY_DELAY = 55;
+
+    Orion.Print(65, 'DoomBoneCutter TURBO avviato');
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(40);
+            continue;
+        }
+
+        var knifeObj = Orion.FindObject('bone_knife');
+
+        if (!knifeObj || !Orion.ObjectExists(knifeObj.Serial())) {
+            Orion.CharPrint(Player.Serial(), 33, 'Coltello BoneCutter non trovato!');
+            Orion.Wait(500);
+            continue;
+        }
+
+        var knifeSerial = knifeObj.Serial();
+        var bones = Orion.FindTypeEx(boneTypes, 'any', 'ground', 'item|near', CUT_RANGE);
+
+        if (!bones || !bones.length) {
+            Orion.Wait(40);
+            continue;
+        }
+
+        for (var i = 0; i < bones.length; i++) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+            if (typeof IsBloodOathLocked === 'function' && IsBloodOathLocked()) {
+                HandleBloodOath();
+                break;
+            }
+
+            var bone = bones[i];
+            if (!bone || !Orion.ObjectExists(bone.Serial())) continue;
+            if (bone.Distance() > CUT_RANGE) continue;
+
+            if (IsPlayerRemainsBone(bone)) {
+                Orion.Ignore(bone.Serial());
+                Orion.Print(33, 'BoneCutter: ignoro remains: ' + bone.Serial());
+                continue;
+            }
+
+            CutBoneTurbo(knifeSerial, bone.Serial(), CUT_DELAY, RETRY_DELAY);
+        }
+
+        Orion.Wait(25);
+    }
+}
+
+function IsPlayerRemainsBone(obj) {
+    if (!obj) return false;
+
+    var name = '';
+    var props = '';
+
+    try {
+        name = obj.Name ? (obj.Name() || '').toLowerCase() : '';
+    } catch (e1) {
+        name = '';
+    }
+
+    try {
+        props = obj.Properties ? (obj.Properties() || '').toLowerCase() : '';
+    } catch (e2) {
+        props = '';
+    }
+
+    if (name.indexOf('the remains of') !== -1) return true;
+    if (props.indexOf('the remains of') !== -1) return true;
+
+    return false;
+}
+
+function CutBoneTurbo(knifeSerial, boneSerial, cutDelay, retryDelay) {
+    if (!Orion.ObjectExists(boneSerial)) return false;
+
+    var boneObj = Orion.FindObject(boneSerial);
+    if (!boneObj || boneObj.Distance() > 2) return false;
+
+    if (IsPlayerRemainsBone(boneObj)) {
+        Orion.Ignore(boneSerial);
+        return false;
+    }
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    Orion.UseObject(knifeSerial);
+
+    if (Orion.WaitForTarget(2000)) {
+        Orion.TargetObject(boneSerial);
+        Orion.Wait(cutDelay);
+
+        if (!Orion.ObjectExists(boneSerial)) return true;
+    } else {
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+        Orion.Wait(retryDelay);
+        return false;
+    }
+
+    if (Orion.ObjectExists(boneSerial)) {
+        boneObj = Orion.FindObject(boneSerial);
+
+        if (IsPlayerRemainsBone(boneObj)) {
+            Orion.Ignore(boneSerial);
+            return false;
+        }
+
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+
+        Orion.UseObject(knifeSerial);
+
+        if (Orion.WaitForTarget(2000)) {
+            Orion.TargetObject(boneSerial);
+            Orion.Wait(cutDelay);
+        }
+    }
+
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    return !Orion.ObjectExists(boneSerial);
+}
+
+// =====================================================
+// DOOM GAUNTLET - SIMPLE DIRECT EQUIP VERSION
+// =====================================================
+
+var currentDressList = '';
+var currentWeaponDress = '';
+var currentTalismanDress = '';
+
+var DOOM_EQUIP_RETRIES = 10;
+var DOOM_EQUIP_WAIT = 450;
+
+var rails = {
+    r1:  [[439,432],[450,432],[464,432],[469,428],[470,428],[473,428]],
+    r1m: [[485,455]],
+
+    r2:  [[486,450],[486,439],[482,432],[472,432],[470,432],[462,492],[462,493],[462,496]],
+    r2m: [[484,517]],
+
+    r3:  [[479,507],[468,502],[468,493],[453,468],[403,500],[403,501],[403,502]],
+    r3m: [[399,509],[399,522],[399,531]],
+
+    r4:  [[407,522],[409,500],[415,466],[357,474],[357,475]],
+    r4m: [[351,502],[338,510]],
+
+    r5:  [[348,498],[361,485],[360,474],[364,433],[362,433]],
+    r5m: [[343,434],[327,434]],
+
+    r6:  [[342,430],[363,430],[398,430],[419,429]]
+};
+
+// =====================================================
+// SIMPLE EQUIP HELPERS
+// =====================================================
+
+function GetBackpackSerialSimple() {
+    var bp = Orion.ObjAtLayer('Backpack');
+    if (!bp) return '';
+    return String(bp.Serial()).toLowerCase();
+}
+
+function ObjIsInBackpack(obj) {
+    if (!obj) return false;
+
+    var bpSerial = GetBackpackSerialSimple();
+    if (!bpSerial) return false;
+
+    try {
+        return String(obj.Container()).toLowerCase() === bpSerial;
+    } catch (e) {
+        return false;
+    }
+}
+
+function IsWeaponObjEquipped(obj) {
+    if (!obj) return false;
+
+    var serial = String(obj.Serial()).toLowerCase();
+
+    var right = Orion.ObjAtLayer('RightHand');
+    var left = Orion.ObjAtLayer('LeftHand');
+
+    if (right && String(right.Serial()).toLowerCase() === serial) return true;
+    if (left && String(left.Serial()).toLowerCase() === serial) return true;
+
+    return false;
+}
+
+function IsAnyWeaponEquipped() {
+    return !!(Orion.ObjAtLayer('RightHand') || Orion.ObjAtLayer('LeftHand'));
+}
+
+function IsTalismanObjEquipped(obj) {
+    if (!obj) return false;
+
+    var equipped = Orion.ObjAtLayer('Talisman');
+    if (!equipped) return false;
+
+    return String(equipped.Serial()).toLowerCase() === String(obj.Serial()).toLowerCase();
+}
+
+function ClearDoomEquipState() {
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+
+    try {
+        Orion.StopWalking();
+    } catch (e) {}
+
+    Orion.Wait(80);
+}
+
+function EquipDoomWeaponSimple(varName, label) {
+    label = label || varName;
+
+    for (var i = 0; i < DOOM_EQUIP_RETRIES; i++) {
+        var weapon = Orion.FindObject(varName);
+
+        if (!weapon) {
+            Orion.CharPrint(Player.Serial(), 33, '*ARMA NON TROVATA: ' + label + '*');
+            Orion.Print(33, 'Doom weapon non trovata: ' + varName);
+            return false;
+        }
+
+        if (IsWeaponObjEquipped(weapon)) {
+            currentWeaponDress = varName;
+            Shared.AddVar('active_weapon_script', label);
+            return true;
+        }
+
+        ClearDoomEquipState();
+
+        // ClassicAssist style:
+        // Cast Create Food -> EquipItem
+        Orion.Cast('Create Food');
+        Orion.Wait(100);
+
+        weapon = Orion.FindObject(varName);
+
+        if (!weapon) {
+            Orion.CharPrint(Player.Serial(), 33, '*ARMA PERSA DOPO CREATE FOOD: ' + label + '*');
+            return false;
+        }
+
+        Orion.CancelTarget();
+        Orion.CancelWaitTarget();
+
+        Orion.Equip(weapon.Serial());
+        Orion.Wait(DOOM_EQUIP_WAIT);
+
+        weapon = Orion.FindObject(varName);
+
+        if (weapon && IsWeaponObjEquipped(weapon)) {
+            currentWeaponDress = varName;
+            Shared.AddVar('active_weapon_script', label);
+            Orion.CharPrint(Player.Serial(), 65, '*ARMA EQUIPPATA: ' + label + '*');
+
+            // Se la rail Doom ha appena dressato una Lava Infused/Searing,
+            // usa la stessa accensione del tasto Dress, ma solo dopo un equip reale.
+            if (Orion.GetGlobal('StopAllScripts') !== 'true') {
+                Orion.Wait(300);
+                CheckAndActivateLavaInfused(false);
+            }
+
+            return true;
+        }
+
+        Orion.CharPrint(Player.Serial(), 33, '*RETRY EQUIP ARMA ' + (i + 1) + '/' + DOOM_EQUIP_RETRIES + ': ' + label + '*');
+    }
+
+    Orion.CharPrint(Player.Serial(), 33, '*ERRORE: NON RIESCO A EQUIPPARE ' + label + '*');
+    Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
+
+    return false;
+}
+
+function EquipDoomTalismanSimple(varName, label) {
+    label = label || varName;
+
+    for (var i = 0; i < DOOM_EQUIP_RETRIES; i++) {
+        var talisman = Orion.FindObject(varName);
+
+        if (!talisman) {
+            Orion.CharPrint(Player.Serial(), 33, '*TALISMANO NON TROVATO: ' + label + '*');
+            Orion.Print(33, 'Doom talisman non trovato: ' + varName);
+            return false;
+        }
+
+        if (IsTalismanObjEquipped(talisman)) {
+            currentTalismanDress = varName;
+            Shared.AddVar('active_talisman_script', label);
+            return true;
+        }
+
+        ClearDoomEquipState();
+
+        talisman = Orion.FindObject(varName);
+
+        if (!talisman) {
+            Orion.CharPrint(Player.Serial(), 33, '*TALISMANO PERSO: ' + label + '*');
+            return false;
+        }
+
+        Orion.Equip(talisman.Serial());
+        Orion.Wait(DOOM_EQUIP_WAIT);
+
+        talisman = Orion.FindObject(varName);
+
+        if (talisman && IsTalismanObjEquipped(talisman)) {
+            currentTalismanDress = varName;
+            Shared.AddVar('active_talisman_script', label);
+            Orion.CharPrint(Player.Serial(), 65, '*TALISMANO EQUIPPATO: ' + label + '*');
+            return true;
+        }
+
+        Orion.CharPrint(Player.Serial(), 33, '*RETRY TALISMANO ' + (i + 1) + '/' + DOOM_EQUIP_RETRIES + ': ' + label + '*');
+    }
+
+    Orion.CharPrint(Player.Serial(), 33, '*ERRORE: NON RIESCO A EQUIPPARE TALISMANO ' + label + '*');
+    Orion.PlayWav("C:\\Orion Launcher\\OA\\beep.wav");
+
+    return false;
+}
+
+function EnsureDoomWeaponSimple(varName, label) {
+    var weapon = Orion.FindObject(varName);
+
+    if (!weapon) {
+        Orion.CharPrint(Player.Serial(), 33, '*ARMA DOOM NON TROVATA: ' + label + '*');
+        return false;
+    }
+
+    if (IsWeaponObjEquipped(weapon)) return true;
+
+    Orion.CharPrint(Player.Serial(), 33, '*ARMA NON IN MANO - RIDRESSO: ' + label + '*');
+    return EquipDoomWeaponSimple(varName, label);
+}
+
+function EnsureDoomTalismanSimple(varName, label) {
+    var talisman = Orion.FindObject(varName);
+
+    if (!talisman) {
+        Orion.CharPrint(Player.Serial(), 33, '*TALISMANO DOOM NON TROVATO: ' + label + '*');
+        return false;
+    }
+
+    if (IsTalismanObjEquipped(talisman)) return true;
+
+    Orion.CharPrint(Player.Serial(), 33, '*TALISMANO NON EQUIPPATO - RIDRESSO: ' + label + '*');
+    return EquipDoomTalismanSimple(varName, label);
+}
+
+// =====================================================
+// DOOM ROOM EQUIP
+// =====================================================
+
+function DoomEquipRoom1() {
+    EquipDoomTalismanSimple('talisman_undead', 'Talisman Undead');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_darknight_creeper', 'Darknight Creeper');
+    EnsureDoomWeaponSimple('doom_darknight_creeper', 'Darknight Creeper');
+}
+
+function DoomEquipRoom2() {
+    EquipDoomTalismanSimple('talisman_undead', 'Talisman Undead');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_fleshrenderer', 'Fleshrenderer');
+    EnsureDoomWeaponSimple('doom_fleshrenderer', 'Fleshrenderer');
+}
+
+function DoomEquipRoom3() {
+    EquipDoomTalismanSimple('talisman_demon', 'Talisman Demon');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_impaler', 'Impaler');
+    EnsureDoomWeaponSimple('doom_impaler', 'Impaler');
+}
+
+function DoomEquipRoom4() {
+    EquipDoomTalismanSimple('talisman_undead', 'Talisman Undead');
+    Orion.Wait(150);
+
+    // Questa è la stanza Shadow Knight: arma con bleeding / primary.
+    EquipDoomWeaponSimple('doom_shadow_knight', 'Shadow Knight Bleeding');
+    EnsureDoomWeaponSimple('doom_shadow_knight', 'Shadow Knight Bleeding');
+}
+
+function DoomEquipRoom5() {
+    EquipDoomTalismanSimple('talisman_demon', 'Talisman Demon');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_abyssmal_horror', 'Abyssmal Horror');
+    EnsureDoomWeaponSimple('doom_abyssmal_horror', 'Abyssmal Horror');
+}
+
+function DoomEquipRoom6() {
+    EquipDoomTalismanSimple('talisman_demon', 'Talisman Demon');
+    Orion.Wait(150);
+    EquipDoomWeaponSimple('doom_dark_father', 'Dark Father');
+    EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+}
+
+// =====================================================
+// DOOM MAIN CONTROLS
+// =====================================================
+
+function ToggleDoomGauntlet() {
+    if (Orion.ScriptRunning('AutoDoomGauntlet')) {
+        Orion.Terminate('AutoDoomGauntlet');
+        Orion.CharPrint(Player.Serial(), 33, 'DOOM Gauntlet Disattivato');
+    } else {
+        EnsureDoomSupportScripts();
+
+        Orion.Exec('AutoDoomGauntlet', 'true');
+        Orion.CharPrint(Player.Serial(), 65, 'DOOM Gauntlet ATTIVATO!');
+    }
+
+    GUI();
+}
+
+function PauseCombatMode() {
+    Orion.PauseScript('SoloFollowAndAttack');
+    Orion.PauseScript('SoloFollowAndAttackSS');
+    Orion.PauseScript('UseSpecialAbilities');
+    Orion.PauseScript('UseSpecialAbilitiesSS');
+    Orion.PauseScript('AutoArcheryAttack');
+    Orion.PauseScript('AttackNearestEnemy');
+    Orion.PauseScript('SOLOGENERAL');
+
+    Orion.WarMode(false);
+    Orion.CancelTarget();
+    Orion.CancelWaitTarget();
+}
+
+function ResumeCombatMode() {
+    if (typeof SOLO === 'function') SOLO();
+
+    Orion.ResumeScript('SoloFollowAndAttack');
+    Orion.ResumeScript('SoloFollowAndAttackSS');
+    Orion.ResumeScript('UseSpecialAbilities');
+    Orion.ResumeScript('UseSpecialAbilitiesSS');
+    Orion.ResumeScript('AutoArcheryAttack');
+    Orion.ResumeScript('AttackNearestEnemy');
+    Orion.ResumeScript('SOLOGENERAL');
+}
+
+function WalkPath(coords) {
+    if (!coords || !coords.length) return;
+
+    PauseCombatMode();
+
+    var nearestIndex = 0;
+    var minDistance = 10000;
+
+    for (var j = 0; j < coords.length; j++) {
+        var dist = Orion.GetDistance(coords[j][0], coords[j][1]);
+
+        if (dist < minDistance) {
+            minDistance = dist;
+            nearestIndex = j;
+        }
+    }
+
+    for (var i = nearestIndex; i < coords.length; i++) {
+        Orion.WalkTo(coords[i][0], coords[i][1], Player.Z(), 1, 255, 1, 2, 5000);
+        Orion.Wait(10);
+    }
+}
+
+function ForceStep(direction, steps) {
+    PauseCombatMode();
+
+    for (var i = 0; i < steps; i++) {
+        Orion.Step(direction);
+        Orion.Wait(80);
+    }
+}
+
+function GetEnemy(range) {
+    var mobs = Orion.FindTypeEx(targetGraphics, 'any', 'ground', targetFlags, range, targetNoto);
+
+    if (!mobs || !mobs.length) return null;
+
+    for (var i = 0; i < mobs.length; i++) {
+        var mob = mobs[i];
+
+        if (!mob) continue;
+        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[mob.Serial()]) continue;
+        if (typeof IsIgnoredSummon === 'function' && IsIgnoredSummon(mob)) continue;
+
+        return mob;
+    }
+
+    return null;
+}
+
+function IsRevenantMob(mob) {
+    if (!mob) return false;
+
+    var name = mob.Name ? (mob.Name() || '').toLowerCase() : '';
+    var props = mob.Properties ? (mob.Properties() || '').toLowerCase() : '';
+    var graphic = mob.Graphic ? String(mob.Graphic()).toLowerCase() : '';
+
+    if (name.indexOf('revenant') !== -1) return true;
+    if (props.indexOf('revenant') !== -1) return true;
+    if (graphic === '0x0190' && props.indexOf('a revenant') !== -1) return true;
+
+    return false;
+}
+
+function CountValidDFSpawnMobs() {
+    var enemiesNear = Orion.FindTypeEx(
+        'any',
+        'any',
+        'ground',
+        'live|ignoreself|ignorefriends',
+        2,
+        'gray|criminal|red|enemy|orange'
+    );
+
+    var validEnemiesNear = 0;
+
+    for (var j = 0; j < enemiesNear.length; j++) {
+        var nearMob = enemiesNear[j];
+        if (!nearMob) continue;
+
+        if (typeof ignoredMobs !== 'undefined' && ignoredMobs[nearMob.Serial()]) continue;
+        if (typeof IsIgnoredSummon === 'function' && IsIgnoredSummon(nearMob)) continue;
+        if (IsRevenantMob(nearMob)) continue;
+
+        validEnemiesNear++;
+    }
+
+    return validEnemiesNear;
+}
+
+function FightLogic(range, roomNum) {
+    ResumeCombatMode();
+
+    var roomClear = false;
+    var emptyCheckStarted = false;
+    var emptySince = 0;
+    var dfGenericMode = false;
+
+    while (!Player.Dead() && !roomClear) {
+        if (IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        if (roomNum === 6) {
+            if (dfGenericMode) {
+                EnsureDoomWeaponSimple('generic_area', 'Generica Area');
+            } else {
+                EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+            }
+        }
+
+        var enemy = GetEnemy(range);
+
+        if (enemy) {
+            emptyCheckStarted = false;
+            emptySince = 0;
+
+            if (roomNum === 6) {
+                var validEnemiesNear = CountValidDFSpawnMobs();
+
+                if (validEnemiesNear > 1) {
+                    if (!dfGenericMode) {
+                        EquipDoomWeaponSimple('generic_area', 'Generica Area');
+                        EnsureDoomWeaponSimple('generic_area', 'Generica Area');
+                        Orion.Wait(250);
+                        dfGenericMode = true;
+                    }
+
+                    if (!Orion.AbilityStatus('Secondary')) {
+                        Orion.UseAbility('Secondary');
+                    }
+                } else {
+                    if (dfGenericMode || !IsAnyWeaponEquipped()) {
+                        EquipDoomWeaponSimple('doom_dark_father', 'Dark Father');
+                        EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+                        Orion.Wait(250);
+                        dfGenericMode = false;
+                    }
+                }
+            }
+
+            Orion.Wait(150);
+        } else {
+            if (roomNum === 6) {
+                if (dfGenericMode || !IsAnyWeaponEquipped()) {
+                    EquipDoomWeaponSimple('doom_dark_father', 'Dark Father');
+                    EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+                    Orion.Wait(250);
+                    dfGenericMode = false;
+                }
+            }
+
+            if (!emptyCheckStarted) {
+                emptySince = Orion.Now();
+                emptyCheckStarted = true;
+            }
+
+            if (Orion.Now() - emptySince >= 3000) {
+                roomClear = true;
+            } else {
+                Orion.Wait(250);
+            }
+        }
+    }
+
+    if (roomNum === 6) {
+        EquipDoomWeaponSimple('doom_dark_father', 'Dark Father');
+        EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+        Orion.Wait(250);
+    }
+}
+
+function EnsureDoomSupportScripts() {
+    Orion.SetGlobal('StopAllScripts', 'false');
+
+
+    if (!Shared.GetVar('doom_watcher_active')) {
+        StartDoomWatcher(); 
+    }
+
+    // Avvia MonitorDoomDrops anche se il watcher era già attivo ma lo script non gira
+    if (!Orion.ScriptRunning('MonitorDoomDrops')) {
+        Orion.Exec('MonitorDoomDrops');
+    }
+
+    if (!Orion.ScriptRunning('AutoVampiricEmbrace')) {
+        Orion.Exec('AutoVampiricEmbrace', 'true');
+    }
+
+    if (!Orion.ScriptRunning('DoomBoneCutter')) {
+        Orion.Print(65, '>> Attivazione DoomBoneCutter...');
+        Orion.Exec('DoomBoneCutter', 'true');
+    }
+
+    if (!Orion.ScriptRunning('AutoLogoutOnDeath')) {
+        Orion.Exec('AutoLogoutOnDeath', 'true');
+    }
+}
+
+// =====================================================
+// DOOM GAUNTLET RUN
+// =====================================================
+
+function AutoDoomGauntlet(stanza, singleRun) {
+    Orion.Print(89, '=== Avvio Doom Gauntlet ===');
+    Orion.IgnoreReset();
+
+    EnsureDoomSupportScripts();
+
+    if (!stanza) stanza = 1;
+
+    var isSingle = singleRun === true;
+
+    Orion.Wait(50);
+
+    while (!Player.Dead()) {
+        if (stanza <= 1) {
+            Orion.Print(65, '>> Stanza 1 - Darknight Creeper');
+            DoomEquipRoom1();
+            WalkPath(rails.r1);
+            ForceStep('East', 2);
+            WalkPath(rails.r1m);
+            EnsureDoomWeaponSimple('doom_darknight_creeper', 'Darknight Creeper');
+            FightLogic(15, 1);
+        }
+
+        if (stanza <= 2) {
+            Orion.Print(65, '>> Stanza 2 - Fleshrenderer');
+            DoomEquipRoom2();
+            if (Orion.BuffExists('Poison')) {
+                Orion.WarMode(false);
+                Orion.Cast('Cleanse by Fire', 'self');
+                Orion.Wait(1200);
+            }
+            WalkPath(rails.r2);
+            ForceStep('South', 4);
+            WalkPath(rails.r2m);
+            EnsureDoomWeaponSimple('doom_fleshrenderer', 'Fleshrenderer');
+            FightLogic(15, 2);
+            Orion.UseObject('0x40101F16');
+        }
+
+        if (stanza <= 3) {
+            Orion.Print(65, '>> Stanza 3 - Impaler');
+            DoomEquipRoom3();
+            WalkPath(rails.r3);
+            ForceStep('South', 4);
+            WalkPath(rails.r3m);
+            EnsureDoomWeaponSimple('doom_impaler', 'Impaler');
+            FightLogic(15, 3);
+        }
+
+        if (stanza <= 4) {
+            Orion.Print(65, '>> Stanza 4 - Shadow Knight / Bleeding');
+            DoomEquipRoom4();
+            WalkPath(rails.r4);
+            ForceStep('West', 4);
+            ForceStep('South', 4);
+            WalkPath(rails.r4m);
+            EnsureDoomWeaponSimple('doom_shadow_knight', 'Shadow Knight Bleeding');
+            FightLogic(15, 4);
+        }
+
+        if (stanza <= 5) {
+            Orion.Print(65, '>> Stanza 5 - Abyssmal Horror');
+            DoomEquipRoom5();
+            WalkPath(rails.r5);
+            ForceStep('West', 4);
+            WalkPath(rails.r5m);
+            EnsureDoomWeaponSimple('doom_abyssmal_horror', 'Abyssmal Horror');
+            FightLogic(15, 5);
+        }
+
+
+if (stanza <= 6) {
+            Orion.Print(65, '>> Stanza 6 - Dark Father');
+            DoomEquipRoom6();
+            WalkPath(rails.r6);
+            EnsureDoomWeaponSimple('doom_dark_father', 'Dark Father');
+            
+            FightLogic(18, 6); 
+
+            if (Shared.GetVar('doom_watcher_active')) {
+                var nowTime = new Date().getTime(); 
+                var startTime = Number(Shared.GetVar('doom_last_room6_time')) || 0;
+                
+                if (startTime > 0) {
+                    var elapsedSeconds = Math.round((nowTime - startTime) / 1000);
+
+                    if (elapsedSeconds > 30 && elapsedSeconds < 2400) { 
+                        var totalSeconds = Number(Shared.GetVar('doom_total_seconds')) || 0;
+                        Shared.AddVar('doom_total_seconds', totalSeconds + elapsedSeconds);
+                    } else {
+                        Orion.Print(33, '>> Timer giro scartato per sicurezza (Riavvio o Errore variabili)');
+                    }
+                }
+                
+                Shared.AddVar('doom_last_room6_time', nowTime);
+
+                var currentGiri = Number(Shared.GetVar('doom_watcher_counter')) || 0;
+                currentGiri++;
+                Shared.AddVar('doom_watcher_counter', currentGiri);
+                
+                Orion.Print(65, '>>> GIRO DOOM COMPLETATO! Totale: ' + currentGiri);
+                Orion.CharPrint(Player.Serial(), 65, 'Giro ' + currentGiri + ' Concluso');
+                
+                DoomWatcherGUI(); 
+            }
+        }
+
+        if (isSingle) {
+            Orion.Print(89, '=== Task terminato, ripristino DOOM principale ===');
+
+            if (typeof ToggleDoomGauntlet === 'function') {
+                ToggleDoomGauntlet();
+            }
+            break;
+        }
+
+        stanza = 1;
+
+        Orion.Print(55, '=== Giro finito, ricomincio dalla prima ===');
+        Orion.Wait(1000);
+    }
+
+    // Notifica Telegram se il PG è morto (il while si interrompe solo per morte o isSingle)
+    if (Player.Dead()) {
+        NotificaMorteDoom();
+    }
+}
+
+// =====================================================
+// DOOM WATCHER - 
+// =====================================================
+
+// Struttura per tracciare i tempi e i drop già contati
+if (!Shared.GetVar('doom_known_artifacts')) Shared.AddVar('doom_known_artifacts', '');
+if (!Shared.GetVar('doom_total_seconds')) Shared.AddVar('doom_total_seconds', 0);
+if (!Shared.GetVar('doom_last_room6_time')) Shared.AddVar('doom_last_room6_time', 0);
+
+
+
+function DoomWatcherGUI() {
+    var g = Orion.CreateCustomGump(101200); 
+    g.Clear();
+    g.SetCallback('DoomWatcherOnClick');
+
+    var offsetX = typeof GetCompagnoneGuiX === 'function' ? GetCompagnoneGuiX() + 450 : 330;
+    var offsetY = typeof GetCompagnoneGuiY === 'function' ? GetCompagnoneGuiY() - 130 : 100;
+
+    // FORZATURA INTERA: 7 e 5 bloccano la pietra ed eliminano lo sfondo nero tagliato sotto
+    DrawPanel(g, offsetX, offsetY, 7, 5);
+
+    var hueLabel = typeof HUE_STATUS_LABEL !== 'undefined' ? HUE_STATUS_LABEL : 1152;
+    g.AddText(offsetX + 55, offsetY + 12, hueLabel, '*DOOM WATCHER*');
+
+    // Forzato il posizionamento della X nell'angolo del pannello largo
+    g.AddButton(2000, offsetX + 195, offsetY + 14, 0xA94, 0xA94, 0xA95, '0');
+    g.AddTooltip('Chiudi Watcher');
+
+    var counter = Number(Shared.GetVar('doom_watcher_counter')) || 0;
+    var dropTotal = Number(Shared.GetVar('doom_watcher_drop_total')) || 0;
+    
+    // Testo dei giri medi in CAPSLOCK
+    var giriPerDropStr = 'N/D';
+    if (dropTotal > 0) {
+        giriPerDropStr = (Math.round((counter / dropTotal) * 10) / 10) + ' GIRI';
+    }
+
+    // Testo del tempo in CAPSLOCK
+    var totalSeconds = Number(Shared.GetVar('doom_total_seconds')) || 0;
+    var mediaTempoStr = 'N/D';
+    if (counter > 0 && totalSeconds > 0) {
+        var avgSecondsTotal = Math.round(totalSeconds / counter);
+        var min = Math.floor(avgSecondsTotal / 60);
+        var sec = avgSecondsTotal % 60;
+        mediaTempoStr = min + 'M ' + (sec < 10 ? '0' : '') + sec + 'S';
+    }
+
+    // Etichette in CAPSLOCK con allineamento corretto dentro il pannello largo
+    var textY = offsetY + 45;
+    g.AddText(offsetX + 30, textY, 1271, 'GIRI COMPLETI: ' + counter); textY += 20;
+    g.AddText(offsetX + 30, textY, 1271, 'DROP TOTALI: ' + dropTotal); textY += 20;
+    g.AddText(offsetX + 30, textY, 1271, 'MEDIA GIRI / DROP: ' + giriPerDropStr); textY += 20;
+    g.AddText(offsetX + 30, textY, 1271, 'MEDIA TEMPO / GIRO: ' + mediaTempoStr);
+
+    // Centraggio matematico del bottone RESET STATS (grafica 23, font 12)
+    var bottoneLarghezza = 142; 
+    var pannelloLarghezzaPixel = 240; 
+    var centroX = Math.round((pannelloLarghezzaPixel - bottoneLarghezza) / 2);
+
+    AddBigButton(g, 9001, offsetX + centroX, textY + 22, '23', 33, 'RESET STATS', 'Resetta contatori e tempi Doom', 12);
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function DoomWatcherOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    if (buttonID === 2000) { 
+        Shared.AddVar('doom_watcher_active', false); 
+        if (Orion.ScriptRunning('MonitorDoomDrops')) {
+            Orion.Terminate('MonitorDoomDrops');
+        }
+        var gClose = Orion.CreateCustomGump(101200);
+        gClose.Close();
+        return;
+    }
+
+    if (buttonID === 9001) {
+        Shared.AddVar('doom_watcher_active', true);
+        Shared.AddVar('doom_watcher_counter', 0);
+        Shared.AddVar('doom_watcher_drop_total', 0);
+        Shared.AddVar('doom_total_seconds', 0);
+        Shared.AddVar('doom_last_room6_time', new Date().getTime());
+        
+        // Riavvia il monitor pulito
+        if (Orion.ScriptRunning('MonitorDoomDrops')) {
+            Orion.Terminate('MonitorDoomDrops');
+            Orion.Wait(100);
+        }
+        Orion.Exec('MonitorDoomDrops');
+        
+        Orion.CharPrint(Player.Serial(), 65, 'Doom Watcher resettato!');
+    }
+
+    DoomWatcherGUI();
+}
+
+function StartDoomWatcher() {
+    Shared.AddVar('doom_watcher_active', true);
+    
+    if (Number(Shared.GetVar('doom_last_room6_time')) === 0) {
+        Shared.AddVar('doom_last_room6_time', new Date().getTime());
+    }
+
+    // Avvia il monitor con la nuova logica di snapshot automatico
+    if (!Orion.ScriptRunning('MonitorDoomDrops')) {
+        Orion.Exec('MonitorDoomDrops');
+    }
+    
+    DoomWatcherGUI();
+}
+
+// --- CONFIGURAZIONE TELEGRAM GRUPPO ---
+var telegram_token = "8778713089:AAH9mjw-nd48Y6eqvWpIIcXvb0iybpIXmC0";
+
+// Inserisci qui l'ID del GRUPPO (inizia quasi sempre con un meno '-')
+var telegram_chat_id = "-5256370263"; 
+
+function InviaTelegram(testo) {
+    var url = "https://api.telegram.org/bot" + telegram_token + "/sendMessage?chat_id=" + telegram_chat_id + "&text=" + encodeURIComponent(testo);
+    try { Orion.HttpGet(url); } catch (e) {}
+}
+
+function NotificaMorteDoom() {
+    var pgName = Player.Name ? Player.Name() : 'Sconosciuto';
+    var msg = "☠️ MORTE A DOOM!\n" +
+              "👤 Personaggio: " + pgName + "\n" +
+              "💀 Il PG " + pgName + " è morto!";
+    Orion.Print(33, '>> Invio notifica morte Telegram per: ' + pgName);
+    InviaTelegram(msg);
+}
+
+function MonitorDoomDrops() {
+    Shared.AddVar('doom_watcher_active', true);
+    Orion.Print(65, '--> MONITOR DOOM AVVIATO');
+    
+    var artifactNames = [
+        "Ægis", "Arcane Shield", "Armor of Fortune", "Axe of the Heavens", 
+        "The Berserker's Maul", "Blade of Insanity", "Bone Crusher", 
+        "Bracelet of Health", "Breath of the Dead", "Two Handed Axe", 
+        "The Deceiver", "Divine Countenance", "The Dragon Slayer", 
+        "The Dryad Bow", "Frostbringer", "Gauntlets of Nobility", 
+        "Glenda", "Hat of the Magi", "Helm of Insight", 
+        "Holy Knight's Breastplate", "Hunter's Headdress", "Composite Bow", 
+        "Bow of Infinite Swarms", "Jackal's Collar", "Legacy of the Dread Lord", 
+        "Leggings of Bane", "Midnight Bracers", "Ornament of the Magician", 
+        "Ornate Crown of the Harrower", "Ring of the Elements", "Ring of the Vile", 
+        "Bandana", "The Scholar’s Halo", "Serpent's Fang", "Shadow Dancer Leggings", 
+        "Spirit of the Totem", "Staff of the Magi", "The Taskmaster", "Recipe Scroll",
+        "Tunic of Fire", "Voice of the Fallen King"
+    ];
+
+    var visti = {}; 
+    var initialItems = Orion.FindType('any', 'any', 'backpack');
+    for (var j = 0; j < initialItems.length; j++) {
+        visti[initialItems[j]] = true;
+    }
+
+    while (Shared.GetVar('doom_watcher_active')) {
+        var items = Orion.FindType('any', 'any', 'backpack');
+        
+        for (var i = 0; i < items.length; i++) {
+            var serial = items[i];
+            
+            if (!visti[serial]) {
+                var obj = Orion.FindObject(serial);
+                if (obj && obj.Exists()) {
+                    var name = obj.Name();
+                    
+                    if (!name || name.length < 2) {
+                        Orion.Click(serial);
+                        Orion.Wait(500);
+                        name = obj.Name();
+                    }
+
+                    var isArtifact = false;
+                    for (var a = 0; a < artifactNames.length; a++) {
+                        if (name.toLowerCase().indexOf(artifactNames[a].toLowerCase()) !== -1) {
+                            isArtifact = true;
+                            break;
+                        }
+                    }
+
+                    if (isArtifact) {
+                        // Incrementa Counter GUI
+                        var dropTotal = Number(Shared.GetVar('doom_watcher_drop_total')) || 0;
+                        Shared.AddVar('doom_watcher_drop_total', dropTotal + 1);
+                        if (typeof DoomWatcherGUI === 'function') DoomWatcherGUI();
+
+                        // Messaggio personalizzato con il nome del PG che ha droppato
+                        var msg = "🎉 NUOVO DROP A DOOM!\n" +
+                                  "👤 Personaggio: " + Player.Name() + "\n" +
+                                  "🎁 Oggetto: " + name;
+                                  
+                        InviaTelegram(msg);
+                        
+                        Orion.Print(65, ">> Drop : " + Player.Name());
+                    }
+                    visti[serial] = true;
+                }
+            }
+        }
+        Orion.Wait(1000); 
+    }
+}
+

@@ -1,0 +1,979 @@
+// =====================================================
+// UODREAMS - GUI
+// =====================================================
+
+// =====================================================
+// HELPERS GRAFICI
+// =====================================================
+
+function DrawPanel(g, offsetX, offsetY, width, height) {
+    for (var y = 0; y < height; ++y) {
+        for (var x = 0; x < width; ++x) {
+            var drawX = offsetX + x * 35;
+            var drawY = offsetY + y * 35;
+
+            if (y === 0 && x === 0) {
+                g.AddGumpPic(drawX, drawY, 0x9BF5, HUE_FRAME);
+            } else if (x === 0 && y === height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFB, HUE_FRAME);
+            } else if (x === 0 && y > 0 && y < height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF8, HUE_FRAME);
+            } else if (x === width - 1 && y > 0 && y < height - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFA, HUE_FRAME);
+            } else if (y === height - 1 && x === width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFD, HUE_FRAME);
+            } else if (y === 0 && x === width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF7, HUE_FRAME);
+            } else if (y === 0 && x > 0 && x < width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BF6, HUE_FRAME);
+            } else if (y === height - 1 && x > 0 && x < width - 1) {
+                g.AddGumpPic(drawX, drawY, 0x9BFC, HUE_FRAME);
+            } else {
+                g.AddGumpPic(drawX, drawY, 0x9BF9, HUE_FRAME);
+            }
+        }
+    }
+}
+
+function CalculateCenteredX(guiWidth, text, averageCharWidth) {
+    return Math.floor((guiWidth - (text.length * averageCharWidth)) / 2);
+}
+
+function AddGuiTitle(g, offsetX, offsetY, width, title) {
+    width = width || 11;
+    title = title || '*UODREAMS COMPAGNONE 2.5*';
+
+    if (title.indexOf('*') === -1) title = '*' + title + ' 2.5*';
+
+    var panelWidth = width * 35;
+
+    // Font UO: per il titolo uso 7 px medi, cosi resta centrato visivamente.
+    var titleX = offsetX + Math.floor((panelWidth - (title.length * 8)) / 2);
+    if (titleX < offsetX + 18) titleX = offsetX + 18;
+
+    g.AddText(titleX, offsetY + 10, HUE_TITLE, title);
+
+    var pgName = '[' + Player.Name() + ']';
+    var nameX = offsetX + Math.floor((panelWidth - (pgName.length * 7)) / 2);
+    if (nameX < offsetX + 18) nameX = offsetX + 18;
+
+    g.AddText(nameX, offsetY + 30, HUE_WHITE_TEXT, pgName);
+}
+
+function AddPlayerNameBlock(g, offsetX, offsetY, baseY) {
+    return;
+}
+
+function AddNavButtons(g, offsetX, offsetY, active) {
+    var navY = offsetY + 58;
+
+    g.AddButton(active === 2 ? 1017 : 1015, offsetX + 30,  navY, ICON_SAMPIRE, ICON_SAMPIRE, ICON_SAMPIRE, active === 2 ? HUE_NAV_ON : HUE_NAV_OFF);
+    g.AddTooltip(active === 2 ? 'Collapse Menu' : 'Sampire Menu');
+
+    g.AddButton(active === 1 ? 1017 : 1016, offsetX + 115, navY, ICON_CHAMP, ICON_CHAMP, ICON_CHAMP, active === 1 ? HUE_NAV_ON : HUE_NAV_OFF);
+    g.AddTooltip(active === 1 ? 'Collapse Menu' : 'Champ Selector Menu');
+
+    g.AddButton(active === 3 ? 1017 : 1018, offsetX + 200, navY, ICON_MISC, ICON_MISC, ICON_MISC, active === 3 ? HUE_NAV_ON : HUE_NAV_OFF);
+    g.AddTooltip(active === 3 ? 'Collapse Menu' : 'Miscellaneous Menu');
+
+    g.AddButton(active === 4 ? 1017 : 1019, offsetX + 285, navY, ICON_DRESS, ICON_DRESS, ICON_DRESS, active === 4 ? HUE_NAV_ON : HUE_NAV_OFF);
+    g.AddTooltip(active === 4 ? 'Collapse Menu' : 'Dress Menu');
+}
+
+function AddCheckRow(g, id, xBtn, xText, y, scriptName, label) {
+    g.AddButton(id, xBtn, y, GetCheckboxStatus(scriptName), GetCheckboxStatus(scriptName), GetCheckboxStatus(scriptName), '');
+    g.AddText(xText, y + 5, GetColorStatus(scriptName), label);
+}
+
+function AddSmallSetButton(g, id, x, y, hue, tooltip) {
+    g.AddButton(id, x, y, 0x2716, 0x2716, 0x2716, hue || '');
+    g.AddTooltip(tooltip || '');
+}
+
+function AddBigButton(g, id, x, y, hue, textColor, label, tooltip, textOffset) {
+    g.AddButton(id, x, y, '0x2A30', '0x2A30', '0x2A30', hue || '');
+    g.AddTooltip(tooltip || label);
+    g.AddText(x + (textOffset || 18), y + 4, HUE_BUTTON_TEXT, label);
+}
+
+function AddDressWeaponRow(g, toggleId, setId, xSet, xBtn, xText, y, scriptName, label, hue) {
+    AddSmallSetButton(g, setId, xSet, y + 7, hue || '', 'Seleziona o resetta ' + label);
+    g.AddButton(toggleId, xBtn, y, GetCheckboxStatus(scriptName), GetCheckboxStatus(scriptName), GetCheckboxStatus(scriptName), '');
+    g.AddText(xText, y + 5, GetColorStatus(scriptName), label);
+}
+
+// =====================================================
+// GUI SELECTOR
+// =====================================================
+
+function GUISelector() {
+    Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear();
+    g.SetCallback('OnClick');
+
+    var width = 11, height = 4;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddGuiTitle(g, offsetX, offsetY, width, '*UODREAMS COMPAGNONE 2.5*');
+    AddNavButtons(g, offsetX, offsetY, 0);
+
+    g.Update();
+}
+
+// =====================================================
+// GUI SAMPIRE
+// =====================================================
+
+function GUISampire() {
+    Shared.AddVar('selector', 2);
+    Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear();
+    g.SetCallback('OnClick');
+
+    var width = 11, height = 15;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+    var prompt = 150;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddGuiTitle(g, offsetX, offsetY, width, '*UODREAMS COMPAGNONE 2.5*');
+    AddNavButtons(g, offsetX, offsetY, 2);
+
+    var bx = offsetX + 235, by = offsetY + 160;
+    AddBigButton(g, 7001, bx, by,       '23',   HUE_BUTTON_TEXT, 'Registra Rail', 'Apri Rail Recorder', 16);
+    AddBigButton(g, 7030, bx, by + 35,  '44',   HUE_BUTTON_TEXT, 'Posiziona UI',  'Apri Position Manager', 22);
+    AddBigButton(g, 7031, bx, by + 70, '1153', HUE_BUTTON_TEXT, 'Color - ID',    'Check Object Color Number', 22);
+
+    AddCheckRow(g, 3002, offsetX + 25, offsetX + 60, offsetY + prompt, 'Durability_Watcher', 'DURABILITY CHECK');
+    prompt += 30;
+    AddCheckRow(g, 3001, offsetX + 25, offsetX + 60, offsetY + prompt, 'SuperInsura', 'AUTO INSURE');
+    AddCheckRow(g, 3001, offsetX + 25, offsetX + 60, offsetY + prompt, 'SuperInsura', 'AUTO INSURE');
+AddSmallSetButton(g, 1024, offsetX + 10, offsetY + prompt + 8, '33', 'Resetta Ignore List SuperInsura');
+
+
+    prompt += 30;
+    AddCheckRow(g, 3003, offsetX + 25, offsetX + 60, offsetY + prompt, 'AutoMount', 'AUTO MOUNT');
+    AddSmallSetButton(g, 1022, offsetX + 10, offsetY + prompt + 8, '75', 'Reset o Seleziona Mount');
+    prompt += 30;
+    AddCheckRow(g, 3005, offsetX + 25, offsetX + 60, offsetY + prompt, 'AutoLogoutOnDeath', 'AUTO LOGOUT ON DEATH');
+    prompt += 30;
+    AddCheckRow(g, 4321, offsetX + 25, offsetX + 60, offsetY + prompt, 'AutoVampiricEmbrace', 'AUTO VAMPIRIC');
+
+    prompt += 40;
+    AddSmallSetButton(g, 5114, offsetX + 23, offsetY + prompt + 8, '2785', 'Salva equip attuale come Dress Generico');
+    g.AddText(offsetX + 40, offsetY + prompt + 5, HUE_WHITE_TEXT, 'SALVA DRESS GENERICO');
+
+    prompt += 26;
+    AddSmallSetButton(g, 5116, offsetX + 23, offsetY + prompt + 8, '2721', 'Salva equip attuale come Dress Luck');
+    g.AddText(offsetX + 40, offsetY + prompt + 5, HUE_WHITE_TEXT, 'SALVA DRESS LUCK');
+
+    prompt += 45;
+    AddCheckRow(g, 3009, offsetX + 25, offsetX + 60, offsetY + prompt, 'Nipo', 'BUTTA SABBIA NIPO');
+    prompt += 30;
+    AddCheckRow(g, 3007, offsetX + 25, offsetX + 60, offsetY + prompt, 'SbloccaSeFermo', 'SBORRAMI');
+
+    g.Update();
+}
+
+// =====================================================
+// GUI CHAMPION
+// =====================================================
+
+function GUIChampSelector() {
+    Shared.AddVar('selector', 1);
+    Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear();
+    g.SetCallback('OnClick');
+
+    var width = 11, height = 16;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+    var prompt = 160;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddGuiTitle(g, offsetX, offsetY, width, '*UODREAMS COMPAGNONE 2.5*');
+    AddNavButtons(g, offsetX, offsetY, 1);
+
+    g.AddText(offsetX + 85, offsetY + 132, HUE_WHITE_TEXT, '      *CHAMPION RAIL*');
+
+    var leftBtn = offsetX + 25, leftText = offsetX + 60;
+    var rightBtn = offsetX + 225, rightSet = offsetX + 210, rightText = offsetX + 260;
+    var leftY = prompt, rightY = prompt;
+
+    AddCheckRow(g, 2001, leftBtn, leftText, offsetY + leftY, 'Abyssal', 'ABYSSAL');
+    leftY += 30; AddCheckRow(g, 2002, leftBtn, leftText, offsetY + leftY, 'Primeval', 'PRIMEVAL');
+    leftY += 30; AddCheckRow(g, 2051, leftBtn, leftText, offsetY + leftY, 'Mephitis', 'MEPHITIS');
+    leftY += 30; AddCheckRow(g, 2052, leftBtn, leftText, offsetY + leftY, 'Oaks', 'OAKS');
+    leftY += 30; AddCheckRow(g, 2004, leftBtn, leftText, offsetY + leftY, 'Neira', 'NEIRA');
+    leftY += 30; AddCheckRow(g, 2005, leftBtn, leftText, offsetY + leftY, 'Barra', 'BARRACOON');
+    leftY += 30; AddCheckRow(g, 2006, leftBtn, leftText, offsetY + leftY, 'Semidar', 'SEMIDAR');
+    leftY += 30; AddCheckRow(g, 2007, leftBtn, leftText, offsetY + leftY, 'Rikktor', 'RIKKTOR');
+    leftY += 30; AddCheckRow(g, 2008, leftBtn, leftText, offsetY + leftY, 'Formiche', 'FORMICHE');
+
+    AddSmallSetButton(g, 5100, rightSet, offsetY + rightY + 8, '77', 'Seleziona o resetta ARMA KALDHUN');
+    AddCheckRow(g, 2003, rightBtn, rightText, offsetY + rightY, 'Khaldun', 'KHALDUN');
+    rightY += 30; AddCheckRow(g, 2100, rightBtn, rightText, offsetY + rightY, 'SOLOGENERAL', 'KILL GENERALI');
+    rightY += 45; AddCheckRow(g, 2062, rightBtn, rightText, offsetY + rightY, 'Marble', 'MARBLE');
+    rightY += 30; AddCheckRow(g, 2063, rightBtn, rightText, offsetY + rightY, 'Damwin', 'DAMWIN');
+    rightY += 105; AddCheckRow(g, 2099, rightBtn, rightText, offsetY + rightY, 'EventoVoid', 'EVENTO');
+    rightY += 30; AddBigButton(g, 5432, rightBtn, offsetY + rightY, '', HUE_BUTTON_TEXT, 'ADD ENEMY', 'Aggiungi nemico a lista Evento', 20);
+
+    var autoY = offsetY + 450;
+    AddCheckRow(g, 2009, offsetX + 25, offsetX + 60, autoY, 'SeguieMena', 'AUTO TANK CHAMPION');
+    autoY += 30;
+    AddCheckRow(g, 1009, offsetX + 25, offsetX + 60, autoY, 'SoloFollowAndAttack', 'AUTO TANK 1VS1');
+
+    g.Update();
+}
+
+// =====================================================
+// GUI MISC
+// =====================================================
+
+function GUIMisc() {
+    Shared.AddVar('selector', 3);
+    Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear();
+    g.SetCallback('OnClick');
+
+    var width = 11, height = 16;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddGuiTitle(g, offsetX, offsetY, width, '*UODREAMS COMPAGNONE 2.5*');
+    AddNavButtons(g, offsetX, offsetY, 3);
+
+    var leftBtn = offsetX + 25, leftSet = offsetX + 10, leftText = offsetX + 60;
+    var rightBtn = offsetX + 225, rightText = offsetX + 260;
+    var y1 = 170, y2 = 170;
+
+    AddCheckRow(g, 3006, leftBtn, leftText, offsetY + y1, 'GoldRunnerChase95', 'GOLD DIGGER');
+
+    y1 += 30;
+    AddSmallSetButton(g, 1020, leftSet, offsetY + y1 + 8, '35', 'Reset o Seleziona Coltello BoneCutter');
+    AddCheckRow(g, 3008, leftBtn, leftText, offsetY + y1, 'DoomBoneCutter', 'BONECUTTER DOOM');
+
+    y1 += 30;
+    AddCheckRow(g, 3015, leftBtn, leftText, offsetY + y1, 'AggroMobs', 'AUTO AGGRO');
+
+    y1 += 30;
+    AddCheckRow(g, 3016, leftBtn, leftText, offsetY + y1, 'AutoHonorMob', 'AUTO HONOR');
+
+    y1 += 30;
+    AddSmallSetButton(g, 1023, leftSet, offsetY + y1 + 8, '15', 'AGGIUNGI ITEM ALLA LISTA DA CERCARE');
+    AddCheckRow(g, 3017, leftBtn, leftText, offsetY + y1, 'CercaOggettoTerra', 'CERCA A TERRA');
+
+    y1 += 40;
+    AddCheckRow(g, 5110, leftBtn, leftText, offsetY + y1, 'HideCorpse', 'NASCONDI CORPI');
+
+    y1 += 30;
+    AddCheckRow(g, 5111, leftBtn, leftText, offsetY + y1, 'ClickEverythingAround1Tile', 'CLICCA TUTTO');
+
+    y1 += 30;
+    AddCheckRow(g, 5112, leftBtn, leftText, offsetY + y1, 'AutoHide', 'AUTO HIDE');
+
+    y1 += 48;
+    AddBigButton(g, 7040, leftBtn, offsetY + y1, '33', HUE_BUTTON_TEXT, 'DOOM MENU', 'Apri Doom Menu', 18);
+
+    y1 += 35;
+    AddBigButton(g, 7042, leftBtn, offsetY + y1, '75', HUE_BUTTON_TEXT, 'FARM MENU', 'Apri Farm Menu', 18);
+
+    var closeRightText = rightBtn + 20;
+
+    AddSmallSetButton(g, 5032, rightBtn, offsetY + y2 + 7, '95', 'Seleziona un oggetto da autolootare');
+    g.AddText(closeRightText, offsetY + y2 + 5, HUE_WHITE_TEXT, 'ADD T0 AUT0L00T');
+
+    y2 += 26;
+    AddSmallSetButton(g, 5031, rightBtn, offsetY + y2 + 7, '85', 'Seleziona un oggetto da insurare');
+    g.AddText(closeRightText, offsetY + y2 + 5, HUE_WHITE_TEXT, 'ADD T0 AUT0INSURE');
+
+    y2 += 26;
+    AddSmallSetButton(g, 3062, rightBtn, offsetY + y2 + 7, '31', 'Honora te stesso');
+    g.AddText(closeRightText, offsetY + y2 + 5, HUE_WHITE_TEXT, 'H0N0RATI SCEM0');
+
+    y2 += 40;
+    AddSmallSetButton(g, 5104, rightBtn, offsetY + y2 + 8, '', 'Seleziona o resetta Runebook Casa');
+    g.AddButton(5105, rightBtn + 17, offsetY + y2 + 5, '0x15E1', '0x15E1', '0x15E1', '75');
+    g.AddTooltip('Recall CASA');
+    g.AddText(rightBtn + 40, offsetY + y2 + 5, HUE_WHITE_TEXT, 'CASA');
+
+    y2 += 26;
+    AddSmallSetButton(g, 5106, rightBtn, offsetY + y2 + 8, '', 'Seleziona o resetta Runebook Luna Banca');
+    g.AddButton(5107, rightBtn + 17, offsetY + y2 + 5, '0x15E1', '0x15E1', '0x15E1', '75');
+    g.AddTooltip('Recall LUNA BANCA');
+    g.AddText(rightBtn + 40, offsetY + y2 + 5, HUE_WHITE_TEXT, 'LUNA BANCA');
+
+    y2 += 40;
+    g.AddButton(5115, rightBtn, offsetY + y2, GetEquipDressCheckbox('generico'), GetEquipDressCheckbox('generico'), GetEquipDressCheckbox('generico'), '');
+    g.AddTooltip('Equippa Dress Generico');
+    g.AddText(rightText, offsetY + y2 + 5, GetEquipDressColor('generico'), 'DRESS GENERICO');
+
+    y2 += 30;
+    g.AddButton(5117, rightBtn, offsetY + y2, GetEquipDressCheckbox('luck'), GetEquipDressCheckbox('luck'), GetEquipDressCheckbox('luck'), '');
+    g.AddTooltip('Equippa Dress Luck');
+    g.AddText(rightText, offsetY + y2 + 5, GetEquipDressColor('luck'), 'DRESS LUCK');
+
+	y2 += 45;
+	AddSmallSetButton(g, 5033, rightBtn -15 , offsetY + y2 + 8, '2213', 'AGGIUNGI ITEM NON PRESENTE ALLA LISTA REPAIR');
+	AddBigButton(g, 5034, rightBtn, offsetY + y2, '22', HUE_BUTTON_TEXT, 'Repair Armor', 'Avvia Repair Gear', 15);
+
+    y2 += 35;
+    AddBigButton(g, 7041, rightBtn, offsetY + y2, '', HUE_BUTTON_TEXT, 'TALISMANI', 'Apri menu Talismani', 22);
+
+    y2 += 35;
+    AddBigButton(g, 5113, rightBtn, offsetY + y2, '', HUE_BUTTON_TEXT, 'Fama - Karma', 'Mostra Fama e Karma', 12);
+
+    g.Update();
+}
+
+// =====================================================
+// GUI DRESS
+// =====================================================
+
+function GUIDress() {
+    Shared.AddVar('selector', 4);
+    Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(COMPAGNONE_GUMP_ID);
+    g.Clear();
+    g.SetCallback('OnClick');
+
+    var width = 11, height = 16;
+    var offsetX = GetCompagnoneGuiX(), offsetY = GetCompagnoneGuiY();
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    AddGuiTitle(g, offsetX, offsetY, width, '*UODREAMS COMPAGNONE 2.5*');
+    AddNavButtons(g, offsetX, offsetY, 4);
+
+    g.AddText(offsetX + 75, offsetY + 132, HUE_WHITE_TEXT, '*DOUBLE AXE*');
+    g.AddText(offsetX + 235, offsetY + 132, HUE_WHITE_TEXT, '*BLADED STAFF*');
+
+    var leftSet = offsetX + 40, leftBtn = offsetX + 60, leftText = offsetX + 100;
+    var rightSet = offsetX + 220, rightBtn = offsetX + 240, rightText = offsetX + 280;
+    var leftY = 160, rightY = 160;
+
+    AddDressWeaponRow(g, 3011, 3021, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_DemonAxe', 'DEMON'); leftY += 30;
+    AddDressWeaponRow(g, 3025, 3035, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_DemonArea', 'DEMON AREA'); leftY += 30;
+    AddDressWeaponRow(g, 3026, 3036, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Dragon', 'DRAGON'); leftY += 30;
+    AddDressWeaponRow(g, 3027, 3037, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_DragonArea', 'DRAGON AREA'); leftY += 30;
+    AddDressWeaponRow(g, 3028, 3038, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Reptile', 'REPTILE'); leftY += 30;
+    AddDressWeaponRow(g, 3029, 3039, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Fey', 'FEY'); leftY += 30;
+    AddDressWeaponRow(g, 3030, 3040, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Ogre', 'OGRE'); leftY += 30;
+    AddDressWeaponRow(g, 3080, 3090, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Spider', 'SPIDER'); leftY += 30;
+    AddDressWeaponRow(g, 3031, 3041, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Repond', 'REPOND'); leftY += 30;
+    AddDressWeaponRow(g, 3032, 3042, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Undead', 'UNDEAD'); leftY += 30;
+    AddDressWeaponRow(g, 3033, 3043, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_GenericArea', 'GENERICA AREA'); leftY += 30;
+    AddDressWeaponRow(g, 3034, 3044, leftSet, leftBtn, leftText, offsetY + leftY, 'Dress_Boss', 'GENERICA AREA 2');
+
+    AddDressWeaponRow(g, 3057, 3058, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedSearing', 'LAVA INFUSED'); rightY += 30;
+    AddDressWeaponRow(g, 3012, 3022, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_DemonBladed', 'DEMON'); rightY += 30;
+    AddDressWeaponRow(g, 3047, 3048, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedDragon', 'DRAGON'); rightY += 30;
+    AddDressWeaponRow(g, 3049, 3050, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedFey', 'FEY'); rightY += 30;
+    AddDressWeaponRow(g, 3075, 3076, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedSpider', 'SPIDER'); rightY += 30;
+    AddDressWeaponRow(g, 3055, 3056, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedUndead', 'UNDEAD'); rightY += 30;
+    AddDressWeaponRow(g, 3051, 3052, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedRepond', 'REPOND'); rightY += 30;
+    AddDressWeaponRow(g, 3053, 3054, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_BladedSatellite', 'SATELLITE');
+
+    rightY += 45;
+    AddDressWeaponRow(g, 3045, 3046, rightSet, rightBtn, rightText, offsetY + rightY, 'Dress_Evento', 'EVENTO');
+
+    g.Update();
+}
+
+// =====================================================
+// ONCLICK PRINCIPALE
+// =====================================================
+
+function OnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 1001: Orion.ToggleScript('AutoDivine'); break;
+        case 1002: Orion.ToggleScript('AutoConsecrate'); break;
+        case 1005: Orion.ToggleScript('UseSpecialAbilities'); break;
+        case 1006: Orion.ToggleScript('AutoBushidoAbilities'); break;
+        case 1010: Orion.ToggleScript('CheckCurseAndPoison'); break;
+        case 3004: Orion.ToggleScript('CheckAndDispelRevenant'); break;
+        case 3015: Orion.ToggleScript('AggroMobs'); break;
+        case 3016: Orion.ToggleScript('AutoHonorMob'); break;
+        case 1080: Orion.ToggleScript('AutoCurseWeapon'); break;        
+
+
+
+        case 1009: ToggleChampScript('SoloFollowAndAttack', 'SOLO'); break;
+        case 2009: ToggleChampScript('SeguieMena', 'CHAMP'); break;
+
+        case 2001: ToggleChampScript('Abyssal', 'Abyssalrail'); break;
+        case 2002: ToggleChampScript('Primeval', 'Primevalrail'); break;
+        case 2003: ToggleChampScript('Khaldun', 'Kaldhunrail'); break;
+        case 2004: ToggleChampScript('Neira', 'Neirarail'); break;
+        case 2005: ToggleChampScript('Barra', 'Barrarail'); break;
+        case 2006: ToggleChampScript('Semidar', 'Semidarail'); break;
+        case 2007: ToggleChampScript('Rikktor', 'Rikktorrail'); break;
+        case 2008: ToggleChampScript('Formiche', 'Formicherail'); break;
+        case 2051: ToggleChampScript('Mephitis', 'Mephitisrail'); break;
+        case 2052: ToggleChampScript('Oaks', 'Oaksrail'); break;
+        case 2099: ToggleChampScript('EventoVoid', 'EventoVoidrail'); break;
+        case 2062: ToggleChampScript('Marble', 'Marblerail'); break;
+        case 2063: ToggleChampScript('Damwin', 'Damwinrail'); break;
+        case 2100: ToggleChampScript('SOLOGENERAL', 'SOLOGENERAL'); break;
+
+        case 3001: Orion.ToggleScript('SuperInsura'); break;
+        case 3002: Orion.ToggleScript('Durability_Watcher'); break;
+        case 3003: Orion.ToggleScript('AutoMount'); break;
+        case 3005: Orion.ToggleScript('AutoLogoutOnDeath'); break;
+        case 3006: Orion.ToggleScript('GoldRunnerChase95'); break;
+        case 3007: Orion.ToggleScript('SbloccaSeFermo'); break;
+        case 3008: Orion.ToggleScript('DoomBoneCutter'); break;
+        case 3009: Orion.ToggleScript('Nipo'); break;
+        case 4321: Orion.ToggleScript('AutoVampiricEmbrace'); break;
+        case 5110: Orion.ToggleScript('HideCorpse'); break;
+        case 5111: Orion.ToggleScript('ClickEverythingAround1Tile'); break;
+        case 5112: Orion.ToggleScript('AutoHide'); break;
+
+        case 3011: ToggleDressWeapon('Dress_DemonAxe'); break;
+        case 3012: ToggleDressWeapon('Dress_DemonBladed'); break;
+        case 3021: SelectOrResetWeapon('demon_axe'); break;
+        case 3022: SelectOrResetWeapon('demon_bladed'); break;
+        case 3025: ToggleDressWeapon('Dress_DemonArea'); break;
+        case 3026: ToggleDressWeapon('Dress_Dragon'); break;
+        case 3027: ToggleDressWeapon('Dress_DragonArea'); break;
+        case 3028: ToggleDressWeapon('Dress_Reptile'); break;
+        case 3029: ToggleDressWeapon('Dress_Fey'); break;
+        case 3030: ToggleDressWeapon('Dress_Ogre'); break;
+        case 3031: ToggleDressWeapon('Dress_Repond'); break;
+        case 3032: ToggleDressWeapon('Dress_Undead'); break;
+        case 3033: ToggleDressWeapon('Dress_GenericArea'); break;
+        case 3034: ToggleDressWeapon('Dress_Boss'); break;
+        case 3035: SelectOrResetWeapon('demon_area'); break;
+        case 3036: SelectOrResetWeapon('dragon'); break;
+        case 3037: SelectOrResetWeapon('dragon_area'); break;
+        case 3038: SelectOrResetWeapon('reptile'); break;
+        case 3039: SelectOrResetWeapon('fey'); break;
+        case 3040: SelectOrResetWeapon('ogre'); break;
+        case 3041: SelectOrResetWeapon('repond'); break;
+        case 3042: SelectOrResetWeapon('undead'); break;
+        case 3043: SelectOrResetWeapon('generic_area'); break;
+        case 3044: SelectOrResetWeapon('boss'); break;
+        case 3045: ToggleDressWeapon('Dress_Evento'); break;
+        case 3046: SelectOrResetWeapon('evento'); break;
+
+        case 3047: ToggleDressWeapon('Dress_BladedDragon'); break;
+        case 3048: SelectOrResetWeapon('bladed_dragon'); break;
+        case 3049: ToggleDressWeapon('Dress_BladedFey'); break;
+        case 3050: SelectOrResetWeapon('bladed_fey'); break;
+        case 3051: ToggleDressWeapon('Dress_BladedRepond'); break;
+        case 3052: SelectOrResetWeapon('bladed_repond'); break;
+        case 3053: ToggleDressWeapon('Dress_BladedSatellite'); break;
+        case 3054: SelectOrResetWeapon('bladed_satellite'); break;
+        case 3055: ToggleDressWeapon('Dress_BladedUndead'); break;
+        case 3056: SelectOrResetWeapon('bladed_undead'); break;
+        case 3057: ToggleDressWeapon('Dress_BladedSearing'); break;
+        case 3058: SelectOrResetWeapon('bladed_searing'); break;
+        case 3075: ToggleDressWeapon('Dress_BladedSpider'); break;
+        case 3076: SelectOrResetWeapon('bladed_spider'); break;
+        case 3080: ToggleDressWeapon('Dress_Spider'); break;
+        case 3090: SelectOrResetWeapon('spider'); break;
+
+        case 3111: ToggleDressWeapon('Dress_DoomDarknightCreeper'); break;
+        case 3112: SelectOrResetWeapon('doom_darknight_creeper'); break;
+        case 3113: ToggleDressWeapon('Dress_DoomFleshrenderer'); break;
+        case 3114: SelectOrResetWeapon('doom_fleshrenderer'); break;
+        case 3115: ToggleDressWeapon('Dress_DoomImpaler'); break;
+        case 3116: SelectOrResetWeapon('doom_impaler'); break;
+        case 3117: ToggleDressWeapon('Dress_DoomShadowKnight'); break;
+        case 3118: SelectOrResetWeapon('doom_shadow_knight'); break;
+        case 3119: ToggleDressWeapon('Dress_DoomAbyssmalHorror'); break;
+        case 3120: SelectOrResetWeapon('doom_abyssmal_horror'); break;
+        case 3121: ToggleDressWeapon('Dress_DoomDarkFather'); break;
+        case 3122: SelectOrResetWeapon('doom_dark_father'); break;
+
+        case 3131: ToggleDressTalisman('Dress_TalismanUndead'); break;
+        case 3132: SelectOrResetTalisman('talisman_undead'); break;
+        case 3133: ToggleDressTalisman('Dress_TalismanDemon'); break;
+        case 3134: SelectOrResetTalisman('talisman_demon'); break;
+        case 3135: ToggleDressTalisman('Dress_TalismanFey'); break;
+        case 3136: SelectOrResetTalisman('talisman_fey'); break;
+        case 3137: ToggleDressTalisman('Dress_TalismanDivinum'); break;
+        case 3138: SelectOrResetTalisman('talisman_divinum'); break;
+
+        case 4018: ToggleDoomGauntlet(); break;
+        case 4019: Orion.Print(65, '>> Vai a Stanza 1'); EnsureDoomSupportScripts(); AutoDoomGauntlet(1); GUI(); break;
+        case 4020: Orion.Print(65, '>> Vai a Stanza 2'); EnsureDoomSupportScripts(); AutoDoomGauntlet(2); GUI(); break;
+        case 4021: Orion.Print(65, '>> Vai a Stanza 3'); EnsureDoomSupportScripts(); AutoDoomGauntlet(3); GUI(); break;
+        case 4022: Orion.Print(65, '>> Vai a Stanza 4'); EnsureDoomSupportScripts(); AutoDoomGauntlet(4); GUI(); break;
+        case 4023: Orion.Print(65, '>> Vai a Stanza 5'); EnsureDoomSupportScripts(); AutoDoomGauntlet(5); GUI(); break;
+        case 4024: Orion.Print(65, '>> Modalità Dark Father Singolo (R6)'); EnsureDoomSupportScripts(); AutoDoomGauntlet(6, true); break;
+
+        case 5031: SelezionaOggettoDaAssicurare(); break;
+        case 5032: AggiungiAutoloot(); break;
+        case 5033: AddToRepairBench(); break;
+        case 5034: RepairGear(); break;
+
+        case 5100: SelectOrResetKhaldunWeapon(); break;
+        case 5104: SelectOrResetRunebook('runebook_casa', 'Runebook CASA'); break;
+        case 5105: RecallRunebook('runebook_casa', 'CASA'); break;
+        case 5106: SelectOrResetRunebook('runebook_luna', 'Runebook LUNA BANCA'); break;
+        case 5107: RecallRunebook('runebook_luna', 'LUNA BANCA'); break;
+
+        case 5113: ShowKarmaFama(); break;
+        case 5114: SaveCompagnoneDress(); GUI(); break;
+        case 5115: DressCompagnone(); SetActiveEquipDress('generico'); GUI(); break;
+        case 5116: SaveLuckDress(); GUI(); break;
+        case 5117: DressLuck(); SetActiveEquipDress('luck'); GUI(); break;
+
+        case 1020: SetKnifeForBoneCutter(); break;
+        case 1021: UseBagOfSending(); break;
+        case 1022: MountPetManager(); break;
+        case 1023: SetOggettoDaCercare(); break;
+
+        case 2010: Orion.Exec('SpegniTutto'); break;
+        case 3062: HonorSelf(); break;
+        case 5432: Orion.Exec('AddEnemyToEventList'); break;
+        case 54321: Orion.Exec('ClearEventList'); break;
+        case 7001: Orion.Exec('RailRecorderGUI'); break;
+        case 7030: PositionManagerGUI(); break;
+        case 7031: CheckObjectColorNumber(); break;
+        case 7040: DoomMenuGUI(); break;
+        case 7041: TalismanMenuGUI(); break;
+        case 7042: FarmMenuGUI(); break;
+        
+        case 3017:
+            if (Shared.GetVar('cerca_attivo')) Shared.RemoveVar('cerca_attivo');
+            else Orion.Exec('CercaOggettoTerra');
+            GUI();
+            break;
+		case 1024: ResetSuperInsuraIgnore(); break;
+
+        case 5001:
+            if (Orion.ScriptRunning('GeneralHighlight')) {
+                Orion.Terminate('GeneralHighlight');
+                Orion.CharPrint(Player.Serial(), 33, 'Highlight Generali disattivato');
+            } else {
+                Orion.Exec('GeneralHighlight');
+                Orion.CharPrint(Player.Serial(), 65, 'Highlight Generali attivato');
+            }
+            GUI();
+            break;
+
+        case 1015: GUISampire(); return;
+        case 1016: GUIChampSelector(); return;
+        case 1017: GUISelector(); return;
+        case 1018: GUIMisc(); return;
+        case 1019: GUIDress(); return;
+    }
+
+    Orion.Wait(100);
+    if (buttonID !== 4012) GUI();
+}
+
+// =====================================================
+// STATUS GUI / CHECKBOX
+// =====================================================
+
+function GetColorStatus(scriptName) {
+    const visualScripts = [
+        'Dress_DemonAxe','Dress_DemonBladed','Dress_DemonArea','Dress_Dragon','Dress_DragonArea',
+        'Dress_Reptile','Dress_Fey','Dress_Ogre','Dress_Repond','Dress_Undead','Dress_GenericArea','Dress_Boss',
+        'Dress_Evento','Dress_BladedDragon','Dress_BladedFey','Dress_BladedSpider','Dress_Spider',
+        'Dress_BladedRepond','Dress_BladedSatellite','Dress_BladedUndead','Dress_BladedSearing',
+        'Dress_DoomDarknightCreeper','Dress_DoomFleshrenderer','Dress_DoomImpaler','Dress_DoomShadowKnight',
+        'Dress_DoomAbyssmalHorror','Dress_DoomDarkFather',
+        'Dress_TalismanUndead','Dress_TalismanDemon','Dress_TalismanFey','Dress_TalismanDivinum'
+    ];
+
+    if (visualScripts.indexOf(scriptName) !== -1) {
+        var activeWeapon = Shared.GetVar('active_weapon_script');
+        var activeTalisman = Shared.GetVar('active_talisman_script');
+        return activeWeapon === scriptName || activeTalisman === scriptName ? HUE_ACTIVE_TEXT : HUE_OFF_TEXT;
+    }
+
+    if (scriptName === 'CercaOggettoTerra') return Shared.GetVar('cerca_attivo') ? HUE_ACTIVE_TEXT : HUE_OFF_TEXT;
+    return Orion.ScriptRunning(scriptName) ? HUE_ACTIVE_TEXT : HUE_OFF_TEXT;
+}
+
+function GetCheckboxStatus(scriptName) {
+    const visualScripts = [
+        'Dress_DemonAxe','Dress_DemonBladed','Dress_DemonArea','Dress_Dragon','Dress_DragonArea',
+        'Dress_Reptile','Dress_Fey','Dress_Ogre','Dress_BladedSpider','Dress_Spider',
+        'Dress_Repond','Dress_Undead','Dress_GenericArea','Dress_Boss','Dress_Evento',
+        'Dress_BladedDragon','Dress_BladedFey','Dress_BladedRepond','Dress_BladedSatellite',
+        'Dress_BladedUndead','Dress_BladedSearing',
+        'Dress_DoomDarknightCreeper','Dress_DoomFleshrenderer','Dress_DoomImpaler','Dress_DoomShadowKnight',
+        'Dress_DoomAbyssmalHorror','Dress_DoomDarkFather',
+        'Dress_TalismanUndead','Dress_TalismanDemon','Dress_TalismanFey','Dress_TalismanDivinum'
+    ];
+
+    var activeWeapon = Shared.GetVar('active_weapon_script');
+    var activeTalisman = Shared.GetVar('active_talisman_script');
+
+    if (visualScripts.indexOf(scriptName) !== -1) return activeWeapon === scriptName || activeTalisman === scriptName ? 0x2602 : 0x2603;
+    if (scriptName === 'CercaOggettoTerra') return Shared.GetVar('cerca_attivo') ? 0x2602 : 0x2603;
+
+    return Orion.ScriptRunning(scriptName) ? 0x2602 : 0x2603;
+}
+
+function GetEquipDressColor(dressName) {
+    return Shared.GetVar('active_equip_dress') === dressName ? HUE_ACTIVE_TEXT : HUE_OFF_TEXT;
+}
+
+function GetEquipDressCheckbox(dressName) { return Shared.GetVar('active_equip_dress') === dressName ? 0x2602 : 0x2603; }
+
+function SetActiveEquipDress(dressName) { Shared.AddVar('active_equip_dress', dressName); }
+
+// =====================================================
+// GUI DISPATCH
+// =====================================================
+
+function GUI() {
+    var selector = Shared.GetVar('selector');
+
+    if (selector == 0) GUISelector();
+    if (selector == 1) GUIChampSelector();
+    if (selector == 2) GUISampire();
+    if (selector == 3) GUIMisc();
+    if (selector == 4) GUIDress();
+}
+
+function GUIRefresh() {
+    Orion.Wait(1000);
+    GUI();
+}
+
+// =====================================================
+// RAIL RECORDER
+// =====================================================
+
+function RailRecorderGUI() {
+    if (Shared.GetVar('rail_placeholder') == null) Shared.AddVar('rail_placeholder', 'Enter Rail File Name');
+
+    Orion.Wait(100);
+
+    var g = Orion.CreateCustomGump(RAIL_RECORDER_GUMP_ID);
+    g.Clear(); g.SetCallback('RailRecorderOnClick');
+
+    var width = 8, height = 5, offsetX = 350, offsetY = 200;
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    var prompt = offsetY + 50;
+
+    g.AddText(offsetX + 25, offsetY + 10, 89, 'Rail Recorder');
+    g.AddResizepic(offsetX + 25, prompt, '0x0BB8', 200, 20);
+    g.AddTextEntry(1005, offsetX + 25, prompt, '0x0052', '', 190, 20);
+    g.SetTextEntryPlaceholderText(Shared.GetVar('rail_placeholder'));
+
+    g.AddButton(1000, offsetX + 230, prompt, '0x481', '0x482', '0x483', '');
+    g.AddTooltip('Set Rail File Name');
+
+    g.AddButton(2000, offsetX + 250, offsetY + 12, '0xA94', '0xA94', '0xA95', '');
+    g.AddTooltip('Close Rail Recorder');
+
+    prompt += 30;
+    AddBigButton(g, 1099, offsetX + 85, prompt, '', '0x796', 'Add Coords', 'Aggiunge coordinate attuali', 22);
+
+    prompt += 30;
+    g.AddText(offsetX + 25, prompt + 10, 72, 'Status: ');
+    g.AddText(offsetX + 75, prompt + 10, 55, Orion.GetGlobal('rail_gui_status'));
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function RailRecorderOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 1000:
+            Shared.AddVar('rail_dir', '/' + CustomGumpResponse.Text(1005) + '.txt');
+            Shared.AddVar('rail_placeholder', CustomGumpResponse.Text(1005));
+            RailRecorderUpdateStatus(Shared.GetVar('rail_dir') + ' selected.');
+            break;
+
+        case 1099:
+            RailRecorderAddCoords();
+            break;
+
+        case 2000:
+            var g = Orion.CreateCustomGump(RAIL_RECORDER_GUMP_ID);
+            Shared.AddVar('rail_placeholder', 'Enter Rail File Name');
+            g.Close();
+            break;
+    }
+}
+
+function RailRecorderUpdateStatus(msg) {
+    if (Orion.GetGlobal('rail_gui_status') == msg) return;
+    Orion.SetGlobal('rail_gui_status', msg);
+    RailRecorderGUI();
+}
+
+function RailRecorderAddCoords() {
+    var dir = Shared.GetVar('rail_dir');
+
+    if (!dir || dir == '') {
+        RailRecorderUpdateStatus('Prima seleziona un nome file.');
+        return;
+    }
+
+    Orion.ClearJournal();
+
+    var filePath = Orion.CurrentScriptDirPath() + dir;
+    var file = Orion.NewFile();
+
+    file.Open(filePath, true);
+    Orion.Wait(50);
+    file.Append(filePath);
+    file.Write(Player.X() + ',' + Player.Y() + ',');
+    file.Close();
+
+    RailRecorderUpdateStatus(Player.X() + ',' + Player.Y() + ', added.');
+}
+
+function PositionManagerGUI() {
+    InitGuiPositions();
+    InitPositionManagerVars();
+
+    var g = Orion.CreateCustomGump(POSITION_MANAGER_GUMP_ID);
+    g.Clear();
+    g.SetCallback('PositionManagerOnClick');
+
+    var offsetX = GetPositionManagerX();
+    var offsetY = GetPositionManagerY();
+
+    var width = 8;
+    var height = 8;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    g.AddText(offsetX + 65, offsetY + 12, HUE_TITLE, 'POSITION MANAGER');
+
+    g.AddText(offsetX + 35, offsetY + 45, HUE_LABEL_ON, 'STEP');
+    g.AddButton(7311, offsetX + 80,  offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(1));
+    g.AddText(offsetX + 100, offsetY + 42, GetStepColor(1), '1');
+
+    g.AddButton(7315, offsetX + 125, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(5));
+    g.AddText(offsetX + 145, offsetY + 42, GetStepColor(5), '5');
+
+    g.AddButton(7320, offsetX + 170, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(20));
+    g.AddText(offsetX + 190, offsetY + 42, GetStepColor(20), '20');
+
+    g.AddButton(7350, offsetX + 220, offsetY + 45, 0x2716, 0x2716, 0x2716, GetStepColor(50));
+    g.AddText(offsetX + 240, offsetY + 42, GetStepColor(50), '50');
+
+    g.AddText(offsetX + 35, offsetY + 80, HUE_LABEL_ON, 'COMPAGNONE');
+    g.AddText(offsetX + 35, offsetY + 100, HUE_STATUS_TEXT, 'X=' + GetCompagnoneGuiX() + ' Y=' + GetCompagnoneGuiY());
+
+    g.AddButton(7101, offsetX + 45,  offsetY + 130, 0x15E3, 0x15E3, 0x15E3, '');
+    g.AddTooltip('Compagnone sinistra');
+
+    g.AddButton(7102, offsetX + 75,  offsetY + 130, 0x15E1, 0x15E1, 0x15E1, '');
+    g.AddTooltip('Compagnone destra');
+
+    g.AddButton(7103, offsetX + 105, offsetY + 130, 0x15E0, 0x15E0, 0x15E0, '');
+    g.AddTooltip('Compagnone su');
+
+    g.AddButton(7104, offsetX + 135, offsetY + 130, 0x15E2, 0x15E2, 0x15E2, '');
+    g.AddTooltip('Compagnone giu');
+
+    AddSmallSetButton(g, 7105, offsetX + 185, offsetY + 133, '65', 'Salva posizione Compagnone');
+    g.AddText(offsetX + 205, offsetY + 130, 65, 'SAVE');
+
+    g.AddText(offsetX + 35, offsetY + 165, HUE_LABEL_ON, 'DURABILITY');
+    g.AddText(offsetX + 35, offsetY + 185, HUE_STATUS_TEXT, 'X=' + GetDurabilityGuiX() + ' Y=' + GetDurabilityGuiY());
+
+    g.AddButton(7201, offsetX + 45,  offsetY + 215, 0x15E3, 0x15E3, 0x15E3, '');
+    g.AddTooltip('Durability sinistra');
+
+    g.AddButton(7202, offsetX + 75,  offsetY + 215, 0x15E1, 0x15E1, 0x15E1, '');
+    g.AddTooltip('Durability destra');
+
+    g.AddButton(7203, offsetX + 105, offsetY + 215, 0x15E0, 0x15E0, 0x15E0, '');
+    g.AddTooltip('Durability su');
+
+    g.AddButton(7204, offsetX + 135, offsetY + 215, 0x15E2, 0x15E2, 0x15E2, '');
+    g.AddTooltip('Durability giu');
+
+    AddSmallSetButton(g, 7205, offsetX + 185, offsetY + 218, '65', 'Salva posizione Durability');
+    g.AddText(offsetX + 205, offsetY + 215, 65, 'SAVE');
+
+    AddSmallSetButton(g, 7301, offsetX + 35, offsetY + 250, '33', 'Reset Compagnone');
+    g.AddText(offsetX + 55, offsetY + 247, 33, 'Reset GUI');
+
+    AddSmallSetButton(g, 7302, offsetX + 145, offsetY + 250, '33', 'Reset Durability');
+    g.AddText(offsetX + 165, offsetY + 247, 33, 'Reset Dura');
+
+    g.AddButton(7300, offsetX + 250, offsetY + 12, 0xA94, 0xA94, 0xA95, '');
+    g.AddTooltip('Chiudi');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function PositionManagerOnClick() {
+    var id = CustomGumpResponse.ReturnCode();
+    var step = GetPositionStep();
+
+    switch (id) {
+        case 7311: SetPositionStep(1); break;
+        case 7315: SetPositionStep(5); break;
+        case 7320: SetPositionStep(20); break;
+        case 7350: SetPositionStep(50); break;
+
+        case 7101: MoveCompagnoneGui(-step, 0); break;
+        case 7102: MoveCompagnoneGui(step, 0); break;
+        case 7103: MoveCompagnoneGui(0, -step); break;
+        case 7104: MoveCompagnoneGui(0, step); break;
+        case 7105: SaveCompagnoneGuiPos(GetCompagnoneGuiX(), GetCompagnoneGuiY()); PositionManagerGUI(); break;
+
+        case 7201: MoveDurabilityGui(-step, 0); break;
+        case 7202: MoveDurabilityGui(step, 0); break;
+        case 7203: MoveDurabilityGui(0, -step); break;
+        case 7204: MoveDurabilityGui(0, step); break;
+        case 7205: SaveDurabilityGuiPos(GetDurabilityGuiX(), GetDurabilityGuiY()); PositionManagerGUI(); break;
+
+        case 7301: ResetCompagnoneGuiPos(); break;
+        case 7302: ResetDurabilityGuiPos(); break;
+
+        case 7300:
+            var g = Orion.CreateCustomGump(POSITION_MANAGER_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+// =====================================================
+// FARM MENU
+// =====================================================
+
+function FarmMenuOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 7501: ToggleFarmScript('StartDragonFarmer', 'FARM OSSA CAMPANA'); FarmMenuGUI(); break;
+        case 7502: ToggleFarmScript('StartBoneScavenger', 'FARM OSSA DOOM'); FarmMenuGUI(); break;
+        case 7503: ToggleFarmScript('StartSkullDoomFarmer', 'FARM SKULL DOOM'); FarmMenuGUI(); break;
+        case 7504: ToggleFarmScript('StartFunghiFarmer', 'FARM FUNGHI'); FarmMenuGUI(); break;
+
+        case 7511: SelectOrResetFarmRunebook('farm_runebook_ossa_campana', 'Runebook Ossa Campana'); FarmMenuGUI(); break;
+        case 7512: SelectOrResetFarmRunebook('farm_runebook_ossa_doom', 'Runebook Ossa Doom'); FarmMenuGUI(); break;
+        case 7513: SelectOrResetFarmRunebook('farm_runebook_skull_doom', 'Runebook Skull Doom'); FarmMenuGUI(); break;
+        case 7514: SelectOrResetFarmRunebook('farm_runebook_funghi', 'Runebook Funghi'); FarmMenuGUI(); break;
+
+        case 7521: FarmMenuGUI(); break;
+        case 7522: FarmMenuGUI(); break;
+        case 7523: FarmMenuGUI(); break;
+        case 7524: FarmMenuGUI(); break;
+
+        case 7599:
+            var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+
+function FarmMenuGUI() {
+    var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
+    g.Clear();
+    g.SetCallback('FarmMenuOnClick');
+
+    var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
+    var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 180 : 320;
+
+    var width = 9, height = 7;
+    var setX = offsetX + 25, btnX = offsetX + 55, textX = offsetX + 95, infoX = offsetX + 260, rowY = offsetY + 55;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+    g.AddText(offsetX + 115, offsetY + 12, 53, '*FARM MENU*');
+
+    AddSmallSetButton(g, 7511, setX, rowY + 8, '75', 'Seleziona o resetta Runebook Ossa Campana');
+    AddFarmCheckRow(g, 7501, btnX, textX, rowY, 'StartDragonFarmer', 'FARM OSSA CAMPANA', 'Avvia/stoppa farm ossa campana drago');
+    g.AddButton(7521, infoX, rowY + 4, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM OSSA CAMPANA: usa il runebook dedicato. Runa 1 = banca per depositare le ossa. Runa 7 = zona campana drago. Quando lo zaino e pieno torna in banca, deposita, poi recalla di nuovo alla campana.');
+
+    AddSmallSetButton(g, 7512, setX, rowY + 43, '75', 'Seleziona o resetta Runebook Ossa Doom');
+    AddFarmCheckRow(g, 7502, btnX, textX, rowY + 35, 'StartBoneScavenger', 'FARM OSSA DOOM', 'Avvia/stoppa farm ossa Doom');
+    g.AddButton(7522, infoX, rowY + 39, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM OSSA DOOM: usa il runebook dedicato. Runa 1 = banca per depositare le ossa. Runa 2 = strega Doom, da li riprende la rail. Quando lo zaino e pieno torna in banca, deposita, poi recalla alla strega.');
+
+    AddSmallSetButton(g, 7513, setX, rowY + 78, '75', 'Seleziona o resetta Runebook Skull Doom');
+    AddFarmCheckRow(g, 7503, btnX, textX, rowY + 70, 'StartSkullDoomFarmer', 'FARM SKULL DOOM', 'Avvia/stoppa farm skull Doom');
+    g.AddButton(7523, infoX, rowY + 74, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM SKULL DOOM: usa il runebook Skull Doom. Runa 1 = banca. Runa 2 = Victoria / strega Doom. Prende ossa, consegna quest, uccide Bone Demon, prende Golden Skull e lo deposita in banca.');
+
+    AddSmallSetButton(g, 7514, setX, rowY + 113, '75', 'Seleziona o resetta Runebook Funghi');
+    AddFarmCheckRow(g, 7504, btnX, textX, rowY + 105, 'StartFunghiFarmer', 'FARM FUNGHI', 'Avvia/stoppa farm funghi');
+    g.AddButton(7524, infoX, rowY + 109, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('FARM FUNGHI: usa il runebook Funghi. Runa 1 = banca. Rune 3-4-5-6-8-9 SPOT FORMICHE. Recalla , segue mini rail, uccide Solen, loota funghi e deposita in banca quando arriva al limite.');
+
+    g.AddButton(7599, offsetX + 285, offsetY + 12, 0xA94, 0xA94, 0xA95, '32');
+    g.AddTooltip('Chiudi Farm Menu');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function AddFarmCheckRow(g, id, xBtn, xText, y, scriptName, label, tooltip) {
+    var active = Orion.ScriptRunning(scriptName);
+
+    g.AddButton(id, xBtn, y, active ? 0x2602 : 0x2603, active ? 0x2602 : 0x2603, active ? 0x2602 : 0x2603, '');
+    g.AddTooltip(tooltip || label);
+    g.AddText(xText, y + 5, active ? HUE_ACTIVE_TEXT : HUE_OFF_TEXT, label);
+}
+
+// =====================================================
+// TALISMANI MENU
+// =====================================================
+
+function TalismanMenuGUI() {
+    var g = Orion.CreateCustomGump(TALISMAN_MENU_GUMP_ID);
+    g.Clear(); g.SetCallback('TalismanMenuOnClick');
+
+    var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
+    var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 120 : 320;
+    var width = 6, height = 6;
+
+    DrawPanel(g, offsetX, offsetY, width, height);
+
+    g.AddText(offsetX + 65, offsetY + 12, 53, '*TALISMANI*');
+
+    var setX = offsetX + 40, btnX = offsetX + 60, txtX = offsetX + 100, rowY = offsetY + 55;
+
+    AddDressWeaponRow(g, 3131, 3132, setX, btnX, txtX, rowY, 'Dress_TalismanUndead', 'Undead'); rowY += 30;
+    AddDressWeaponRow(g, 3133, 3134, setX, btnX, txtX, rowY, 'Dress_TalismanDemon', 'Demon'); rowY += 30;
+    AddDressWeaponRow(g, 3135, 3136, setX, btnX, txtX, rowY, 'Dress_TalismanFey', 'Fey'); rowY += 30;
+    AddDressWeaponRow(g, 3137, 3138, setX, btnX, txtX, rowY, 'Dress_TalismanDivinum', 'Divinum');
+
+    g.AddButton(7199, offsetX + 180, offsetY + 12, 0xA94, 0xA94, 0xA95, '');
+    g.AddTooltip('Chiudi Talismani');
+
+    g.SetNoClose(true);
+    g.Update();
+}
+
+function TalismanMenuOnClick() {
+    var buttonID = CustomGumpResponse.ReturnCode();
+
+    switch (buttonID) {
+        case 3131: ToggleDressTalisman('Dress_TalismanUndead'); TalismanMenuGUI(); break;
+        case 3132: SelectOrResetTalisman('talisman_undead'); TalismanMenuGUI(); break;
+        case 3133: ToggleDressTalisman('Dress_TalismanDemon'); TalismanMenuGUI(); break;
+        case 3134: SelectOrResetTalisman('talisman_demon'); TalismanMenuGUI(); break;
+        case 3135: ToggleDressTalisman('Dress_TalismanFey'); TalismanMenuGUI(); break;
+        case 3136: SelectOrResetTalisman('talisman_fey'); TalismanMenuGUI(); break;
+        case 3137: ToggleDressTalisman('Dress_TalismanDivinum'); TalismanMenuGUI(); break;
+        case 3138: SelectOrResetTalisman('talisman_divinum'); TalismanMenuGUI(); break;
+
+        case 7199:
+            var g = Orion.CreateCustomGump(TALISMAN_MENU_GUMP_ID);
+            g.Close();
+            break;
+    }
+}
+

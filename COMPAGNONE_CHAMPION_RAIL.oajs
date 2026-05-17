@@ -1,0 +1,598 @@
+// =====================================================
+// UODREAMS - CHAMPION RAIL
+// =====================================================
+
+// =====================================================
+// CHAMP TOGGLE
+// =====================================================
+
+function ToggleChampScript(scriptName, execFunction) {
+    const allChampScripts = [
+        'Abyssal','Primeval','Khaldun','Neira','Barra','Semidar','Rikktor','EventoVoid',
+        'Formiche','SeguieMena','SoloFollowAndAttack','AutoArcheryAttack','SoloFollowAndAttackSS','SOLOSNS',
+        'Abyssalrail','Primevalrail','Kaldhunrail','Neirarail','Barrarail','Mephitis','Mephitisrail',
+        'Semidarail','Rikktorrail','Formicherail','EventoVoidrail','CHAMP','SOLO','SOLOArchery',
+        'Marble','Damwin','Marblerail','Damwinrail','SOLOGENERAL','TankerManuale','TankerManualeAttack'
+    ];
+
+    if (Orion.ScriptRunning(scriptName)) {
+        Orion.Terminate(scriptName);
+        GUI();
+        return;
+    }
+
+    for (var i = 0; i < allChampScripts.length; i++) {
+        if (Orion.ScriptRunning(allChampScripts[i])) Orion.Terminate(allChampScripts[i]);
+    }
+
+    Orion.Exec(execFunction);
+
+    var timeout = Orion.Now() + 3000;
+    while (!Orion.ScriptRunning(scriptName) && Orion.Now() < timeout) Orion.Wait(100);
+
+    GUI();
+}
+
+function Abyssalrail() { StartProfile('Abyssal', 'Abyssal'); }
+
+function Primevalrail() { StartProfile('Primeval', 'Primeval'); }
+
+function Rikktorrail() { StartProfile('Rikktor', 'Rikktor'); }
+
+function EventoVoidrail() { StartProfile('EventoVoid', 'EventoVoid'); }
+
+function Mephitisrail() { StartProfile('Mephitis', 'Mephitis'); }
+
+function Oaksrail() { StartProfile('Oaks', 'Oaks'); }
+
+function Semidarail() { StartProfile('Semidar', 'Semidar'); }
+
+function Barrarail() { StartProfile('Barracoons', 'Barra'); }
+
+function Neirarail() { StartProfile('Neira', 'Neira'); }
+
+function Kaldhunrail() { StartProfile('Khaldun', 'Khaldun'); }
+
+function Formicherail() { StartProfile('Formiche', 'Formiche'); }
+
+function Marblerail() { StartProfile('Marble', 'Marble'); }
+
+function Damwinrail() { StartProfile('Damwin', 'Damwin'); }
+
+function RunRailCombat(railCoordinates, walkTimeout, customTargetFn, customAttackFn, acidCheck) {
+    var currentIndex = 0;
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        if (HandleBloodOath()) {
+            Orion.Wait(50);
+            continue;
+        }
+
+        if (currentIndex >= railCoordinates.length) currentIndex = 0;
+
+        var coord = railCoordinates[currentIndex];
+
+        if (acidCheck === true) {
+            var acidPuddles = Orion.FindType('0x122A', '-1', 'ground', null, 2);
+            var avoidTile = acidPuddles.some(function(p) {
+                var obj = Orion.FindObject(p);
+                return obj && Math.abs(obj.X() - coord[0]) <= 1 && Math.abs(obj.Y() - coord[1]) <= 1;
+            });
+
+            if (avoidTile) {
+                Orion.CharPrint(Player.Serial(), 33, 'Acido rilevato, salto tile!');
+                currentIndex++;
+                Orion.Wait(10);
+                continue;
+            }
+        }
+
+        if (HandleBloodOath()) {
+            Orion.Wait(50);
+            continue;
+        }
+
+        Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 10, walkTimeout);
+
+        var checkDuration = 100;
+        var startTime = Orion.Now();
+
+        while (Orion.Now() - startTime < checkDuration) {
+            if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+            if (HandleBloodOath()) {
+                Orion.Wait(50);
+                startTime = Orion.Now();
+                continue;
+            }
+
+            var target = customTargetFn ? customTargetFn() : FindNearestEnemy();
+            var success = customAttackFn ? customAttackFn(target) : (target && AttackNearestEnemy());
+
+            if (target && success) startTime = Orion.Now();
+            else Orion.Wait(50);
+        }
+
+        currentIndex++;
+        Orion.Wait(10);
+    }
+}
+
+// =====================================================
+// CHAMP RAILS
+// =====================================================
+
+function Formiche() {
+    RunRailCombat([
+        [6089,1349],[6089,1339],[6093,1330],[6086,1320],[6093,1311],[6091,1322],[6095,1334],[6101,1343],
+        [6111,1347],[6117,1342],[6116,1334],[6112,1327],[6117,1324],[6117,1333],[6119,1340],[6119,1353],
+        [6123,1360],[6118,1367],[6117,1375],[6112,1377],[6106,1372],[6108,1365],[6105,1358],[6100,1356],
+        [6093,1362],[6084,1368],[6077,1371],[6073,1367],[6074,1361],[6075,1360],[6067,1356],[6059,1358],
+        [6046,1361],[6044,1373],[6052,1381],[6047,1374],[6047,1364],[6049,1349],[6051,1339],[6056,1332],
+        [6065,1331],[6066,1322],[6071,1323],[6062,1335],[6054,1342],[6059,1354],[6071,1347],[6080,1353],
+        [6089,1348]
+    ], 10000, null, null, true);
+}
+
+function Abyssal() {
+    RunRailCombat([
+        [6993,733],[6986,726],[6975,726],[6965,716],[6954,715],[6943,718],[6940,729],[6940,741],
+        [6945,749],[6948,760],[6954,770],[6959,778],[6964,787],[6973,787],[6979,778],[6972,768],
+        [6965,758],[6961,748],[6969,738],[6975,728],[6968,717],[6966,707],[6961,700],[6964,692],
+        [6973,697],[6981,693],[6989,696],[6998,694],[7000,700],[7006,704],[7016,696],[7026,702],
+        [7027,713],[7023,722],[7030,732],[7034,742],[7031,753],[7027,763],[7019,772],[7009,781],
+        [7000,776],[7007,765],[7008,757],[6999,753],[6995,746],[6997,734]
+    ], 2000);
+}
+
+function Barra() {
+    RunRailCombat([
+        [5558,822],[5544,822],[5532,827],[5527,837],[5519,845],[5518,854],[5526,862],[5538,858],
+        [5544,864],[5553,866],[5564,862],[5572,866],[5582,865],[5600,873],[5589,870],[5588,852],
+        [5592,844],[5586,835],[5604,823],[5605,810],[5606,800],[5606,787],[5600,781],[5591,789],
+        [5578,792],[5568,787],[5558,785],[5547,788],[5538,783],[5531,790],[5530,803],[5522,810],
+        [5511,806],[5521,827],[5527,808],[5536,794],[5550,798],[5567,798],[5584,793],[5589,801],
+        [5589,819],[5574,823],[5558,822]
+    ], 2000);
+}
+
+function Khaldun() {
+    RunRailCombat([
+        [5469,1459],[5462,1459],[5460,1449],[5452,1443],[5451,1442],[5457,1452],[5452,1460],[5442,1460],
+        [5437,1452],[5430,1451],[5434,1458],[5434,1467],[5429,1474],[5425,1482],[5427,1492],[5434,1484],
+        [5443,1489],[5445,1499],[5449,1496],[5458,1497],[5462,1490],[5467,1482],[5475,1472],[5482,1461],
+        [5484,1452],[5484,1441],[5479,1428],[5486,1427],[5498,1427],[5499,1420],[5494,1426],[5487,1432],
+        [5484,1445],[5479,1453],[5467,1461]
+    ], 10000);
+}
+
+function Neira() {
+    RunRailCombat([
+        [5178,708],[5178,719],[5183,728],[5183,700],[5194,699],[5189,692],[5174,700],[5171,692],
+        [5171,682],[5165,675],[5156,679],[5155,693],[5154,699],[5155,682],[5150,675],[5144,675],
+        [5140,669],[5140,661],[5140,682],[5139,690],[5130,690],[5132,703],[5132,711],[5133,722],
+        [5142,723],[5150,718],[5154,725],[5155,736],[5151,743],[5155,731],[5151,723],[5135,723],
+        [5130,712],[5136,700],[5141,696],[5139,685],[5149,676],[5162,676],[5172,669],[5176,659],
+        [5189,659],[5203,663],[5206,670],[5215,675],[5221,682],[5228,687],[5226,706],[5218,715],
+        [5221,726],[5216,734],[5216,744],[5220,753],[5226,736],[5221,727],[5221,712],[5227,705],
+        [5227,696],[5227,687],[5219,679],[5210,670],[5204,666],[5199,658],[5189,658],[5185,658],
+        [5175,661],[5172,677],[5172,688],[5175,701],[5178,707]
+    ], 10000);
+}
+
+function Semidar() {
+    RunRailCombat([
+        [5813,1350],[5805,1346],[5805,1336],[5814,1331],[5827,1331],[5839,1332],[5846,1343],[5853,1348],
+        [5863,1341],[5859,1334],[5859,1345],[5850,1347],[5845,1339],[5843,1329],[5850,1317],[5849,1310],
+        [5843,1304],[5839,1293],[5829,1297],[5826,1309],[5818,1310],[5812,1309],[5803,1307],[5789,1306],
+        [5776,1306],[5791,1308],[5803,1313],[5800,1323],[5788,1325],[5776,1327],[5774,1337],[5773,1346],
+        [5785,1348],[5788,1340],[5776,1348],[5775,1361],[5788,1371],[5793,1379],[5789,1392],[5797,1397],
+        [5806,1403],[5819,1401],[5820,1390],[5818,1380],[5802,1379],[5808,1379],[5820,1374],[5825,1365],
+        [5838,1365],[5843,1399],[5850,1389],[5861,1394],[5850,1365],[5837,1365],[5826,1365],[5819,1359],
+        [5812,1350]
+    ], 10000);
+}
+
+function Rikktor() {
+    RunRailCombat([
+        [5259,835],[5255,826],[5247,815],[5235,812],[5225,805],[5217,798],[5214,808],[5212,820],
+        [5213,827],[5219,841],[5226,846],[5237,842],[5242,850],[5244,860],[5242,867],[5240,877],
+        [5234,886],[5245,888],[5254,883],[5254,871],[5261,861],[5265,855],[5278,851],[5290,854],
+        [5301,857],[5309,851],[5305,841],[5306,831],[5306,821],[5302,812],[5293,816],[5283,814],
+        [5286,802],[5291,794],[5297,787],[5308,789],[5313,799],[5315,811],[5300,816],[5287,822],
+        [5276,833],[5265,828],[5257,820],[5257,804],[5260,791],[5261,782],[5250,780],[5242,785],
+        [5231,796],[5228,807],[5235,817],[5252,824],[5257,832]
+    ], 10000);
+}
+
+function Primeval() {
+    RunRailCombat([
+        [6998,1004],[7011,1005],[7021,993],[7008,986],[7003,985],[7000,974],[7006,964],[7010,975],
+        [7011,965],[7010,954],[7001,949],[6992,949],[6985,959],[6988,964],[6983,976],[6989,971],
+        [6995,966],[7000,978],[6996,984],[6983,984],[6973,982],[6969,970],[6962,961],[6967,949],
+        [6982,935],[6993,931],[7006,931],[7017,940],[7028,948],[7034,957],[7037,963],[7036,974],
+        [7047,975],[7048,987],[7054,997],[7044,1007],[7036,1019],[7027,1024],[7024,1034],[7035,1035],
+        [7048,1030],[7060,1033],[7062,1045],[7050,1050],[7038,1050],[7028,1049],[7017,1044],[7010,1034],
+        [7011,1022],[7017,1012],[7011,1005],[6999,1008],[6984,1003],[6972,1001],[6963,1008],[6971,1017],
+        [6982,1018],[6989,1027],[6982,1037],[6972,1048],[6959,1052],[6948,1049],[6945,1038],[6948,1026],
+        [6956,1014],[6965,1002],[6958,991],[6951,987],[6964,986],[6977,989],[6988,999],[7001,1003]
+    ], 10000);
+}
+
+function Marble() {
+    RunRailCombat([
+        [5266,3170],[5258,3170],[5270,3170],[5279,3166],[5279,3165],[5272,3155],[5262,3147],[5259,3154],
+        [5273,3155],[5276,3167],[5280,3177],[5272,3184],[5257,3185],[5244,3180],[5235,3183],[5239,3195],
+        [5249,3195],[5261,3195],[5274,3195],[5285,3195],[5296,3187],[5299,3176],[5297,3167],[5296,3158],
+        [5288,3149],[5278,3143],[5270,3136],[5258,3133],[5250,3140],[5245,3132],[5241,3143],[5238,3155],
+        [5230,3167],[5232,3178],[5243,3180],[5252,3185],[5266,3185],[5277,3179],[5270,3169]
+    ], 10000);
+}
+
+function Damwin() {
+    RunRailCombat([
+        [5279,3368],[5278,3363],[5278,3353],[5271,3349],[5263,3345],[5254,3351],[5247,3363],[5254,3373],
+        [5267,3386],[5278,3399],[5291,3400],[5299,3395],[5305,3384],[5309,3375],[5304,3372],[5296,3375],
+        [5286,3370],[5282,3356],[5267,3355],[5269,3367],[5277,3367]
+    ], 10000);
+}
+
+// =====================================================
+// MEPHITIS / OAKS SPECIAL
+// =====================================================
+
+function Mephitis() {
+    RunRailCombat([
+        [5188,1608],[5167,1616],[5154,1616],[5145,1608],[5145,1595],[5140,1586],[5136,1596],[5136,1608],
+        [5136,1619],[5141,1629],[5146,1640],[5153,1629],[5163,1634],[5168,1644],[5179,1644],[5190,1644],
+        [5196,1637],[5204,1631],[5213,1629],[5224,1635],[5216,1628],[5213,1620],[5217,1609],[5224,1602],
+        [5236,1602],[5232,1589],[5224,1588],[5219,1582],[5212,1578],[5208,1567],[5218,1564],[5208,1568],
+        [5216,1582],[5219,1606],[5212,1617],[5206,1629],[5190,1640],[5177,1642],[5164,1637],[5156,1628],
+        [5142,1628],[5135,1619],[5136,1604],[5136,1591],[5143,1589],[5146,1614],[5161,1616],[5174,1616],
+        [5187,1616]
+    ], 10000, FindNearestEnemyMephitis, AttackNearestEnemyMephitis);
+}
+
+function FindNearestEnemyMephitis() {
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
+
+    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|near', 6, 'gray|criminal|red|enemy|orange');
+    if (!enemies || !enemies.length) return null;
+
+    var valid = [];
+
+    for (var j = 0; j < enemies.length; j++) {
+        var mob = enemies[j];
+
+        if (!mob || !mob.Serial || !mob.Serial()) continue;
+        if (ignoredMobs[mob.Serial()]) continue;
+
+        if (IsIgnoredSummon(mob)) {
+            Orion.Ignore(mob.Serial());
+            continue;
+        }
+
+        if (mob.Hits && mob.Hits() <= 0) continue;
+        valid.push(mob);
+    }
+
+    if (!valid.length) return null;
+
+    valid.sort(function(a, b) { return a.Distance() - b.Distance(); });
+    return valid[0];
+}
+
+function AttackNearestEnemyMephitis(target) {
+    if (Orion.GetGlobal('StopAllScripts') === 'true' || !target) return false;
+
+    var t = target;
+
+    if (typeof t === 'string' || typeof t === 'number') t = Orion.FindObject(target);
+    if (!t || !t.Serial || !t.Serial()) return false;
+
+    if (IsIgnoredSummon(t)) {
+        Orion.Ignore(t.Serial());
+        return false;
+    }
+
+    if (ignoredMobs[t.Serial()] || !Orion.ObjectExists(t.Serial()) || (t.Hits && t.Hits() <= 0)) return false;
+
+    Orion.ShowStatusbar(t.Serial(), 1150, 1200);
+    Orion.AddHighlightCharacter(t.Serial(), 0x081C, true);
+    Orion.CharPrint(t.Serial(), 20, '*target*');
+
+    var walkAttempts = 0;
+
+    while (!Player.Dead() && Orion.ObjectExists(t.Serial())) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') break;
+
+        var refreshed = Orion.FindObject(t.Serial());
+        if (!refreshed) break;
+
+        if (IsIgnoredSummon(refreshed)) {
+            Orion.Ignore(refreshed.Serial());
+            break;
+        }
+
+        if (refreshed.Distance() > 1) {
+            Orion.WalkTo(refreshed.X(), refreshed.Y(), refreshed.Z(), 1, 255, 1, 2, 5000);
+            Orion.Wait(120);
+            walkAttempts++;
+        } else {
+            walkAttempts = 0;
+        }
+
+        if (walkAttempts >= 5) {
+            ignoredMobs[refreshed.Serial()] = true;
+            Orion.Ignore(refreshed.Serial());
+            Orion.CharPrint(Player.Serial(), 33, '*Ignorato: irraggiungibile* ' + (refreshed.Name ? refreshed.Name() : ''));
+            break;
+        }
+
+        if (refreshed.Distance() <= 12) Orion.Attack(refreshed.Serial());
+        Orion.Wait(80);
+    }
+
+    Orion.CloseStatusbar(t.Serial());
+    return true;
+}
+
+function FindNearestEnemy_OAKS() {
+    Orion.Ignore('self');
+
+    var friends = Orion.GetFriendList();
+    for (var i = 0; i < friends.length; i++) Orion.Ignore(friends[i]);
+
+    var enemies = Orion.FindTypeEx('any', 'any', 'ground', 'ignoreself|ignorefriends|live|inlos|near', 4, 'gray|criminal|red|enemy|orange|blue');
+    if (!enemies.length) return null;
+
+    enemies.sort(function(a, b) { return a.Distance() - b.Distance(); });
+    return enemies[0];
+}
+
+function AttackNearestEnemy_OAKS() {
+    var target = FindNearestEnemy_OAKS();
+    if (!target) return false;
+
+    Orion.ShowStatusbar(target.Serial(), 1150, 1200);
+
+    while (!Player.Dead() && Orion.ObjectExists(target.Serial())) {
+        if (target.Distance() > 4) {
+            Orion.CloseStatusbar(target.Serial());
+            return false;
+        }
+
+        Orion.Attack(target.Serial());
+        Orion.Wait(120);
+    }
+
+    Orion.CloseStatusbar(target.Serial());
+    return true;
+}
+
+function Oaks() {
+    RunRailCombat([
+        [5554,3757],[5545,3754],[5535,3751],[5525,3751],[5517,3764],[5519,3772],[5517,3783],[5526,3786],
+        [5530,3780],[5536,3780],[5544,3783],[5554,3791],[5562,3800],[5568,3804],[5547,3775],[5546,3774],
+        [5556,3784],[5566,3787],[5573,3792],[5575,3798],[5580,3788],[5592,3783],[5598,3779],[5617,3778],
+        [5605,3742],[5597,3740],[5589,3733],[5585,3727],[5589,3718],[5580,3707],[5565,3707],[5553,3714],
+        [5548,3722],[5554,3727],[5565,3728],[5545,3731],[5536,3730],[5526,3738],[5525,3748],[5535,3751],
+        [5546,3754],[5559,3757]
+    ], 2000, FindNearestEnemy_OAKS, AttackNearestEnemy_OAKS);
+}
+
+function WalkToRailWithCombat(x, y) {
+    while (!Player.Dead() && Orion.GetDistance(x, y) > 2) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') return;
+
+        var target = FindNearestEnemy();
+
+        if (target) AttackNearestEnemy();
+        else Orion.WalkTo(x, y, Player.Z(), 1, 255, 1, 1, 400);
+
+        Orion.Wait(50);
+    }
+}
+
+// =====================================================
+// EVENTO VOID
+// =====================================================
+
+if (!Shared.GetVar('idenemyevento_list')) Shared.AddVar('idenemyevento_list', '');
+
+var _eventPrimaryMarked = {};
+var _eventSecondaryMarked = {};
+var _eventAggroDone = {};
+var _eventHighlightDone = {};
+var EVENT_HIGHLIGHT_COLOR = '2775';
+
+function GetEnemyList() {
+    var raw = Shared.GetVar('idenemyevento_list');
+    return raw ? raw.split('|') : [];
+}
+
+function SaveEnemyList(arr) {
+    Shared.AddVar('idenemyevento_list', arr.join('|'));
+}
+
+function CleanupRuntimeState() {
+    var maps = [_eventPrimaryMarked, _eventSecondaryMarked, _eventAggroDone, _eventHighlightDone];
+
+    for (var m = 0; m < maps.length; m++) {
+        for (var serial in maps[m]) {
+            var obj = Orion.FindObject(serial);
+
+            if (!obj || !obj.Exists() || obj.Dead()) delete maps[m][serial];
+        }
+    }
+}
+
+function AddEnemyToEventList() {
+    Orion.Print(55, 'Seleziona il nemico da aggiungere ai filtri Evento...');
+
+    Orion.AddObject('temp_target');
+    while (Orion.HaveTarget()) Orion.Wait(50);
+
+    var targetObj = Orion.FindObject('temp_target');
+
+    if (targetObj) {
+        var graphic = targetObj.Graphic();
+
+        if (graphic) {
+            var currentList = GetEnemyList();
+
+            if (currentList.indexOf(graphic) === -1) {
+                currentList.push(graphic);
+                SaveEnemyList(currentList);
+                Orion.Print(66, 'Tipo aggiunto: ' + graphic + ' (Filtro Attivo)');
+            } else {
+                Orion.Print(33, 'Questo tipo di nemico e gia presente.');
+            }
+        }
+    }
+}
+
+function ClearEventList() {
+    Shared.AddVar('idenemyevento_list', '');
+    _eventPrimaryMarked = {};
+    _eventSecondaryMarked = {};
+    _eventAggroDone = {};
+    _eventHighlightDone = {};
+    Orion.Print(33, 'Filtri rimossi. Lista svuotata.');
+}
+
+function SortByDistance(serials) {
+    serials.sort(function(a, b) {
+        var oa = Orion.FindObject(a), ob = Orion.FindObject(b);
+        var da = oa && oa.Exists() ? oa.Distance() : 999;
+        var db = ob && ob.Exists() ? ob.Distance() : 999;
+        return da - db;
+    });
+
+    return serials;
+}
+
+function HighlightAggroMobOnce(serial) {
+    if (!_eventHighlightDone[serial]) {
+        Orion.AddHighlightCharacter(serial, EVENT_HIGHLIGHT_COLOR, true);
+        _eventHighlightDone[serial] = true;
+    }
+}
+
+function MarkPrimaryTargetOnce(serial) {
+    if (!_eventPrimaryMarked[serial]) {
+        Orion.CharPrint(serial, 48, '*TARGET*');
+        _eventPrimaryMarked[serial] = true;
+    }
+}
+
+function MarkAggroOnce(serial) {
+    if (!_eventSecondaryMarked[serial]) {
+        Orion.CharPrint(serial, 63, '*AGGRATO*');
+        _eventSecondaryMarked[serial] = true;
+    }
+}
+
+function AggroMobOnce(serial, isPrimary) {
+    if (_eventAggroDone[serial]) return;
+
+    HighlightAggroMobOnce(serial);
+
+    if (isPrimary) MarkPrimaryTargetOnce(serial);
+    else MarkAggroOnce(serial);
+
+    Orion.Attack(serial);
+    Orion.Wait(80);
+
+    _eventAggroDone[serial] = true;
+}
+
+function HandleAggroAndNavigation() {
+    CleanupRuntimeState();
+
+    var currentList = GetEnemyList();
+    if (!currentList || !currentList.length) return false;
+
+    var range = 10;
+    var mobs = [];
+    var alreadyAdded = {};
+
+    for (var t = 0; t < currentList.length; t++) {
+        var graphic = currentList[t];
+        if (!graphic || graphic === '') continue;
+
+        var found = Orion.FindTypeEx(graphic, 'any', 'ground', 'mobile|live|ignorefriends|inlos', range, 'gray|red|orange');
+
+        if (found && found.length) {
+            for (var i = 0; i < found.length; i++) {
+                var mob = found[i];
+                var serial = mob.Serial();
+
+                if (!alreadyAdded[serial]) {
+                    alreadyAdded[serial] = true;
+                    mobs.push(serial);
+                }
+            }
+        }
+    }
+
+    if (!mobs.length) return false;
+
+    mobs = SortByDistance(mobs);
+
+    var primarySerial = mobs[0];
+    var primaryObj = Orion.FindObject(primarySerial);
+
+    if (!primaryObj || !primaryObj.Exists() || primaryObj.Dead()) return false;
+
+    HighlightAggroMobOnce(primarySerial);
+    AggroMobOnce(primarySerial, true);
+
+    for (var j = 1; j < mobs.length; j++) {
+        var serial2 = mobs[j];
+        var obj2 = Orion.FindObject(serial2);
+
+        if (!obj2 || !obj2.Exists() || obj2.Dead() || obj2.Distance() > range) continue;
+        if (obj2.Graphic() == '0x003B') continue;
+
+        HighlightAggroMobOnce(serial2);
+        AggroMobOnce(serial2, false);
+    }
+
+    if (Orion.ClientLastAttack() !== primarySerial) {
+        Orion.Attack(primarySerial);
+        Orion.Wait(50);
+    }
+
+    if (primaryObj.Distance() > 1) Orion.WalkTo(primaryObj.X(), primaryObj.Y(), primaryObj.Z(), 1, 5, 1, 1);
+
+    return true;
+}
+
+function EventoVoid() {
+    Orion.Print(66, '--- Evento Void: Aggro Prioritario Attivo ---');
+
+    while (!Player.Dead()) {
+        if (Orion.GetGlobal('StopAllScripts') === 'true') {
+            Orion.StopWalking();
+            return;
+        }
+
+        HandleAggroAndNavigation();
+        Orion.Wait(100);
+    }
+}
+
+function EventoVoid3() {
+    RunRailCombat([
+        [6790,2180],[6808,2201],[6823,2187],[6819,2172],[6842,2171],[6792,2214],[6777,2214],[6765,2210],
+        [6748,2229],[6819,2225],[6831,2225],[6836,2205],[6808,2197],[6789,2189],[6830,2168],[6845,2158],
+        [6827,2147],[6790,2179]
+    ], 10000);
+}
+

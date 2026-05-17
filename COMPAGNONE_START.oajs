@@ -1,0 +1,68 @@
+// =====================================================
+// COMPAGNONE 2026 - GUI CORE
+// =====================================================
+
+//#include COMPAGNONE_REPAIRBENCH.oajs
+//#include COMPAGNONE_POSITIONS.oajs
+//#include COMPAGNONE_FARM.oajs
+//#include COMPAGNONE_GUI.oajs
+//#include COMPAGNONE_UTILITIES.oajs
+//#include COMPAGNONE_COMBAT_SYSTEM.oajs
+//#include COMPAGNONE_CHAMPION_RAIL.oajs
+//#include COMPAGNONE_DOOM.oajs
+
+// =====================================================
+// GUI STYLE - CHARACTER ASSISTANT LOOK
+// =====================================================
+
+var HUE_FRAME       = 1905;
+var HUE_TITLE       = 89;
+var HUE_STATUS_LABEL= 1152;
+var HUE_STATUS_TEXT = 1271;
+var HUE_LABEL_OFF   = 32;
+var HUE_LABEL_ON    = 1271;
+var HUE_NAV_OFF     = '1900';
+var HUE_NAV_ON      = '2764';
+var HUE_BIG_BUTTON  = '1900';
+var HUE_SMALL_BUTTON= '1900';
+var HUE_DURA_BAD    = 32;
+var HUE_DURA_WARN   = 53;
+var HUE_DURA_GOOD   = 1271;
+var HUE_OFF_TEXT    = 32;
+var HUE_ACTIVE_TEXT = 1271;
+var HUE_BUTTON_TEXT = 1152;
+var HUE_WHITE_TEXT  = 1152;
+var DEFAULT_POSITION_MANAGER_X = 410;
+var DEFAULT_POSITION_MANAGER_Y = 280;
+var DEFAULT_POSITION_STEP = 10;
+var ICON_SAMPIRE = 0x15CD; // ingranaggi
+var ICON_CHAMP   = 0x15B8; // sega
+var ICON_MISC    = 0x15A9; // simbolo Ultima Online / globo
+var ICON_DRESS   = 0x15D1; // spade incrociate
+var COMPAGNONE_GUMP_ID = 101099;
+var DURABILITY_GUMP_ID = 69;
+var RAIL_RECORDER_GUMP_ID = 101100;
+var REPAIR_TOOL_GUMP_ID = 101101;
+var POSITION_MANAGER_GUMP_ID = 101102;
+var DOOM_MENU_GUMP_ID = 101103;
+var TALISMAN_MENU_GUMP_ID = 101104;
+var FARM_MENU_GUMP_ID = 101105;
+var DEFAULT_COMPAGNONE_X = -75, DEFAULT_COMPAGNONE_Y = 200;
+var DEFAULT_DURABILITY_X = -55, DEFAULT_DURABILITY_Y = -55;
+var POSITION_STEP = 10;
+var targetGraphics = 'any';
+var targetFlags = 'ignoreself|ignorefriends|live|inlos|near';
+var targetRange = 12;
+var targetNoto = 'gray|criminal|red|enemy|orange';
+var ignoredMobs = {};
+var isSendingGold = false;
+var bagOfSendingGraphic = '0x0E76'; // <-- metti qui il graphic corretto della Bag of Sending
+
+// =====================================================
+// AUTOSTART
+// =====================================================
+
+function Autostart() {
+    Orion.Exec('GUISelector', 'true');
+}
+
