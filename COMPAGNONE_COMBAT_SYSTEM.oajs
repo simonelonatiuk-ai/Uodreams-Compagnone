@@ -578,13 +578,21 @@ function AutoLogoutOnDeath() {
 
     while (true) {
         if (Player.Dead()) {
-            if (!notified && typeof NotificaMorteDoom === 'function') {
-                notified = true;
-                NotificaMorteDoom();
-                Orion.Wait(2000);
+            var isDoomActive = (Orion.GetGlobal('RunningDoom') === 'true' || Orion.ScriptRunning('AutoDoomGauntlet') > 0);
+
+            if (isDoomActive) {
+                if (!notified && typeof NotificaMorteDoom === 'function') {
+                    notified = true;
+                    try {
+                        NotificaMorteDoom();
+                    } catch (err) {
+                        Orion.Print("Errore Telegram: " + err.message);
+                    }
+                    Orion.Wait(2000); 
+                }
             }
 
-            Orion.Logout();
+            Orion.LogOut();
             return;
         }
 
