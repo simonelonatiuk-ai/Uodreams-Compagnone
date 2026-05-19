@@ -854,22 +854,24 @@ function PositionManagerOnClick() {
 
 function FarmMenuOnClick() {
     var buttonID = CustomGumpResponse.ReturnCode();
-
     switch (buttonID) {
         case 7501: ToggleFarmScript('StartDragonFarmer', 'FARM OSSA CAMPANA'); FarmMenuGUI(); break;
         case 7502: ToggleFarmScript('StartBoneScavenger', 'FARM OSSA DOOM'); FarmMenuGUI(); break;
         case 7503: ToggleFarmScript('StartSkullDoomFarmer', 'FARM SKULL DOOM'); FarmMenuGUI(); break;
         case 7504: ToggleFarmScript('StartFunghiFarmer', 'FARM FUNGHI'); FarmMenuGUI(); break;
+        case 7505: ToggleFarmScript('StartSeedQuestFarmer', 'QUEST SEMINO'); FarmMenuGUI(); break;
 
         case 7511: SelectOrResetFarmRunebook('farm_runebook_ossa_campana', 'Runebook Ossa Campana'); FarmMenuGUI(); break;
         case 7512: SelectOrResetFarmRunebook('farm_runebook_ossa_doom', 'Runebook Ossa Doom'); FarmMenuGUI(); break;
         case 7513: SelectOrResetFarmRunebook('farm_runebook_skull_doom', 'Runebook Skull Doom'); FarmMenuGUI(); break;
         case 7514: SelectOrResetFarmRunebook('farm_runebook_funghi', 'Runebook Funghi'); FarmMenuGUI(); break;
+        case 7515: SelectOrResetFarmRunebook('farm_runebook_semino', 'Runebook Semino'); FarmMenuGUI(); break;
 
         case 7521: FarmMenuGUI(); break;
         case 7522: FarmMenuGUI(); break;
         case 7523: FarmMenuGUI(); break;
         case 7524: FarmMenuGUI(); break;
+        case 7525: FarmMenuGUI(); break;
 
         case 7599:
             var g = Orion.CreateCustomGump(FARM_MENU_GUMP_ID);
@@ -885,8 +887,7 @@ function FarmMenuGUI() {
 
     var offsetX = GetCompagnoneGuiX ? GetCompagnoneGuiX() + 400 : 330;
     var offsetY = GetCompagnoneGuiY ? GetCompagnoneGuiY() + 180 : 320;
-
-    var width = 9, height = 7;
+    var width = 9, height = 8; // Aumentato height da 7 a 8 per fare spazio
     var setX = offsetX + 25, btnX = offsetX + 55, textX = offsetX + 95, infoX = offsetX + 260, rowY = offsetY + 55;
 
     DrawPanel(g, offsetX, offsetY, width, height);
@@ -911,6 +912,11 @@ function FarmMenuGUI() {
     AddFarmCheckRow(g, 7504, btnX, textX, rowY + 105, 'StartFunghiFarmer', 'FARM FUNGHI', 'Avvia/stoppa farm funghi');
     g.AddButton(7524, infoX, rowY + 109, 0x15E6, 0x15E6, 0x15E6, '1153');
     g.AddTooltip('FARM FUNGHI: usa il runebook Funghi. Runa 1 = banca. Rune 3-4-5-6-8-9 SPOT FORMICHE. Recalla , segue mini rail, uccide Solen, loota funghi e deposita in banca quando arriva al limite.');
+
+    AddSmallSetButton(g, 7515, setX, rowY + 148, '75', 'Seleziona o resetta Runebook Semino');
+    AddFarmCheckRow(g, 7505, btnX, textX, rowY + 140, 'StartSeedQuestFarmer', 'QUEST SEMINO', 'Avvia/stoppa Quest Semino Solen');
+    g.AddButton(7525, infoX, rowY + 144, 0x15E6, 0x15E6, 0x15E6, '1153');
+    g.AddTooltip('QUEST SEMINO: Usa Runebook Semino. Runa 1 = Banca, Runa 10 = Formicaio, Runa 11 = Casa. Rune 4,6,8 = Spot Kill Formiche. Automatizza tutto il processo della Matriarch.');
 
     g.AddButton(7599, offsetX + 285, offsetY + 12, 0xA94, 0xA94, 0xA95, '32');
     g.AddTooltip('Chiudi Farm Menu');
