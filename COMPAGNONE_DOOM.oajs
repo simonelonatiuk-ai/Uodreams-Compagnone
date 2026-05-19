@@ -2,14 +2,6 @@
 // UODREAMS - DOOM
 // =====================================================
 
-// =====================================================
-// DOOM MENU - COMPLETAMENTE CORRETTO E CALIBRATO
-// =====================================================
-
-// =====================================================
-// DOOM MENU - LAYOUT DEFINITIVO E BOTTONI COERENTI
-// =====================================================
-
 function DoomMenuGUI() {
     var g = Orion.CreateCustomGump(DOOM_MENU_GUMP_ID);
     g.Clear(); g.SetCallback('DoomMenuOnClick');
@@ -267,10 +259,10 @@ var rails = {
     r1:  [[439,432],[450,432],[464,432],[469,428],[470,428],[473,428]],
     r1m: [[485,455]],
 
-    r2:  [[486,450],[486,439],[482,432],[472,432],[470,432],[462,492],[462,493],[462,496]],
+    r2:  [[486,450],[486,439],[482,432],[472,432],[470,432],[462,492],[462,493],[462,495]],
     r2m: [[484,517]],
 
-    r3:  [[479,507],[468,502],[468,493],[453,468],[403,500],[403,501],[403,502]],
+    r3:  [[467,510],[468,507],[468,499],[468,487],[403,500],[403,501],[403,502]],
     r3m: [[399,509],[399,522],[399,531]],
 
     r4:  [[407,522],[409,500],[415,466],[357,474],[357,475]],
@@ -1047,15 +1039,15 @@ function MonitorDoomDrops() {
     var artifactNames = [
         "Ægis", "Arcane Shield", "Armor of Fortune", "Axe of the Heavens", 
         "The Berserker's Maul", "Blade of Insanity", "Bone Crusher", 
-        "Bracelet of Health", "Breath of the Dead", "Two Handed Axe", 
+        "Bracelet of Health", "Breath of the Dead", 
         "The Deceiver", "Divine Countenance", "The Dragon Slayer", 
         "The Dryad Bow", "Frostbringer", "Gauntlets of Nobility", 
         "Glenda", "Hat of the Magi", "Helm of Insight", 
-        "Holy Knight's Breastplate", "Hunter's Headdress", "Composite Bow", 
-        "Bow of Infinite Swarms", "Jackal's Collar", "Legacy of the Dread Lord", 
+        "Holy Knight's Breastplate", "Hunter's Headdress", 
+        "Bow Of The Infinite Swarm", "Jackal's Collar", "Legacy of the Dread Lord", 
         "Leggings of Bane", "Midnight Bracers", "Ornament of the Magician", 
         "Ornate Crown of the Harrower", "Ring of the Elements", "Ring of the Vile", 
-        "Bandana", "The Scholar’s Halo", "Serpent's Fang", "Shadow Dancer Leggings", 
+        "The Scholar’s Halo", "Serpent's Fang", "Shadow Dancer Leggings", 
         "Spirit of the Totem", "Staff of the Magi", "The Taskmaster", "Recipe Scroll",
         "Tunic of Fire", "Voice of the Fallen King"
     ];
