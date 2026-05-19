@@ -2024,7 +2024,7 @@ var FUNGI_RUNE_BANK_HOOK = 7;
 var FUNGI_RUNEBOOK_GUMP_ID = '0x554B87F3';
 var FUNGI_RECALL_WAIT = 800;
 var FUNGI_LOOT_RANGE = 4;
-var FUNGI_MOB_RANGE = 18;
+var FUNGI_MOB_RANGE = 30;
 var FUNGI_WALK_TIMEOUT = 5000;
 var FUNGI_POINT_COMBAT_TIME = 100;
 
@@ -2171,7 +2171,7 @@ function FunghiRunRailWithCombat(route) {
                 scanEnd = Orion.Now() + FUNGI_POINT_COMBAT_TIME;
             } else {
                 FunghiLootAround();
-                Orion.Wait(300);
+                Orion.Wait(10); // Modificato: prima era 300! Rimuove il blocco ad ogni waypoint.
             }
         }
     }
@@ -2193,7 +2193,7 @@ function FunghiWalkToPointWithCombat(x, y) {
             FunghiLootAround();
         } else {
             Orion.WalkTo(x, y, Player.Z(), 1, 255, 1, 2, 1000);
-            Orion.Wait(150);
+            Orion.Wait(10); 
         }
     }
 
@@ -2370,3 +2370,554 @@ function Semidarail() {
     EnsureSbloccaSeFermoRunning();
     StartProfile('Semidar', 'Semidar');
 }
+
+// =====================================================
+// FARM QUEST SEMINO (SOLEN MATRIARCH)
+// =====================================================
+
+var SEED_RUNEBOOK_VAR      = 'farm_runebook_semino';
+var SEED_GRAPHIC           = '0x0DCF';
+var SEED_COLOR             = '0x08A5';
+var POT_GRAPHIC            = '0x26B8';
+var MATRIARCH_GRAPHIC      = '0x0328';
+var MATRIARCH_COLOR        = '0x83F3';
+var WATER_PITCHER_FULL     = '0x1F9D';
+var WATER_PITCHER_EMPTY    = '0x0FF6|0x0FF7|0x0BFC|0x0BFD';
+var WATER_VAT_GRAPHIC      = '0x0B41|0x0B42|0x0B43|0x0B44';
+var SOLEN_HOLE_GRAPHIC     = '0x1733|0x1734|0x09BD'; 
+var MATRIARCH_SERIAL = '0x00023497';
+
+var SEED_RUNE_BANK         = 7;  // Runa 1
+var SEED_RUNE_HOLE         = 61; // Runa 10 Formicaio (7 + (9*6) = 61)
+var SEED_RUNE_HOME         = 67; // Runa 11 Casa (7 + (10*6) = 67)
+var SEED_RUNE_KILL_1       = 25; // Runa 4 (7 + (3*6) = 25)
+var SEED_RUNE_KILL_2       = 37; // Runa 6 (7 + (5*6) = 37)
+var SEED_RUNE_KILL_3       = 49; // Runa 8 (7 + (7*6) = 49)
+
+function StartSeedQuestFarmer() {
+    Orion.Print(65, '=== QUEST SEMINO AVVIATA ===');
+    if (!Orion.FindObject(SEED_RUNEBOOK_VAR)) {
+        Orion.CharPrint(Player.Serial(), 33, 'Runebook Semino non selezionato!');
+        return;
+    }
+
+    Orion.SetGlobal('StopAllScripts', 'false');
+    
+    if (!Orion.ScriptRunning('CheckCurseAndPoison')) Orion.Exec('CheckCurseAndPoison', 'true');
+    if (!Orion.ScriptRunning('AutoMount')) Orion.Exec('AutoMount', 'true');
+    if (!Orion.ScriptRunning('Durability_Watcher')) Orion.Exec('Durability_Watcher', 'true');
+    if (!Orion.ScriptRunning('SuperInsura')) Orion.Exec('SuperInsura', 'true');
+    if (!Orion.ScriptRunning('AutoLogoutOnDeath')) Orion.Exec('AutoLogoutOnDeath', 'true');
+    
+    SeedStopCombat();
+
+    var firstRun = true;
+
+    while (!Player.Dead()) {
+        if (FarmShouldStop()) return;
+        Orion.Print(65, '--- NUOVO CICLO QUEST SEMINO ---');
+
+        // FASE INIZIALE (Gira solo la primissima volta per innescare il loop)
+        if (firstRun) {
+            Orion.Print(65, '[SEED] FASE INIZIALE: Preparo e avvio la primissima quest.');
+            if (!SeedRetryUntilDone(SeedBankPrepare, 'Banca: Prepara Seme iniziale e Funghi')) return;
+            if (!SeedRetryUntilDone(SeedGoToMatriarch, 'Naviga fino alla Matriarch')) return;
+            if (!SeedRetryUntilDone(SeedStartQuest, 'Consegna Seme e accetta Quest')) return;
+            firstRun = false;
+        }
+
+        // FASE 1: Uccidi 7 Formiche
+        if (!SeedRetryUntilDone(SeedKillInfiltrators, 'Uccidi 7 Formiche Nere')) return;
+
+        // FASE 2: Riempi l'acqua a casa
+        if (!SeedRetryUntilDone(SeedFillWaterAtHome, 'Vai a casa e riempi 8 brocche')) return;
+
+        // FASE 3: Banca (Posa PoT, prende 1 seme e funghi per la fine del giro)
+        if (!SeedRetryUntilDone(SeedBankPrepare, 'Banca: Posa PoT, Prepara Seme e Funghi')) return;
+
+        // FASE 4: Vai dalla Matriarch per aggiornare lo step acqua
+        if (!SeedRetryUntilDone(SeedGoToMatriarch, 'Naviga fino alla Matriarch')) return;
+        if (!SeedRetryUntilDone(SeedTalkToMatriarch, 'Parla con la Matriarch per attivare l\'acqua')) return;
+
+        // FASE 5: Vai a piedi alla Vasca e versa
+        if (!SeedRetryUntilDone(SeedWalkToVat, 'Cammina a piedi fino alla Vasca')) return;
+        if (!SeedRetryUntilDone(SeedPourWater, 'Versa l\'acqua nella vasca Solen')) return;
+
+        // FASE 6: Torna dalla Matriarch (a piedi), chiudi quest
+        if (!SeedRetryUntilDone(SeedTalkToMatriarch, 'Torna dalla Matriarch e concludi acqua')) return;
+        if (!SeedRetryUntilDone(SeedDeliverFungi, 'Consegna 200 Funghi per i PoT')) return;
+        
+        // FASE 7: Consegna il seme per il prossimo ciclo!
+        if (!SeedRetryUntilDone(SeedStartQuest, 'Consegna Seme per il prossimo giro')) return;
+
+        Orion.Print(65, '--- CICLO SEMINO COMPLETATO (Prossima quest già avviata!) ---');
+        Orion.Wait(2000);
+    }
+}
+
+function SeedStopCombat() {
+    Orion.Terminate('UseSpecialAbilities');
+    Orion.Terminate('AutoConsecrate');
+    Orion.Terminate('AutoBushidoAbilities');
+    Orion.Terminate('AutoCurseWeapon');
+    Orion.Terminate('AutoDivine');
+    Orion.WarMode(false);
+}
+
+function SeedStartCombat() {
+    if (!Orion.ScriptRunning('UseSpecialAbilities')) Orion.Exec('UseSpecialAbilities', 'true');
+    if (!Orion.ScriptRunning('AutoConsecrate')) Orion.Exec('AutoConsecrate', 'true');
+    if (!Orion.ScriptRunning('AutoBushidoAbilities')) Orion.Exec('AutoBushidoAbilities', 'true');
+    if (!Orion.ScriptRunning('AutoCurseWeapon')) Orion.Exec('AutoCurseWeapon', 'true');
+    if (!Orion.ScriptRunning('AutoDivine')) Orion.Exec('AutoDivine', 'true');
+}
+
+
+function SeedRetryUntilDone(actionFn, label) {
+    return FarmRetryUntilDone(actionFn, label, 1500);
+}
+
+// --- FASE 0: BANCA E PREPARAZIONE ---
+function SeedBankPrepare() {
+    if (!FarmRecallRune(SEED_RUNEBOOK_VAR, SEED_RUNE_BANK, 'BANCA')) return false;
+    
+    var bank = FarmOpenBankAndGetContainer();
+    if (!bank) return false;
+
+    // 1. Deposita PoT
+    var pots = Orion.FindType(POT_GRAPHIC, 'any', 'backpack');
+    for (var i = 0; pots && i < pots.length; i++) {
+        Orion.MoveItem(pots[i], 0, bank);
+        Orion.Wait(800);
+    }
+
+// 2. Preleva 1 Seme (qualsiasi colore)
+    var seedsInPack = Orion.FindType(SEED_GRAPHIC, 'any', 'backpack');
+    if (!seedsInPack || seedsInPack.length < 1) {
+        var bankSeeds = Orion.FindType(SEED_GRAPHIC, 'any', bank);
+        if (bankSeeds && bankSeeds.length > 0) {
+            Orion.MoveItem(bankSeeds[0], 1, 'backpack');
+            Orion.Wait(800);
+        } else {
+            Orion.CharPrint(Player.Serial(), 33, 'Nessun Seme in banca!');
+            return false; // Ferma lo script
+        }
+    }
+
+    // 3. Preleva 200 Funghi (se ne abbiamo meno)
+    var funghiCount = FarmCountGraphicInBackpack(FUNGI_GRAPHIC);
+    if (funghiCount < 200) {
+        var needed = 200 - funghiCount;
+        var bankFungi = Orion.FindType(FUNGI_GRAPHIC, 'any', bank);
+        if (bankFungi && bankFungi.length > 0) {
+            Orion.MoveItem(bankFungi[0], needed, 'backpack');
+            Orion.Wait(800);
+        } else {
+            Orion.CharPrint(Player.Serial(), 33, 'Non hai abbastanza Funghi in banca!');
+            return false;
+        }
+    }
+
+    // 4. Controllo 8 Brocche vuote (o piene da svuotare)
+    var emptyPitchers = Orion.FindType(WATER_PITCHER_EMPTY, 'any', 'backpack');
+    var fullPitchers = Orion.FindType(WATER_PITCHER_FULL, 'any', 'backpack');
+    var totalPitchers = (emptyPitchers ? emptyPitchers.length : 0) + (fullPitchers ? fullPitchers.length : 0);
+    
+    if (totalPitchers < 8) {
+        Orion.CharPrint(Player.Serial(), 33, 'ATTENZIONE: Non hai 8 brocche nello zaino! Preparale per continuare.');
+        return false; 
+    }
+
+    return true;
+}
+
+// --- NAVIGAZIONE SICURA (Anticrash) ---
+function SeedSafeWalk(x, y, timeoutMs) {
+    var end = Orion.Now() + timeoutMs;
+    // Tolte le micropause: Orion.WalkTo aspetta in automatico il completamento o il timeout
+    while (!Player.Dead() && Orion.GetDistance(x, y) > 2 && Orion.Now() < end) {
+        if (FarmShouldStop()) return false;
+        Orion.WalkTo(x, y, Player.Z(), 1, 255, 1, 2, 2500); 
+    }
+    return Orion.GetDistance(x, y) <= 4;
+}
+
+// --- NAVIGAZIONE BUCHI ---
+// --- NAVIGAZIONE MATRIARCH (Pause ridotte) ---
+function SeedGoToMatriarch() {
+    SeedStopCombat(); 
+    if (!FarmRecallRune(SEED_RUNEBOOK_VAR, SEED_RUNE_HOLE, 'FORMICAIO EXT')) return false;
+    Orion.Wait(800);
+
+    if (!SeedEnterHole()) return false;
+    Orion.Wait(800); 
+    
+    Orion.Print(65, '[SEED] Cammino verso Buco 2...');
+    if (!SeedSafeWalk(5660, 1957, 45000)) return false;
+    if (!SeedEnterHole()) return false;
+    Orion.Wait(800);
+    
+    Orion.Print(65, '[SEED] Cammino verso Buco 3...');
+    if (!SeedSafeWalk(5698, 1930, 45000)) return false;
+    if (!SeedEnterHole()) return false;
+    Orion.Wait(800);
+
+    Orion.Print(65, '[SEED] Cammino verso la Matriarch...');
+    if (!SeedSafeWalk(5776, 1899, 60000)) return false;
+    Orion.Wait(500);
+
+    return !!SeedFindMatriarch();
+}
+
+// --- NAVIGAZIONE DIRETTA ALLA VASCA ---
+// --- NAVIGAZIONE DIRETTA ALLA VASCA ---
+// --- NAVIGAZIONE DIRETTA ALLA VASCA (A Piedi) ---
+function SeedWalkToVat() {
+    Orion.Print(65, '[SEED] Cammino a piedi verso la Vasca...');
+    if (!SeedSafeWalk(5799, 1924, 30000)) {
+        Orion.Print(33, '[SEED] Timeout o blocco verso la Vasca.');
+        return false;
+    }
+    return true;
+}
+
+function SeedEnterHole() {
+    // I seriali statici esatti dei buchi presi dalle tue macro
+    var staticHoles = ['0x40056074', '0x40055FE2', '0x40055F9A'];
+    var entered = false;
+
+    // TENTATIVO 1: Usa il seriale statico se si trova a portata (distanza <= 4)
+    for (var i = 0; i < staticHoles.length; i++) {
+        var holeSerial = staticHoles[i];
+        var holeObj = Orion.FindObject(holeSerial);
+        
+        if (holeObj && holeObj.Distance() <= 4) {
+            Orion.Print(65, '[SEED] Entro nel buco statico: ' + holeSerial);
+            Orion.UseObject(holeSerial);
+            Orion.Wait(500);
+            entered = true;
+            break;
+        }
+    }
+
+    if (entered) return true;
+
+    // TENTATIVO 2 (Fallback): Clicca gli item a terra vicini (raggio 2) se per qualche motivo il seriale non va
+    Orion.Print(33, '[SEED] Buco statico non trovato. Tento click forzato a terra...');
+    var allGroundItems = Orion.FindTypeEx('any', 'any', 'ground', 'item|near', 2);
+    var clickedSomething = false;
+    
+    if (allGroundItems && allGroundItems.length > 0) {
+        for (var j = 0; j < allGroundItems.length; j++) {
+            var item = allGroundItems[j];
+            // Esclude i cadaveri (0x2006) per sicurezza
+            if (item.Graphic() !== '0x2006') { 
+                Orion.UseObject(item.Serial());
+                Orion.Wait(300);
+                clickedSomething = true;
+            }
+        }
+    }
+
+    if (clickedSomething) {
+        Orion.Wait(500);
+        return true; 
+    }
+
+    Orion.Print(33, '[SEED] Nessun buco trovato nelle vicinanze.');
+    return false;
+}
+
+
+// --- FASE 2: KILL 7 INFILTRATORS (Senza pause, con Loot) ---
+function SeedKillInfiltrators() {
+    SeedStartCombat(); 
+
+    var kills = 0;
+    var targetKills = 8;
+    
+    var killRoutes = [];
+    for (var i = 0; i < FUNGI_FARM_ROUTES.length; i++) {
+        var r = FUNGI_FARM_ROUTES[i];
+        if (r.runeHook === 25 || r.runeHook === 37 || r.runeHook === 49) {
+            killRoutes.push(r);
+        }
+    }
+
+    var routeIndex = 0;
+    Orion.ClearJournal();
+    
+    while (!Player.Dead() && kills < targetKills) {
+        if (FarmShouldStop()) { SeedStopCombat(); return false; }
+        
+        var currentRoute = killRoutes[routeIndex];
+        if (!FarmRecallRune(SEED_RUNEBOOK_VAR, currentRoute.runeHook, 'SPOT KILL ' + currentRoute.name)) {
+            SeedStopCombat(); return false;
+        }
+        Orion.Wait(1000);
+
+        for (var p = 0; p < currentRoute.coords.length; p++) {
+            if (FarmShouldStop() || kills >= targetKills) break;
+            if (FarmHandleBloodOath()) { p--; continue; }
+
+            var coord = currentRoute.coords[p];
+            Orion.Print(65, '[SEED] Caccia formiche: ' + currentRoute.name + ' (Punto ' + (p + 1) + '/' + currentRoute.coords.length + ')');
+            
+            var timeout = Orion.Now() + 10000; 
+            while (!Player.Dead() && Orion.GetDistance(coord[0], coord[1]) > 2 && Orion.Now() < timeout) {
+                if (FarmShouldStop() || kills >= targetKills) break;
+                if (FarmHandleBloodOath()) continue;
+
+                var solen = FunghiFindNearestSolen();
+                if (solen) {
+                    var serial = solen.Serial();
+                    FunghiAttackSolen(solen);
+                    
+                    // SE E' MORTA, ALZIAMO IL CONTATORE E LOOTIAMO
+                    if (!Orion.ObjectExists(serial) || Orion.FindObject(serial).Dead()) {
+                        kills++;
+                        Orion.Print(65, '[SEED] Formiche uccise: ' + kills + '/' + targetKills);
+                        
+                        // --- PAUSA LOOT ---
+                        Orion.Wait(600); // Pausa di assestamento per far poppare il corpse a terra
+                        Orion.Print(65, '[SEED] Pausa per loot funghi...');
+                        if (typeof FunghiLootAround === 'function') {
+                            FunghiLootAround(); // Usa il tuo autoloot funghi
+                        } else {
+                            Orion.Wait(1500); // Se l'autoloot manca, fa solo la pausa richiesta
+                        }
+                        // ------------------
+                    }
+                } else {
+                    Orion.WalkTo(coord[0], coord[1], Player.Z(), 1, 255, 1, 2, 1000);
+                }
+            }
+        }
+
+        routeIndex++;
+        if (routeIndex >= killRoutes.length) routeIndex = 0; 
+    }
+    
+    SeedStopCombat(); 
+    return true; 
+}
+
+// --- FASE 4: FILL WATER AT HOME ---
+function SeedFillWaterAtHome() {
+    if (!FarmRecallRune(SEED_RUNEBOOK_VAR, SEED_RUNE_HOME, 'CASA ACQUA')) return false;
+    Orion.Wait(1000);
+
+    var waterVats = Orion.FindType(WATER_VAT_GRAPHIC, 'any', 'ground', 'item|near', 6);
+    if (!waterVats || waterVats.length === 0) {
+        Orion.CharPrint(Player.Serial(), 33, '[SEED] Vasca acqua non trovata a casa!');
+        return false;
+    }
+    
+    var vat = waterVats[0];
+
+    var emptyPitchers = Orion.FindType(WATER_PITCHER_EMPTY, 'any', 'backpack');
+    if (!emptyPitchers || emptyPitchers.length === 0) {
+        var fullPitchers = Orion.FindType(WATER_PITCHER_FULL, 'any', 'backpack');
+        if (fullPitchers && fullPitchers.length >= 8) return true; // Già piene!
+        return false;
+    }
+
+    for (var i = 0; i < emptyPitchers.length; i++) {
+        Orion.UseObject(emptyPitchers[i]);
+        if (Orion.WaitForTarget(1500)) {
+            Orion.TargetObject(vat);
+            Orion.Wait(600);
+        }
+    }
+    
+    // Controlla che ora siano piene
+    var checkFull = Orion.FindType(WATER_PITCHER_FULL, 'any', 'backpack');
+    return (checkFull && checkFull.length >= 8);
+}
+
+// --- FASE 5: POUR WATER ---
+// --- FASE 5: POUR WATER ---
+function SeedPourWater() {
+    var vatSerial = '0x4012E148';
+    var vat = Orion.FindObject(vatSerial);
+    
+    if (!vat || vat.Distance() > 6) {
+        Orion.Print(33, '[SEED] Vasca statica non vista. Cerco per grafica...');
+        var waterVats = Orion.FindType(WATER_VAT_GRAPHIC, 'any', 'ground', 'item|near', 6);
+        if (!waterVats || waterVats.length === 0) {
+            Orion.Print(33, '[SEED] Nessuna vasca trovata nelle vicinanze!');
+            return false;
+        }
+        vat = Orion.FindObject(waterVats[0]);
+    }
+
+    var fullPitchers = Orion.FindType(WATER_PITCHER_FULL, 'any', 'backpack');
+    if (!fullPitchers || fullPitchers.length < 8) {
+        Orion.Print(33, '[SEED] Non hai 8 brocche piene nello zaino!');
+        return false;
+    }
+
+    Orion.Print(65, '[SEED] Verso l\'acqua...');
+    for (var i = 0; i < fullPitchers.length; i++) {
+        Orion.UseObject(fullPitchers[i]);
+        if (Orion.WaitForTarget(1500)) {
+            // Usa il seriale (sia che derivi da stringa fissa o da FindType)
+            Orion.TargetObject(vat.Serial ? vat.Serial() : vatSerial);
+            Orion.Wait(600);
+        }
+    }
+    
+    return true;
+}
+
+function SeedFindMatriarch() {
+    // 1. Tenta col Seriale Statico che mi hai dato nello screen, raggio 30
+    var fixed = Orion.FindObject(MATRIARCH_SERIAL);
+    if (fixed && Orion.ObjectExists(fixed.Serial()) && fixed.Distance() <= 30) return fixed;
+
+    // 2. Fallback dinamico: cerca in un raggio enorme (30) tramite nome
+    var npcs = Orion.FindTypeEx(MATRIARCH_GRAPHIC, 'any', 'ground', 'mobile|live|near', 30, 'any');
+    if (!npcs || npcs.length <= 0) return null;
+
+    for (var i = 0; i < npcs.length; i++) {
+        var npc = npcs[i];
+        if (!npc) continue;
+
+        var name = '';
+        var props = '';
+
+        try { name = npc.Name ? (npc.Name() || '').toLowerCase() : ''; } catch (e1) {}
+        try { props = npc.Properties ? (npc.Properties() || '').toLowerCase() : ''; } catch (e2) {}
+
+        // Se nel nome o proprietà c'è scritto "matriarch", è lei.
+        if (name.indexOf('matriarch') !== -1 || props.indexOf('matriarch') !== -1) {
+            return npc;
+        }
+    }
+
+    // 3. Extrema ratio: ritorna la prima mob trovata con quella grafica
+    return npcs[0];
+}
+
+// --- CAMMINATA VERSO LA MATRIARCH (Inseguimento) ---
+// --- CAMMINATA VERSO LA MATRIARCH (Inseguimento Intelligente) ---
+function SeedWalkToMatriarch() {
+    var matriarch = SeedFindMatriarch();
+    
+    // Se non la vede nello schermo (es. siamo lontani alla vasca), si avvicina prima alle sue coordinate
+    if (!matriarch) {
+        Orion.Print(65, '[SEED] Matriarca fuori vista. Mi avvicino alle sue coordinate...');
+        SeedSafeWalk(5776, 1899, 15000); 
+        matriarch = SeedFindMatriarch(); // Riprova a cercarla ora che siamo vicini
+    }
+
+    if (!matriarch) return false;
+
+    var timeout = Orion.Now() + 15000; // 15 secondi di tempo massimo per raggiungerla fisicamente
+
+    // Continua a camminare verso di lei finché non sei a 2 passi o meno
+    while (!Player.Dead() && matriarch && matriarch.Distance() > 2 && Orion.Now() < timeout) {
+        if (FarmShouldStop()) return false;
+        
+        Orion.WalkTo(matriarch.X(), matriarch.Y(), matriarch.Z(), 1, 255, 1, 2, 2000);
+        Orion.Wait(200);
+        
+        // Riautentica la posizione della Matriarch nel caso si stia muovendo
+        matriarch = SeedFindMatriarch(); 
+    }
+
+    matriarch = SeedFindMatriarch();
+    return !!matriarch && matriarch.Distance() <= 2;
+}
+
+// --- FASE 1: START QUEST ---
+function SeedStartQuest() {
+    // INSEGUI LA MATRIARCH PRIMA DI AGIRE
+    if (!SeedWalkToMatriarch()) return false; 
+
+    var matriarch = SeedFindMatriarch();
+    if (!matriarch) return false;
+
+    var seed = Orion.FindType(SEED_GRAPHIC, 'any', 'backpack');
+    if (!seed || seed.length === 0) return false;
+
+    FarmCleanState(100);
+    Orion.Print(65, '[SEED] Sono vicino! Trascino seme sulla Matriarch.');
+    
+    Orion.DragItem(seed[0], 1);
+    Orion.Wait(400);
+    Orion.DropDraggedItem(matriarch.Serial());
+    Orion.Wait(800);
+
+    var clicked = false;
+    if (Orion.WaitForGump(1500)) {
+        var g0 = Orion.GetGump('last');
+        if (g0 !== null && !g0.Replayed() && g0.ID() === '0x92AF4E20') {
+            g0.Select(Orion.CreateGumpHook(1));
+            clicked = true;
+            Orion.Wait(200);
+        }
+    }
+    if (Orion.WaitForGump(1500)) {
+        var g1 = Orion.GetGump('last');
+        if (g1 !== null && !g1.Replayed() && g1.ID() === '0xA01862EA') {
+            g1.Select(Orion.CreateGumpHook(1));
+            clicked = true;
+            Orion.Wait(200);
+        }
+    }
+
+    return clicked;
+}
+
+// --- FASE 3 E 6: TALK MATRIARCH ---
+function SeedTalkToMatriarch() {
+    // INSEGUI LA MATRIARCH PRIMA DI AGIRE
+    if (!SeedWalkToMatriarch()) return false;
+
+    var matriarch = SeedFindMatriarch();
+    if (!matriarch) return false;
+
+    FarmCleanState(100);
+    Orion.RequestContextMenu(matriarch.Serial());
+    Orion.WaitContextMenuID(matriarch.Serial(), 0);
+
+    if (Orion.WaitForGump(1500)) {
+        var gump = Orion.GetGump('last');
+        if (gump !== null && !gump.Replayed() && gump.ID() === '0xA01862EA') {
+            gump.Select(Orion.CreateGumpHook(1));
+            Orion.Wait(200);
+            return true;
+        }
+    }
+    return false;
+}
+
+// --- FASE 6: DELIVER FUNGI ---
+function SeedDeliverFungi() {
+    // INSEGUI LA MATRIARCH PRIMA DI AGIRE
+    if (!SeedWalkToMatriarch()) return false;
+
+    var matriarch = SeedFindMatriarch();
+    if (!matriarch) return false;
+
+    var fungi = Orion.FindType(FUNGI_GRAPHIC, 'any', 'backpack');
+    if (!fungi || fungi.length === 0) return false;
+
+    FarmCleanState(100);
+    Orion.Print(65, '[SEED] Sono vicino! Trascino 200 funghi.');
+    
+    Orion.DragItem(fungi[0], 200);
+    Orion.Wait(400);
+    Orion.DropDraggedItem(matriarch.Serial());
+    Orion.Wait(1200);
+
+    var pots = Orion.FindType(POT_GRAPHIC, 'any', 'backpack');
+    if (pots && pots.length > 0) {
+        Orion.CharPrint(Player.Serial(), 65, '[SEED] PoT Ricevuti!');
+        return true;
+    }
+
+    return false;
+}
+
