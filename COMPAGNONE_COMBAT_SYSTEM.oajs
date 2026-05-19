@@ -327,10 +327,9 @@ function UseSpecialAbilities() {
             continue;
         }
 
-        // --- BLOCCO MANA DI SICUREZZA ---
-        // Se il mana scende sotto i 12, non fa nessuna special e aspetta
-        if (Player.Mana() < 12) {
-            Orion.Wait(200);
+
+        if (Player.Mana() < 30) {
+            Orion.Wait(50);
             continue; 
         }
 
@@ -365,21 +364,21 @@ function UseSpecialAbilities() {
             if (isSpecialWeapon || nearbyEnemies.length === 1) {
                 if (!Orion.AbilityStatus('Primary')) {
                     Orion.UseAbility('Primary');
-                    Orion.Wait(200);
+                    Orion.Wait(50);
                 }
             } else if (nearbyEnemies.length > 1) {
                 if (!Orion.AbilityStatus('Secondary')) {
                     Orion.UseAbility('Secondary');
-                    Orion.Wait(200);
+                    Orion.Wait(50);
                 }
             }
         // Usa Lightning Strike SOLO se il mana è tra 12 e 16
         } else if (Player.Mana() >= 12 && Player.Mana() < 17) {
             Orion.Cast('Lightning Strike', 'self');
-            Orion.Wait(200);
+            Orion.Wait(50);
         }
 
-        Orion.Wait(200);
+        Orion.Wait(50);
     }
 }
 
@@ -393,8 +392,8 @@ function UseSpecialAbilitiesSS() {
         }
 
         // --- BLOCCO MANA DI SICUREZZA ---
-        if (Player.Mana() < 12) {
-            Orion.Wait(200);
+        if (Player.Mana() < 22) {
+            Orion.Wait(50);
             continue;
         }
 
@@ -1489,7 +1488,7 @@ function AutoVampiricEmbrace() {
         if (InCombatNow()) continue;
 
         // Anti-spam extra
-        if (Orion.Now() - lastCastTry < 5000) continue;
+        if (Orion.Now() - lastCastTry < 2000) continue;
         lastCastTry = Orion.Now();
 
         Orion.WarMode(false);
