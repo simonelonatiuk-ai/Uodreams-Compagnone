@@ -321,12 +321,18 @@ function CheckCurseAndPoison() {
 function UseSpecialAbilities() {
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
-        
         if (IsBloodOathLocked()) {
-    HandleBloodOath();
-    Orion.Wait(50);
-    continue;
-}
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        // --- BLOCCO MANA DI SICUREZZA ---
+        // Se il mana scende sotto i 12, non fa nessuna special e aspetta
+        if (Player.Mana() < 12) {
+            Orion.Wait(200);
+            continue; 
+        }
 
         var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
         var nearbyEnemies = enemiesAround.filter(function(enemy) {
@@ -367,7 +373,8 @@ function UseSpecialAbilities() {
                     Orion.Wait(200);
                 }
             }
-        } else if (Player.Mana() < 13) {
+        // Usa Lightning Strike SOLO se il mana è tra 12 e 16
+        } else if (Player.Mana() >= 12 && Player.Mana() < 17) {
             Orion.Cast('Lightning Strike', 'self');
             Orion.Wait(200);
         }
@@ -379,12 +386,17 @@ function UseSpecialAbilities() {
 function UseSpecialAbilitiesSS() {
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
-        
         if (IsBloodOathLocked()) {
-    HandleBloodOath();
-    Orion.Wait(50);
-    continue;
-}
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        // --- BLOCCO MANA DI SICUREZZA ---
+        if (Player.Mana() < 12) {
+            Orion.Wait(200);
+            continue;
+        }
 
         var enemiesAround = Orion.FindType('-1', '-1', 'ground', 'live|ignoreself|ignorefriends', 10, 'gray|criminal|red|enemy|orange');
         var nearbyEnemies = enemiesAround.filter(function(enemy) {
@@ -414,7 +426,8 @@ function UseSpecialAbilitiesSS() {
                     Orion.Wait(200);
                 }
             }
-        } else if (Player.Mana() < 13) {
+        // Usa Lightning Strike SOLO se il mana è tra 12 e 16
+        } else if (Player.Mana() >= 12 && Player.Mana() < 17) {
             Orion.Cast('Lightning Strike', 'self');
             Orion.Wait(200);
         }
@@ -426,12 +439,17 @@ function UseSpecialAbilitiesSS() {
 function UseArcheryPrimaryOnly() {
     while (!Player.Dead()) {
         if (Orion.GetGlobal('StopAllScripts') === 'true') return;
-        
-                if (IsBloodOathLocked()) {
-    HandleBloodOath();
-    Orion.Wait(50);
-    continue;
-}
+        if (IsBloodOathLocked()) {
+            HandleBloodOath();
+            Orion.Wait(50);
+            continue;
+        }
+
+        // --- BLOCCO MANA DI SICUREZZA ---
+        if (Player.Mana() < 12) {
+            Orion.Wait(200);
+            continue;
+        }
 
         if (Player.Mana() >= 17 && !Orion.AbilityStatus('Primary')) {
             Orion.UseAbility('Primary');
@@ -575,11 +593,14 @@ function Nipo() {
 
 function AutoLogoutOnDeath() {
     var notified = false;
-
     while (true) {
         if (Player.Dead()) {
-            var isDoomActive = (Orion.GetGlobal('RunningDoom') === 'true' || Orion.ScriptRunning('AutoDoomGauntlet') > 0);
+            // Controllo aggiornato: verifica se stanno girando script ESCLUSIVI di Doom
+            var isDoomActive = (Orion.ScriptRunning('DoomBoneCutter') > 0 || 
+                                Orion.ScriptRunning('AutoDoomGauntlet') > 0 || 
+                                Orion.ScriptRunning('MonitorDoomDrops') > 0);
 
+            // Se siamo a Doom, manda la notifica Telegram
             if (isDoomActive) {
                 if (!notified && typeof NotificaMorteDoom === 'function') {
                     notified = true;
@@ -588,10 +609,11 @@ function AutoLogoutOnDeath() {
                     } catch (err) {
                         Orion.Print("Errore Telegram: " + err.message);
                     }
-                    Orion.Wait(2000); 
+                    Orion.Wait(2000);
                 }
             }
 
+            // In ogni caso (Doom o non Doom), effettua il log out
             Orion.LogOut();
             return;
         }
